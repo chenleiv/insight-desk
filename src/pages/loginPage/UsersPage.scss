@@ -240,7 +240,7 @@
 }
 
 
-@media (max-width: 768px) {
+@include mixins.mobile {
     .users-page {
         padding: 16px;
 

@@ -195,7 +195,7 @@
    Responsive
 ========================= */
 
-@media (max-width: 768px) {
+@include mixins.mobile {
   .app-layout {
     padding-bottom: 64px;
 

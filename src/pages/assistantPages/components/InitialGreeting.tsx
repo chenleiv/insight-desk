@@ -1,4 +1,5 @@
 import "../assistantPage.scss";
+import { PanelLeft } from "lucide-react";
 
 type Props = {
   onSelectDocuments: () => void;
@@ -13,7 +14,7 @@ export default function InitialGreeting({ onSelectDocuments }: Props) {
           To focus my search, you can select specific documents from the list.
         </p>
         <button className="greeting-button" onClick={onSelectDocuments}>
-          Select documents
+          Select documents <PanelLeft size={20} />
         </button>
       </div>
       <div className="initial-greeting-desktop">

@@ -397,16 +397,6 @@
   }
 }
 
-@media (max-width: 960px) {
-  .documents-layout {
-    grid-template-columns: 260px 1fr;
-    padding: 24px;
-
-    .documents-sidebar {
-      padding: 0 8px;
-    }
-  }
-}
 
 .mobile-only-btn {
   display: none !important;
@@ -416,7 +406,7 @@
   display: none;
 }
 
-@media (max-width: 768px) {
+@include mixins.mobile {
 
   .mobile-context-close-btn {
     display: none;
