@@ -55,6 +55,7 @@ export default function DocumentsPage() {
   const [showForbidden, setShowForbidden] = useState(false);
   const [activeDocId, setActiveDocId] = useState<number | null>(null);
   const [isPaneDirty, setIsPaneDirty] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
   const lastActiveDocIdRef = useRef<number | null>(null);
@@ -432,10 +433,11 @@ export default function DocumentsPage() {
           showMobileHint={isMobile && showMobileHint}
           onDismissHint={dismissHint}
           onDirtyChange={setIsPaneDirty}
+          onModeChange={(m) => setIsEditing(m === "edit")}
         />
       </section>
 
-      {isMobile && mobileView === "detail" && (
+      {isMobile && mobileView === "detail" && !isCreating && !isEditing && (
         <button
           onClick={handleBackToList}
           className="mobile-context-close-btn"

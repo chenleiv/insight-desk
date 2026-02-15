@@ -20,6 +20,7 @@ type Props = {
   showMobileHint?: boolean;
   onDismissHint?: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
+  onModeChange?: (mode: "view" | "edit") => void;
   loading?: boolean;
 };
 
@@ -40,6 +41,7 @@ export default function DocumentPane({
   onSaved,
   hasDocs,
   onDirtyChange,
+  onModeChange,
   loading,
 }: Props) {
   const status = useStatus();
@@ -66,6 +68,10 @@ export default function DocumentPane({
   useEffect(() => {
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    onModeChange?.(mode);
+  }, [mode, onModeChange]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
