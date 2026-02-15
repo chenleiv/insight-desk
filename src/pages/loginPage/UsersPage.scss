@@ -1,3 +1,5 @@
+@use "../../styles/mixins";
+
 .users-page {
     padding: 24px;
     max-width: 1200px;
@@ -211,16 +213,16 @@
     }
 
     .btn {
-        @extend .secondary-btn;
+        @include mixins.btn-secondary;
         padding: 8px 16px;
         font-size: 14px;
 
         &.btn-primary {
-            @extend .btn-primary;
+            @include mixins.btn-primary;
         }
 
         &.btn-outline {
-            @extend .btn-outline;
+            @include mixins.btn-outline;
         }
 
         &.btn-icon {

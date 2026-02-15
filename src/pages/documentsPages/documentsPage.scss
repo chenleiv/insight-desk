@@ -1,3 +1,5 @@
+@use "../../styles/mixins";
+
 .documents-layout {
   height: calc(100vh - 80px);
   display: grid;
@@ -489,7 +491,7 @@
     }
 
     .mobile-context-close-btn {
-      @extend .mobile-floating-close;
+      @include mixins.mobile-floating-close-mixin;
     }
   }
 

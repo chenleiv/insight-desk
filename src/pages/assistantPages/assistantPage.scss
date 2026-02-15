@@ -1,3 +1,5 @@
+@use "../../styles/mixins";
+
 .assistant-shell {
   height: calc(100vh - 80px);
   background-color: var(--panel);
@@ -177,7 +179,7 @@
   }
 
   .send-btn {
-    @extend .btn-primary;
+    @include mixins.btn-primary;
     padding: 10px 24px;
     font-weight: 700;
   }
@@ -227,7 +229,7 @@
 }
 
 .greeting-button {
-  @extend .btn-primary;
+  @include mixins.btn-primary;
   padding: 10px 24px;
   font-weight: 700;
 }
@@ -526,6 +528,6 @@
 @media (max-width: 768px) {
 
   .mobile-context-close-btn {
-    @extend .mobile-floating-close;
+    @include mixins.mobile-floating-close-mixin;
   }
 }
