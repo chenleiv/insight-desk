@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import Menu from "../menu/Menu";
+import { useMobile } from "../../hooks/useMobile";
 
 type MenuItem =
   | { type: "link"; label: string; to: string; show?: boolean }
@@ -24,6 +25,7 @@ function getInitials(email: string) {
 export default function UserMenu() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
+  const isMobile = useMobile();
 
   const [open, setOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -77,7 +79,7 @@ export default function UserMenu() {
         anchorRef={btnRef}
         open={open}
         onClose={() => setOpen(false)}
-        align="right"
+        align={isMobile ? "center" : "right"}
         minWidth={240}
       >
         <div className="user-menu__panel">

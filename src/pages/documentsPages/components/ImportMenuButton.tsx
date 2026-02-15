@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import Menu from "../../../components/menu/Menu";
+import { useMobile } from "../../../hooks/useMobile";
 
 type Props = {
   onImport: (mode: "merge" | "replace") => void;
@@ -9,6 +10,7 @@ type Props = {
 export default function ImportMenuButton({ onImport }: Props) {
   const [open, setOpen] = useState(false);
   const menuBtnRef = useRef<HTMLButtonElement | null>(null);
+  const isMobile = useMobile();
 
   return (
     <div className="menu-wrap" onClick={(e) => e.stopPropagation()}>
