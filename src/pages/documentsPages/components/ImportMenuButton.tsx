@@ -2,7 +2,8 @@ import { useRef, useState } from "react";
 import Menu from "../../../components/menu/Menu";
 
 type Props = {
-  onImport: (mode: "merge" | "replace") => void; ref?: React.RefObject<HTMLButtonElement>;
+  onImport: (mode: "merge" | "replace") => void;
+  ref?: React.RefObject<HTMLButtonElement>;
 };
 
 export default function ImportMenuButton({ onImport }: Props) {
@@ -12,6 +13,7 @@ export default function ImportMenuButton({ onImport }: Props) {
   return (
     <div className="menu-wrap" onClick={(e) => e.stopPropagation()}>
       <button
+        ref={menuBtnRef}
         className="text-btn"
         type="button"
         onClick={() => setOpen((v) => !v)}
