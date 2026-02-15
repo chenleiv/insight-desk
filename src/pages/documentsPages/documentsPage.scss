@@ -19,7 +19,7 @@
   }
 
   .documents-pane {
-    padding: 0px 0px 14px 14px;
+    padding: 0px 0px 14px 28px;
     min-height: 0;
     display: flex;
   }
@@ -147,7 +147,7 @@
   .docs-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 10px;
   }
 
   .doc-row {

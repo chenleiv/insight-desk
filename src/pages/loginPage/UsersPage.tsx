@@ -96,7 +96,7 @@ export default function UsersPage() {
             {filteredUsers.length > 0 ? (
               filteredUsers.map((user) => (
                 <tr key={user.id}>
-                  <td>
+                  <td data-label="User">
                     <div className="user-info">
                       <span className="email">{user.email}</span>
                       <span className={`role-badge ${user.role}`}>
@@ -106,7 +106,7 @@ export default function UsersPage() {
                     </div>
                   </td>
                   {isAdmin && (
-                    <td>
+                    <td data-label="Password">
                       <div className="user-password">
                         <input
                           type={
@@ -134,12 +134,12 @@ export default function UsersPage() {
                       </div>
                     </td>
                   )}
-                  <td>
+                  <td data-label="Status">
                     <span className={`status-badge ${user.status}`}>
                       {user.status}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Joined Date">
                     <span className="joined-date">{user.joinedDate}</span>
                   </td>
                 </tr>
