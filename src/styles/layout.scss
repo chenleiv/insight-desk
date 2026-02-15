@@ -163,10 +163,12 @@
     transition: all 0.3s ease;
 
     .header-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       margin: 0;
       color: var(--text);
-      font-weight: 700;
-      font-size: 20px;
+      font-size: 24px;
       letter-spacing: -0.02em;
       white-space: nowrap;
     }

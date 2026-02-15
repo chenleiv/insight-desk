@@ -20,7 +20,7 @@ import { useStatus } from "../../components/statusBar/useStatus";
 import DocumentPane from "./components/DocumentPane";
 import DocumentsSidebar from "./components/DocumentsSidebar";
 import { useDocuments } from "../../context/DocumentsContext";
-import { ChevronLeft, X } from "lucide-react";
+import { X } from "lucide-react";
 
 export default function DocumentsPage() {
   const { user } = useAuth();

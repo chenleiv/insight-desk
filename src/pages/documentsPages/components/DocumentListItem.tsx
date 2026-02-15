@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, Star } from "lucide-react";
+import { Star } from "lucide-react";
 
 type Props = {
   title: string;

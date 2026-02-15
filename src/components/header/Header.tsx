@@ -4,6 +4,7 @@ import ThemeToggle from "../../themeToggle/ThemeToggle";
 import UserMenu from "../userMenu/UserMenu";
 import "../userMenu/userMenu.scss";
 import { useAuth } from "../../auth/useAuth";
+import { BrainCircuit } from "lucide-react";
 
 export default function Header() {
   const { theme, setTheme } = useTheme();
@@ -12,7 +13,10 @@ export default function Header() {
   return (
     <header>
       <div className="header-left">
-        <h1 className="header-title">Knowledge Workspace</h1>
+        <div className="header-title">
+          <BrainCircuit size={22} />
+          InsightDesk
+        </div>
       </div>
 
       {isAuthed && (
