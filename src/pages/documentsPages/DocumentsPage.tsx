@@ -175,7 +175,10 @@ export default function DocumentsPage() {
   }
 
   async function openDocument(id: number) {
-    if (id === activeDocId && !isCreating) return;
+    if (id === activeDocId && !isCreating) {
+      setMobileView("detail");
+      return;
+    }
 
     if (isPaneDirty) {
       const ok = await confirm({
