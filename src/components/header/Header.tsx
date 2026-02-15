@@ -5,10 +5,12 @@ import UserMenu from "../userMenu/UserMenu";
 import "../userMenu/userMenu.scss";
 import { useAuth } from "../../auth/useAuth";
 import { BrainCircuit } from "lucide-react";
+import { useMobile } from "../../hooks/useMobile";
 
 export default function Header() {
   const { theme, setTheme } = useTheme();
   const { isAuthed } = useAuth();
+  const isMobile = useMobile();
 
   return (
     <header>
@@ -19,7 +21,7 @@ export default function Header() {
         </div>
       </div>
 
-      {isAuthed && (
+      {isAuthed && !isMobile && (
         <nav>
           <NavLink
             className={({ isActive }) =>

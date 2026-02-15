@@ -13,9 +13,11 @@ import MobileNav from "./components/mobileNav/MobileNav";
 import { useAuth } from "./auth/useAuth";
 import RequireAuth from "./auth/RequireAuth";
 import RequireRole from "./auth/RequireRole";
+import { useMobile } from "./hooks/useMobile";
 
 function App() {
   const { isAuthed } = useAuth();
+  const isMobile = useMobile();
 
   return (
     <div className="app-layout">
@@ -45,7 +47,7 @@ function App() {
         </Routes>
       </main>
 
-      <MobileNav />
+      {isMobile && <MobileNav />}
     </div>
   );
 }

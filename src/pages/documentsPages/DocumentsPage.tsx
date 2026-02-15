@@ -21,10 +21,12 @@ import DocumentPane from "./components/DocumentPane";
 import DocumentsSidebar from "./components/DocumentsSidebar";
 import { useDocuments } from "../../context/DocumentsContext";
 import { X } from "lucide-react";
+import { useMobile } from "../../hooks/useMobile";
 
 export default function DocumentsPage() {
   const { user } = useAuth();
   const status = useStatus();
+  const isMobile = useMobile();
 
   const orderKey = scopedKey("documentsOrder", user?.email);
 
@@ -116,10 +118,10 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     const hasSeen = localStorage.getItem("documents_mobile_hint");
-    if (!hasSeen && mobileView === "detail") {
+    if (!hasSeen && isMobile && mobileView === "detail") {
       setShowMobileHint(true);
     }
-  }, [mobileView]);
+  }, [mobileView, isMobile]);
 
   function dismissHint() {
     setShowMobileHint(false);
@@ -383,7 +385,7 @@ export default function DocumentsPage() {
 
   return (
     <div
-      className={`documents-layout ${mobileView === "detail" ? "mobile-view-detail" : "mobile-view-list"}`}
+      className={`documents-layout ${isMobile && mobileView === "detail" ? "mobile-view-detail" : "mobile-view-list"}`}
       role="presentation"
     >
       <div className="documents-sidebar">
@@ -432,13 +434,13 @@ export default function DocumentsPage() {
               prev.map((d) => (d.id === updated.id ? updated : d)),
             );
           }}
-          showMobileHint={showMobileHint}
+          showMobileHint={isMobile && showMobileHint}
           onDismissHint={dismissHint}
           onDirtyChange={setIsPaneDirty}
         />
       </section>
 
-      {mobileView === "detail" && (
+      {isMobile && mobileView === "detail" && (
         <button
           onClick={handleBackToList}
           className="mobile-context-close-btn"
