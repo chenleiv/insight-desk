@@ -92,28 +92,10 @@
   }
 
   .search-row {
-
     input[type="text"] {
       width: 100%;
-      padding: 10px 12px;
       border-radius: 12px;
-
-      border: 1px solid var(--border);
-      background: var(--soft);
-      color: var(--text);
-      outline: none;
-
       font-size: 12px;
-      transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
-
-      &::placeholder {
-        color: var(--muted);
-      }
-
-      &:focus {
-        background: var(--panel);
-        box-shadow: 0 0 0 3px var(--focus);
-      }
     }
   }
 
@@ -125,23 +107,6 @@
     padding: 16px 22px 16px 26px;
     min-height: 0;
     flex: 1;
-
-
-    &::-webkit-scrollbar {
-      width: 10px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 8px;
-      border: 3px solid transparent;
-      background-clip: content-box;
-    }
-
-    &::-webkit-scrollbar-thumb:hover {
-      background: var(--muted);
-      background-clip: content-box;
-    }
   }
 
   .docs-list {
@@ -396,19 +361,6 @@
     input,
     textarea {
       width: 100%;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: var(--soft);
-      color: var(--text);
-      outline: none;
-
-      transition: box-shadow 140ms ease, background 140ms ease, border-color 140ms ease;
-
-      &:focus {
-        background: var(--panel);
-        box-shadow: 0 0 0 3px var(--focus);
-      }
 
       &.field-error {
         border-color: #ef4444;
@@ -537,32 +489,7 @@
     }
 
     .mobile-context-close-btn {
-      display: flex;
-      position: fixed;
-      bottom: 140px;
-      right: 0;
-      top: auto;
-      left: auto;
-      transform: none;
-      z-index: 9999;
-
-      align-items: center;
-      justify-content: center;
-
-      padding: 12px 8px 12px 10px;
-      background: color-mix(in srgb, var(--primary) 95%, transparent);
-
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-right: 0;
-      border-radius: 12px 0 0 12px;
-      box-shadow: -2px 4px 16px rgba(0, 0, 0, 0.25);
-      color: var(--bg);
-      cursor: pointer;
-
-      svg {
-        width: 20px;
-        height: 20px;
-      }
+      @extend .mobile-floating-close;
     }
   }
 

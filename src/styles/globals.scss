@@ -59,10 +59,9 @@ select {
   border: 1px solid var(--border);
   outline: none;
   border-radius: 8px;
-  /* Slightly sharper radius for modern look */
   padding: 10px 14px;
   font-size: 14px;
-  transition: all 0.2s ease;
+  transition: all 140ms ease;
 
   &::placeholder {
     color: var(--muted);
@@ -70,18 +69,28 @@ select {
 
   &:focus {
     border-color: var(--primary);
+    background: var(--panel);
     box-shadow: 0 0 0 2px var(--focus);
   }
 
   &:hover:not(:focus) {
     border-color: var(--soft-2);
   }
+
+  &.error {
+    border-color: var(--danger-border);
+    box-shadow: 0 0 0 1px var(--danger-border);
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+    }
+  }
 }
 
 /* ========= Modern Slim Scrollbar ========= */
 *::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 *::-webkit-scrollbar-track {
@@ -89,7 +98,7 @@ select {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: var(--soft-2);
+  background: var(--border);
   border-radius: 8px;
   transition: background 0.2s ease;
 }

@@ -34,12 +34,7 @@ export default function ContextPanel({
   onChangeQuery,
   onClearSelection,
 }: Props) {
-  const { user } = useAuth();
-  const favorites = (() => {
-    const favMap: Record<string | number, boolean> = {};
-    user?.favorites?.forEach((id) => (favMap[id] = true));
-    return favMap;
-  })();
+  const { favoritesMap: favorites } = useAuth();
 
   const filteredDocs = (() => {
     const q = contextQuery.toLowerCase().trim();

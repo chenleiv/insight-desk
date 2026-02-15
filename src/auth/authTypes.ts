@@ -7,6 +7,7 @@ export type AuthContextValue = {
   user: AuthUser | null;
   isReady: boolean;
   isAuthed: boolean;
+  favoritesMap: Record<string | number, boolean>;
   loginSuccess: (user: AuthUser) => void;
   logout: () => Promise<void>;
   toggleFavorite: (id: string | number) => Promise<void>;

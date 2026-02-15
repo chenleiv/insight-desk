@@ -24,7 +24,11 @@ import { X } from "lucide-react";
 import { useMobile } from "../../hooks/useMobile";
 
 export default function DocumentsPage() {
-  const { user } = useAuth();
+  const {
+    user,
+    toggleFavorite: globalToggleFavorite,
+    favoritesMap: favorites,
+  } = useAuth();
   const status = useStatus();
   const isMobile = useMobile();
 
@@ -52,15 +56,6 @@ export default function DocumentsPage() {
   const [activeDocId, setActiveDocId] = useState<number | null>(null);
   const [isPaneDirty, setIsPaneDirty] = useState(false);
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
-
-  const { toggleFavorite: globalToggleFavorite } = useAuth();
-
-  // Derive favorites from user object in AuthContext
-  const favorites = (() => {
-    const favMap: Record<string | number, boolean> = {};
-    user?.favorites?.forEach((id) => (favMap[id] = true));
-    return favMap;
-  })();
 
   const lastActiveDocIdRef = useRef<number | null>(null);
 

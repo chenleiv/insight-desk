@@ -63,12 +63,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const favoritesMap = React.useMemo(() => {
+    const map: Record<string | number, boolean> = {};
+    user?.favorites?.forEach((id) => (map[id] = true));
+    return map;
+  }, [user]);
+
   return (
     <AuthContext
       value={{
         user,
         isReady,
         isAuthed: !!user,
+        favoritesMap,
         loginSuccess: (u) => {
           setUser(u);
           localStorage.setItem(AUTH_USER_KEY, JSON.stringify(u));
