@@ -1,5 +1,6 @@
 import React from "react";
 import { SquarePenIcon } from "lucide-react";
+import { Loader } from "../../../components/loader/Loader";
 
 type Props = {
   title: string;
@@ -53,10 +54,25 @@ export const DocumentHeader: React.FC<Props> = ({
             </>
           ) : (
             <>
-              <button type="submit" className="primary-btn" disabled={!canSave}>
-                {isPending ? "Saving..." : "Save"}
-              </button>
+              {isPending && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <Loader size={22} />
+                </div>
+              )}
 
+              <button
+                type="submit"
+                className="primary-btn"
+                disabled={!canSave || isPending}
+              >
+                Save
+              </button>
               <button
                 type="button"
                 className="primary-btn"

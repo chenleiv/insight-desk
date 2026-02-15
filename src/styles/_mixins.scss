@@ -96,6 +96,20 @@ $mobile-breakpoint: 960px;
     }
 }
 
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@mixin icon-spin {
+    animation: spin 1s linear infinite;
+}
+
 @mixin mobile-floating-open-mixin {
     display: flex;
     position: fixed;
