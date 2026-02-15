@@ -165,11 +165,7 @@ export default function DocumentsPage() {
     const fallback = lastActiveDocIdRef.current ?? orderedDocs[0]?.id ?? null;
 
     setActiveDocId(fallback);
-    if (fallback) {
-      setMobileView("detail");
-    } else {
-      setMobileView("list");
-    }
+    setMobileView("list");
   }
 
   async function openDocument(id: number) {
