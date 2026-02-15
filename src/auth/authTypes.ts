@@ -9,4 +9,5 @@ export type AuthContextValue = {
   isAuthed: boolean;
   loginSuccess: (user: AuthUser) => void;
   logout: () => Promise<void>;
+  toggleFavorite: (id: string | number) => Promise<void>;
 };

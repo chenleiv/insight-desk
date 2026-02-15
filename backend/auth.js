@@ -109,28 +109,4 @@ router.get('/me', getCurrentUser, (req, res) => {
     });
 });
 
-router.post('/favorites/toggle', getCurrentUser, async (req, res) => {
-    try {
-        const { documentId } = req.body;
-        if (!documentId) {
-            return res.status(400).json({ detail: 'Document ID is required' });
-        }
-
-        const user = req.user;
-        const index = user.favorites.indexOf(documentId);
-
-        if (index > -1) {
-            user.favorites.splice(index, 1);
-        } else {
-            user.favorites.push(documentId);
-        }
-
-        await user.save();
-        res.json({ favorites: user.favorites });
-    } catch (err) {
-        console.error('Toggle favorite failed:', err);
-        res.status(500).json({ detail: 'Server error' });
-    }
-});
-
 export default router;

@@ -17,7 +17,6 @@ import { normalizeImportedDocuments } from "./utils/documentsPageHelpers";
 import { applyOrder, normalizeOrder, sameArray } from "./utils/ordering";
 import { saveJson, scopedKey } from "../../utils/storage";
 import { useStatus } from "../../components/statusBar/useStatus";
-import { toggleFavorite as apiToggleFavorite } from "../../api/authClient";
 import DocumentPane from "./components/DocumentPane";
 import DocumentsSidebar from "./components/DocumentsSidebar";
 import { useDocuments } from "../../context/DocumentsContext";
@@ -45,12 +44,20 @@ export default function DocumentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<number[]>([]);
   const [isCreating, setIsCreating] = useState(false);
-  const [favorites, setFavorites] = useState<Record<number, boolean>>({});
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [showForbidden, setShowForbidden] = useState(false);
   const [activeDocId, setActiveDocId] = useState<number | null>(null);
   const [isPaneDirty, setIsPaneDirty] = useState(false);
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+
+  const { toggleFavorite: globalToggleFavorite } = useAuth();
+
+  // Derive favorites from user object in AuthContext
+  const favorites = (() => {
+    const favMap: Record<string | number, boolean> = {};
+    user?.favorites?.forEach((id) => (favMap[id] = true));
+    return favMap;
+  })();
 
   const lastActiveDocIdRef = useRef<number | null>(null);
 
@@ -63,14 +70,6 @@ export default function DocumentsPage() {
     setError(null);
     await loadDocuments();
   }, [loadDocuments]);
-
-  useEffect(() => {
-    if (user?.favorites) {
-      const favMap: Record<string | number, boolean> = {};
-      user.favorites.forEach((id) => (favMap[id] = true));
-      setFavorites(favMap);
-    }
-  }, [user]);
 
   useEffect(() => {
     void load();
@@ -214,22 +213,9 @@ export default function DocumentsPage() {
 
   async function toggleFavorite(id: number) {
     try {
-      // Optimistic update
-      setFavorites((prev) => {
-        const next = { ...prev, [id]: !prev[id] };
-        if (!next[id]) delete next[id];
-        return next;
-      });
-
-      await apiToggleFavorite(id.toString());
+      await globalToggleFavorite(id);
     } catch (e) {
       console.error(e);
-      // Rollback on error
-      setFavorites((prev) => {
-        const next = { ...prev, [id]: !prev[id] };
-        if (!next[id]) delete next[id];
-        return next;
-      });
       status.show({
         kind: "error",
         title: "Update failed",

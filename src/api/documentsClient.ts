@@ -55,6 +55,15 @@ export function importDocumentsBulk(payload: {
     {
       method: "POST",
       body: JSON.stringify(payload),
-    }
+    },
+  );
+}
+
+export function toggleFavorite(id: string | number) {
+  return apiFetch<{ favorites: string[] }>(
+    `/api/documents/${id}/toggle-favorite`,
+    {
+      method: "POST",
+    },
   );
 }

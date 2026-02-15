@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { me, logout as apiLogout } from "../api/authClient";
+import { toggleFavorite as apiToggleFavorite } from "../api/documentsClient";
 import type { AuthUser } from "./authTypes";
 import { AUTH_USER_KEY } from "./authTypes";
 import { loadUserFromStorage } from "./authStorage";
@@ -7,7 +8,7 @@ import { AuthContext } from "./authContext";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() =>
-    loadUserFromStorage()
+    loadUserFromStorage(),
   );
   const [isReady, setIsReady] = useState(false);
 
@@ -37,6 +38,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function toggleFavorite(id: string | number) {
+    if (!user) return;
+
+    const idStr = id.toString();
+    const isFav = user.favorites.includes(idStr);
+
+    // Optimistic update
+    const nextFavorites = isFav
+      ? user.favorites.filter((f) => f !== idStr)
+      : [...user.favorites, idStr];
+
+    setUser({ ...user, favorites: nextFavorites });
+
+    try {
+      const resp = await apiToggleFavorite(idStr);
+      // Sync with server response
+      setUser({ ...user, favorites: resp.favorites });
+    } catch (err) {
+      console.error("toggle favorite failed", err);
+      // Rollback
+      setUser(user);
+      throw err;
+    }
+  }
+
   return (
     <AuthContext
       value={{
@@ -48,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem(AUTH_USER_KEY, JSON.stringify(u));
         },
         logout: doLogout,
+        toggleFavorite,
       }}
     >
       {children}

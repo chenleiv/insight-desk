@@ -217,6 +217,27 @@ app.delete('/api/documents/:id', requireAdmin, async (req, res) => {
     }
 });
 
+app.post('/api/documents/:id/toggle-favorite', getCurrentUser, async (req, res) => {
+    try {
+        const docId = req.params.id;
+        const user = req.user;
+
+        const isFavorite = user.favorites.includes(docId);
+
+        if (isFavorite) {
+            user.favorites.pull(docId);
+        } else {
+            user.favorites.addToSet(docId);
+        }
+
+        await user.save();
+        res.json({ favorites: user.favorites });
+    } catch (err) {
+        console.error('Toggle favorite failed:', err);
+        res.status(500).json({ detail: 'Server error' });
+    }
+});
+
 
 // --- Moved to top ---
 
