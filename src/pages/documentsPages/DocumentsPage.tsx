@@ -20,6 +20,7 @@ import { useStatus } from "../../components/statusBar/useStatus";
 import DocumentPane from "./components/DocumentPane";
 import DocumentsSidebar from "./components/DocumentsSidebar";
 import { useDocuments } from "../../context/DocumentsContext";
+import { ChevronLeft, X } from "lucide-react";
 
 export default function DocumentsPage() {
   const { user } = useAuth();
@@ -108,7 +109,6 @@ export default function DocumentsPage() {
 
   function handleBackToList() {
     setMobileView("list");
-    setActiveDocId(null);
     dismissHint();
   }
 
@@ -429,12 +429,21 @@ export default function DocumentsPage() {
               prev.map((d) => (d.id === updated.id ? updated : d)),
             );
           }}
-          onBack={handleBackToList}
           showMobileHint={showMobileHint}
           onDismissHint={dismissHint}
           onDirtyChange={setIsPaneDirty}
         />
       </section>
+
+      {mobileView === "detail" && (
+        <button
+          onClick={handleBackToList}
+          className="mobile-context-close-btn"
+          aria-label="Back to list"
+        >
+          <X />
+        </button>
+      )}
     </div>
   );
 }

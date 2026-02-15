@@ -39,7 +39,6 @@ export default function DocumentPane({
   onCreated,
   onSaved,
   hasDocs,
-  onBack,
   onDirtyChange,
   loading,
 }: Props) {
@@ -151,21 +150,6 @@ export default function DocumentPane({
     setMode("view");
   };
 
-  const handleBack = async () => {
-    if (isDirty) {
-      const ok = await confirm({
-        title: "Unsaved Changes",
-        message:
-          "You have unsaved changes. Are you sure you want to discard them?",
-        confirmLabel: "Discard",
-        cancelLabel: "Stay",
-        variant: "danger",
-      });
-      if (!ok) return;
-    }
-    onBack?.();
-  };
-
   if (!isCreating && !doc) {
     return <EmptyPane hasDocs={hasDocs} loading={loading} />;
   }
@@ -185,7 +169,6 @@ export default function DocumentPane({
         canSave={canSave}
         onEdit={() => setMode("edit")}
         onCancel={handleCancel}
-        onBack={handleBack}
       />
 
       {mode === "view" && doc ? (

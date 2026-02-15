@@ -1,5 +1,5 @@
 import React from "react";
-import { SquarePenIcon, X } from "lucide-react";
+import { SquarePenIcon } from "lucide-react";
 
 type Props = {
   title: string;
@@ -11,7 +11,6 @@ type Props = {
   canSave: boolean;
   onEdit: () => void;
   onCancel: () => void;
-  onBack?: (() => void) | undefined;
 };
 
 export const DocumentHeader: React.FC<Props> = ({
@@ -24,24 +23,9 @@ export const DocumentHeader: React.FC<Props> = ({
   canSave,
   onEdit,
   onCancel,
-  onBack,
 }) => {
   return (
     <div className="doc-pane-top-wrapper">
-      {onBack && !isCreating && (
-        <div className="mobile-back-wrapper">
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => {
-              onBack();
-            }}
-            aria-label="Back"
-          >
-            <X />
-          </button>
-        </div>
-      )}
       <div className="doc-pane-top">
         <div className="doc-pane-title-container">
           <div>
