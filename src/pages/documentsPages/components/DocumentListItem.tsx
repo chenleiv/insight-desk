@@ -1,5 +1,5 @@
 import React from "react";
-import { Star } from "lucide-react";
+import { FileText, Star } from "lucide-react";
 
 type Props = {
   title: string;
@@ -14,6 +14,7 @@ type Props = {
 
 export default function DocumentListItem({
   title,
+  category,
   active,
   isFavorite,
   isDragging,
@@ -34,14 +35,17 @@ export default function DocumentListItem({
       onKeyDown={onKeyDown}
     >
       <div className="doc-row-main">
-        <div className="doc-row-title" title={title}>
-          {title}
+        <div className="doc-row-title-row">
+          {isFavorite ? (
+            <div className="doc-row-favorite" title="Favorite">
+              <Star size={14} fill="currentColor" />
+            </div>
+          ) : (
+            <div className="doc-row-favorite"></div>
+          )}
+          <div className="doc-row-title">{title}</div>
+          <div className="doc-row-meta">{category}</div>
         </div>
-        {isFavorite && (
-          <div className="doc-row-favorite" title="Favorite">
-            <Star size={14} fill="currentColor" />
-          </div>
-        )}
       </div>
 
       <div className="doc-row-actions" onClick={(e) => e.stopPropagation()}>

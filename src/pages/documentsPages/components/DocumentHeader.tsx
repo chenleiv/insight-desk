@@ -63,7 +63,7 @@ export const DocumentHeader: React.FC<Props> = ({
                   title="Edit"
                   aria-label="Edit"
                 >
-                  <SquarePenIcon />
+                  <SquarePenIcon size={22} width={22} />
                 </button>
               ) : null}
             </>

@@ -1,6 +1,7 @@
-import {} from "react";
 import type { DocumentItem } from "../../../api/documentsClient";
 import { DocumentRowSkeleton } from "../../../components/skeleton/Skeleton";
+import { useAuth } from "../../../auth/useAuth";
+import { Star } from "lucide-react";
 
 type Props = {
   docs: DocumentItem[];
@@ -33,6 +34,13 @@ export default function ContextPanel({
   onChangeQuery,
   onClearSelection,
 }: Props) {
+  const { user } = useAuth();
+  const favorites = (() => {
+    const favMap: Record<string | number, boolean> = {};
+    user?.favorites?.forEach((id) => (favMap[id] = true));
+    return favMap;
+  })();
+
   const filteredDocs = (() => {
     const q = contextQuery.toLowerCase().trim();
     if (!q) return docs;
@@ -118,8 +126,17 @@ export default function ContextPanel({
               }}
             >
               <div className="context-item-main">
-                <div className="context-title">{d.title}</div>
-                <div className="context-meta">{d.category}</div>
+                <div className="context-title-row">
+                  {favorites[d.id] ? (
+                    <div className="context-favorite">
+                      <Star size={14} fill="currentColor" />
+                    </div>
+                  ) : (
+                    <div className="context-favorite"></div>
+                  )}
+                  <div className="context-title">{d.title}</div>
+                  <div className="context-meta">{d.category}</div>
+                </div>
               </div>
             </div>
           );

@@ -34,27 +34,30 @@ export default function DocumentsHeader({
   return (
     <div className="top-actions" onClick={(e) => e.stopPropagation()}>
       <div className="actions-buttons">
-        {isAdmin && <ImportMenuButton onImport={onImport} />}
-
         <button
-          className="text-btn"
+          className="text-btn export-btn"
           type="button"
           onClick={handleExport}
           disabled={isExporting}
         >
           {isExporting ? "Exporting..." : "Export"}
         </button>
+        {isAdmin && <ImportMenuButton onImport={onImport} />}
       </div>
       <button
-        className={`add-btn favorite-buttons text-btn ${showOnlyFavorites ? "active" : ""}`}
+        className={`favorite-button text-btn ${showOnlyFavorites ? "active" : ""}`}
         type="button"
         onClick={onToggleFavorites}
         title={showOnlyFavorites ? "Show all documents" : "Show only favorites"}
       >
-        <Star size={20} fill={showOnlyFavorites ? "currentColor" : "none"} />
+        <Star
+          size={22}
+          width={22}
+          fill={showOnlyFavorites ? "currentColor" : "none"}
+        />
       </button>
       <button className="add-btn text-btn" type="button" onClick={onNew}>
-        <FilePlusCorner />
+        <FilePlusCorner size={22} width={22} />
       </button>
     </div>
   );

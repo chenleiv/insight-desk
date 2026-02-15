@@ -4,7 +4,7 @@
   display: grid;
   grid-template-columns: 340px 1fr;
   grid-template-rows: minmax(0, 1fr);
-  padding: 24px;
+  padding: 32px;
   align-items: stretch;
   overflow: hidden;
 }
@@ -441,12 +441,7 @@
 
 .context-item {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-
-  padding: 10px 10px 10px 12px;
+  padding: 10px 16px 10px 10px;
   border-radius: 8px;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -477,6 +472,19 @@
   min-width: 0;
 }
 
+.context-title-row {
+  display: grid;
+  grid-template-rows: 1fr 14px;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  min-width: 0;
+}
+
+.context-favorite {
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
 .context-title {
   font-size: 14px;
   font-weight: 700;
@@ -489,7 +497,7 @@
 .context-meta {
   font-size: 12px;
   color: var(--muted);
-  margin-top: 4px;
+  grid-area: 2 / 2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
