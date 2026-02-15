@@ -27,7 +27,7 @@ export default function ImportMenuButton({ onImport }: Props) {
         anchorRef={menuBtnRef as React.RefObject<HTMLElement>}
         open={open}
         onClose={() => setOpen(false)}
-        align="right"
+        align="center"
         items={[
           { label: "Import (Merge)", onClick: () => onImport("merge") },
           {

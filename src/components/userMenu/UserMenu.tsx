@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
+import Menu from "../menu/Menu";
 
 type MenuItem =
   | { type: "link"; label: string; to: string; show?: boolean }
   | {
-    type: "action";
-    label: string;
-    onClick: () => Promise<void> | void;
-    danger?: boolean;
-    show?: boolean;
-  };
+      type: "action";
+      label: string;
+      onClick: () => Promise<void> | void;
+      danger?: boolean;
+      show?: boolean;
+    };
 
 function getInitials(email: string) {
   const name = (email || "").split("@")[0] || "U";
@@ -28,7 +29,6 @@ export default function UserMenu() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const btnRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const isAdmin = user?.role === "admin";
 
@@ -54,26 +54,6 @@ export default function UserMenu() {
 
   const visible = items.filter((it) => it.show !== false);
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-
-    function onPointerDown(e: PointerEvent) {
-      const t = e.target as Node;
-      const inButton = btnRef.current?.contains(t);
-      const inMenu = menuRef.current?.contains(t);
-      if (!inButton && !inMenu) setOpen(false);
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown);
-    };
-  }, []);
-
   if (!user) return null;
 
   const initials = getInitials(user.email);
@@ -93,8 +73,14 @@ export default function UserMenu() {
         </span>
       </button>
 
-      {open && (
-        <div ref={menuRef} className="user-menu__panel" role="menu">
+      <Menu
+        anchorRef={btnRef}
+        open={open}
+        onClose={() => setOpen(false)}
+        align="right"
+        minWidth={240}
+      >
+        <div className="user-menu__panel">
           <div className="user-menu__header">
             <div className="user-menu__email" title={user.email}>
               {user.email}
@@ -138,7 +124,7 @@ export default function UserMenu() {
             })}
           </div>
         </div>
-      )}
+      </Menu>
     </div>
   );
 }

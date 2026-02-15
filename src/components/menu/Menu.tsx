@@ -10,7 +10,7 @@ export type MenuItem = {
   ref?: React.RefObject<HTMLButtonElement>;
 };
 
-type Align = "left" | "right";
+type Align = "left" | "right" | "center";
 
 type Props = {
   open: boolean;
@@ -19,7 +19,7 @@ type Props = {
   children?: React.ReactNode;
   align?: Align;
   minWidth?: number;
-  anchorRef: React.RefObject<HTMLElement | null>
+  anchorRef: React.RefObject<HTMLElement | null>;
   offset?: number;
 };
 
@@ -52,7 +52,14 @@ export default function Menu({
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const top = clamp(r.bottom + offset, 8, vh - 8);
-      const rawLeft = align === "right" ? r.right - minWidth : r.left;
+
+      let rawLeft = r.left;
+      if (align === "right") {
+        rawLeft = r.right - minWidth;
+      } else if (align === "center") {
+        rawLeft = r.left + r.width / 2 - minWidth / 2;
+      }
+
       const left = clamp(rawLeft, 8, vw - minWidth - 8);
 
       setPos({ top, left });
