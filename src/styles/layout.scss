@@ -84,9 +84,7 @@
   }
 }
 
-/* =========================
-   Layout & Structure
-========================= */
+// Layout Structure //
 
 .app-layout {
   min-height: 100vh;
@@ -95,7 +93,6 @@
   background: var(--bg);
   color: var(--text);
 
-  /* Glassmorphism Header */
   header {
     position: sticky;
     top: 0;
@@ -191,9 +188,7 @@
   }
 }
 
-/* =========================
-   Responsive
-========================= */
+// Responsive //
 
 @include mixins.mobile {
   .app-layout {

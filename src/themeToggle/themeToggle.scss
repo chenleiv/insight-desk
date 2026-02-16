@@ -7,7 +7,6 @@
     background: var(--soft-2);
     cursor: pointer;
     padding: 4px;
-    /* Inner padding for track */
     outline: none;
     display: inline-flex;
     align-items: center;
@@ -16,7 +15,6 @@
 
     &:hover {
         background: var(--muted);
-        /* Slightly darker on hover */
     }
 
     &:focus-visible {
@@ -36,18 +34,15 @@
         transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         z-index: 10;
 
-        /* Disable selection */
         user-select: none;
     }
 
-    /* Dark Mode State */
     &.dark .thumb {
         transform: translateX(20px);
         background: var(--white);
         color: var(--text);
     }
 
-    /* Active press effect */
     &:active .thumb {
         transform: scale(0.9);
     }

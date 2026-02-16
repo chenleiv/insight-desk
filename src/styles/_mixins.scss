@@ -66,6 +66,7 @@
 }
 
 $mobile-breakpoint: 767px;
+$tablet-breakpoint: 1024px;
 
 @mixin mobile {
     @media (max-width: #{$mobile-breakpoint}) {
@@ -99,11 +100,15 @@ $mobile-breakpoint: 767px;
 @mixin layout-shell {
     height: calc(100vh - 80px);
     display: grid;
-    grid-template-columns: 340px 1fr;
+    grid-template-columns: 400px 1fr;
     grid-template-rows: minmax(0, 1fr);
     overflow: hidden;
     background: var(--panel);
     padding: 32px;
+
+    @media (max-width: #{$tablet-breakpoint}) {
+        grid-template-columns: 300px 1fr;
+    }
 }
 
 @mixin mobile-view-fixed {

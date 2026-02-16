@@ -1,16 +1,10 @@
 :root {
 
-    /* 
-     * Material Dark - Analytics Dashboard
-     */
     --bg: #121212;
-    /* Direct background */
     --panel: #1e1e1e;
-    /* Surface level */
 
     --soft: #2c2c2c;
     --soft-2: #383838;
-    /* Primary Purple in dark mode */
 
     --white: #ffffff;
 
@@ -54,6 +48,7 @@
     --text: #111113;
     --secondery-text: #111113bb;
     --muted: #6b6b73;
+    --primary: #007aff;
 
     --info-bg: color-mix(in srgb, var(--primary) 8%, var(--bg));
     --info-border: #86d8fcdb;
@@ -74,7 +69,5 @@
     --danger-border: rgba(220, 38, 38, 0.18);
     --danger-text: #991b1b;
 
-    /* Keep existing primary for links if needed */
-    --primary: #007aff;
 
 }

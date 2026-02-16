@@ -92,7 +92,6 @@ export default function DocumentsPage() {
     }
   }, [docs, orderKey]);
 
-  // Handle errors from the context if any
   useEffect(() => {
     if (docsError) setError(docsError);
   }, [docsError]);

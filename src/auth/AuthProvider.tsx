@@ -47,7 +47,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const idStr = id.toString();
     const isFav = user.favorites.includes(idStr);
 
-    // Optimistic update
     const nextFavorites = isFav
       ? user.favorites.filter((f) => f !== idStr)
       : [...user.favorites, idStr];
@@ -56,13 +55,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const resp = await apiToggleFavorite(idStr);
-      // Sync with server response
       const nextUser = { ...user, favorites: resp.favorites };
       setUser(nextUser);
       saveUserToStorage(nextUser);
     } catch (err) {
       console.error("toggle favorite failed", err);
-      // Rollback
       setUser(user);
       saveUserToStorage(user);
       throw err;

@@ -2,7 +2,6 @@
 
 .assistant-shell {
   @include mixins.layout-shell;
-  grid-template-columns: 340px 1fr; // override if needed, but it matches the mixin
 }
 
 .assistant-page-inner {
@@ -84,7 +83,7 @@
     border: none;
     padding: 0;
 
-    @media (min-width: 961px) {
+    @media (min-width: 768px) {
       background: var(--soft);
       border: 1px solid var(--border);
       padding: 12px 14px;
