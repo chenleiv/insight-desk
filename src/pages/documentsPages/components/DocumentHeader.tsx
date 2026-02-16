@@ -30,9 +30,9 @@ export const DocumentHeader: React.FC<Props> = ({
       <div className="doc-pane-top">
         <div className="doc-pane-title-container">
           <div>
-            <h2 className="doc-pane-title">{title}</h2>
+            <p className="doc-pane-title">{title}</p>
             {category ? (
-              <h4 className="doc-pane-title small">{category}</h4>
+              <p className="doc-pane-title small">{category}</p>
             ) : null}
           </div>
         </div>

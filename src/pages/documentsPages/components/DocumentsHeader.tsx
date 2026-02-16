@@ -39,8 +39,10 @@ export default function DocumentsHeader({
           type="button"
           onClick={handleExport}
           disabled={isExporting}
+          title="Export"
+          aria-label="Export"
         >
-          {isExporting ? "Exporting..." : "Export"}
+          Export
         </button>
         {isAdmin && <ImportMenuButton onImport={onImport} />}
       </div>
@@ -49,6 +51,9 @@ export default function DocumentsHeader({
         type="button"
         onClick={onToggleFavorites}
         title={showOnlyFavorites ? "Show all documents" : "Show only favorites"}
+        aria-label={
+          showOnlyFavorites ? "Show all documents" : "Show only favorites"
+        }
       >
         <Star
           size={22}
@@ -56,7 +61,13 @@ export default function DocumentsHeader({
           fill={showOnlyFavorites ? "currentColor" : "none"}
         />
       </button>
-      <button className="add-btn text-btn" type="button" onClick={onNew}>
+      <button
+        className="add-btn text-btn"
+        type="button"
+        title="New document"
+        aria-label="New document"
+        onClick={onNew}
+      >
         <FilePlusCorner size={22} width={22} />
       </button>
     </div>

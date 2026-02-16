@@ -67,6 +67,8 @@ export default function UserMenu() {
         className="user-menu__trigger"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
+        title={user.email}
+        aria-label="User menu"
         aria-expanded={open}
         type="button"
       >
