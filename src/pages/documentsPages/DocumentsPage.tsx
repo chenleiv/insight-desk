@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import DocumentsList from "./components/DocumentList";
 import { arrayMove } from "@dnd-kit/sortable";
@@ -61,10 +61,10 @@ export default function DocumentsPage() {
 
   const lastActiveDocIdRef = useRef<number | null>(null);
 
-  const activeDoc = (() => {
+  const activeDoc = useMemo(() => {
     if (activeDocId == null) return null;
     return docs.find((d) => d.id === activeDocId) ?? null;
-  })();
+  }, [activeDocId, docs]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -256,8 +256,9 @@ export default function DocumentsPage() {
     }
   }
 
-  const orderedDocs = applyOrder(docs, order);
-  const filteredDocs = (() => {
+  const orderedDocs = useMemo(() => applyOrder(docs, order), [docs, order]);
+
+  const filteredDocs = useMemo(() => {
     let result = orderedDocs;
 
     if (showOnlyFavorites) {
@@ -265,7 +266,7 @@ export default function DocumentsPage() {
     }
 
     return result.filter((d) => matchesQuery(d, query));
-  })();
+  }, [orderedDocs, showOnlyFavorites, favorites, query]);
 
   const regularDocs = filteredDocs;
 

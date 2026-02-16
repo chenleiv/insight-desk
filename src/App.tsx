@@ -1,9 +1,14 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
-import DocumentsPage from "./pages/documentsPages/DocumentsPage";
-import AssistantPage from "./pages/assistantPages/AssistantPage";
-import LoginPage from "./pages/loginPage/LoginPage";
-import UsersPage from "./pages/loginPage/UsersPage";
+const DocumentsPage = lazy(
+  () => import("./pages/documentsPages/DocumentsPage"),
+);
+const AssistantPage = lazy(
+  () => import("./pages/assistantPages/AssistantPage"),
+);
+const LoginPage = lazy(() => import("./pages/loginPage/LoginPage"));
+const UsersPage = lazy(() => import("./pages/loginPage/UsersPage"));
 
 import "./components/confirmModal/confirmDialog.scss";
 
@@ -14,6 +19,7 @@ import { useAuth } from "./auth/useAuth";
 import RequireAuth from "./auth/RequireAuth";
 import RequireRole from "./auth/RequireRole";
 import { useMobile } from "./hooks/useMobile";
+import { Loader } from "./components/loader/Loader";
 
 function App() {
   const { isAuthed } = useAuth();
@@ -24,27 +30,42 @@ function App() {
       <Header />
 
       <main>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
+        <Suspense
+          fallback={
+            <div
+              style={{
+                display: "flex",
+                height: "100%",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Loader size={32} />
+            </div>
+          }
+        >
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
 
-          <Route element={<RequireAuth />}>
-            <Route path="/" element={<Navigate to="/documents" replace />} />
-            <Route path="/documents" element={<DocumentsPage />} />
+            <Route element={<RequireAuth />}>
+              <Route path="/" element={<Navigate to="/documents" replace />} />
+              <Route path="/documents" element={<DocumentsPage />} />
 
-            {/* Admin-only: create */}
-            <Route element={<RequireRole allow={["admin"]} />}>
-              <Route path="/users" element={<UsersPage />} />
+              {/* Admin-only: create */}
+              <Route element={<RequireRole allow={["admin"]} />}>
+                <Route path="/users" element={<UsersPage />} />
+              </Route>
+              <Route path="/assistant" element={<AssistantPage />} />
             </Route>
-            <Route path="/assistant" element={<AssistantPage />} />
-          </Route>
 
-          <Route
-            path="*"
-            element={
-              <Navigate to={isAuthed ? "/documents" : "/login"} replace />
-            }
-          />
-        </Routes>
+            <Route
+              path="*"
+              element={
+                <Navigate to={isAuthed ? "/documents" : "/login"} replace />
+              }
+            />
+          </Routes>
+        </Suspense>
       </main>
 
       {isMobile && <MobileNav />}
