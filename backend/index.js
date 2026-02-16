@@ -29,7 +29,17 @@ if (process.env.NODE_ENV === 'production') {
     console.log('Production mode: Serving static files from', distPath);
 }
 
-app.use(express.static(distPath));
+app.use(express.static(distPath, {
+    setHeaders: (res, filePath) => {
+        if (filePath.includes('/assets/')) {
+            // Cache למשך שנה (31536000 שניות)
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else {
+            // לא לשמור ב-Cache (תמיד לבדוק מול השרת)
+            res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+        }
+    }
+}));
 
 // Simple Request Logger (Useful for health monitoring)
 app.use((req, res, next) => {
