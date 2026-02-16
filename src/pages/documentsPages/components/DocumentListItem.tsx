@@ -14,7 +14,6 @@ type Props = {
 
 export default function DocumentListItem({
   title,
-  category,
   active,
   isFavorite,
   isDragging,
@@ -44,7 +43,6 @@ export default function DocumentListItem({
             <div className="doc-row-favorite"></div>
           )}
           <div className="doc-row-title">{title}</div>
-          <div className="doc-row-meta">{category}</div>
         </div>
       </div>
 

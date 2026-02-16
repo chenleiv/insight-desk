@@ -54,11 +54,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const resp = await apiToggleFavorite(idStr);
       // Sync with server response
-      setUser({ ...user, favorites: resp.favorites });
+      const nextUser = { ...user, favorites: resp.favorites };
+      setUser(nextUser);
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser));
     } catch (err) {
       console.error("toggle favorite failed", err);
       // Rollback
       setUser(user);
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
       throw err;
     }
   }

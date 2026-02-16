@@ -17,8 +17,6 @@ type Props = {
   onSaved: (doc: DocumentItem) => void;
   hasDocs: boolean;
   onBack?: () => void;
-  showMobileHint?: boolean;
-  onDismissHint?: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
   onModeChange?: (mode: "view" | "edit") => void;
   loading?: boolean;

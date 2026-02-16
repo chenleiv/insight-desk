@@ -87,7 +87,7 @@ router.post('/login', async (req, res) => {
             maxAge: ACCESS_TOKEN_MINUTES * 60 * 1000
         });
 
-        res.json({ user: { email: user.email, role: user.role } });
+        res.json({ user: { email: user.email, role: user.role, favorites: user.favorites || [] } });
     } catch (err) {
         if (err.name === 'ZodError') {
             return res.status(400).json({ detail: 'Validation failed', errors: err.errors });

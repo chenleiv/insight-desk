@@ -107,21 +107,6 @@ export default function DocumentsPage() {
 
   function handleBackToList() {
     setMobileView("list");
-    dismissHint();
-  }
-
-  const [showMobileHint, setShowMobileHint] = useState(false);
-
-  useEffect(() => {
-    const hasSeen = localStorage.getItem("documents_mobile_hint");
-    if (!hasSeen && isMobile && mobileView === "detail") {
-      setShowMobileHint(true);
-    }
-  }, [mobileView, isMobile]);
-
-  function dismissHint() {
-    setShowMobileHint(false);
-    localStorage.setItem("documents_mobile_hint", "true");
   }
 
   function handleCreated(doc: DocumentItem) {
@@ -426,8 +411,6 @@ export default function DocumentsPage() {
               prev.map((d) => (d.id === updated.id ? updated : d)),
             );
           }}
-          showMobileHint={isMobile && showMobileHint}
-          onDismissHint={dismissHint}
           onDirtyChange={setIsPaneDirty}
           onModeChange={(m) => setIsEditing(m === "edit")}
         />
