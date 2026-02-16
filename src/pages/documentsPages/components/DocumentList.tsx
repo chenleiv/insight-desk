@@ -20,7 +20,7 @@ import type { DocumentItem } from "../../../api/documentsClient";
 import DocumentListItem from "./DocumentListItem";
 import Menu from "../../../components/menu/Menu";
 import { DocumentRowSkeleton } from "../../../components/skeleton/Skeleton";
-import { EllipsisVertical, GripHorizontalIcon } from "lucide-react";
+import { EllipsisVertical } from "lucide-react";
 
 type Props = {
   docs: DocumentItem[];
