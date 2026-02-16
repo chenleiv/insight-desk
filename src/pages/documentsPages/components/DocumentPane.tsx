@@ -1,4 +1,4 @@
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState, useEffect, useMemo } from "react";
 import type { DocumentItem, DocumentInput } from "../../../api/documentsClient";
 import { createDocument, updateDocument } from "../../../api/documentsClient";
 import { useStatus } from "../../../components/statusBar/useStatus";
@@ -7,6 +7,14 @@ import { DocumentHeader } from "./DocumentHeader";
 import { DocumentView } from "./DocumentView";
 import { DocumentEdit } from "./DocumentEdit";
 import useConfirm from "../../../hooks/useConfirm";
+import {
+  DOCUMENT_FIELDS,
+  toInput,
+  emptyInput,
+  isSameInput,
+  isInputValid,
+} from "../utils/documentForm";
+import { DocumentDetailSkeleton } from "../../../components/skeleton/Skeleton";
 
 type Props = {
   doc: DocumentItem | null;
@@ -22,14 +30,6 @@ type Props = {
   loading?: boolean;
 };
 
-import {
-  DOCUMENT_FIELDS,
-  toInput,
-  emptyInput,
-  isSameInput,
-  isInputValid,
-} from "../utils/documentForm";
-
 export default function DocumentPane({
   doc,
   canEdit,
@@ -44,6 +44,7 @@ export default function DocumentPane({
 }: Props) {
   const status = useStatus();
   const confirm = useConfirm();
+
   const [mode, setMode] = useState<"view" | "edit">(
     isCreating ? "edit" : "view",
   );
@@ -54,14 +55,20 @@ export default function DocumentPane({
     return emptyInput();
   });
 
-  const baseline = isCreating
-    ? emptyInput()
-    : doc
-      ? toInput(doc)
-      : emptyInput();
+  const baseline = useMemo(() => {
+    if (isCreating) return emptyInput();
+    if (doc) return toInput(doc);
+    return emptyInput();
+  }, [isCreating, doc]);
 
   const isDirty = !isSameInput(form, baseline);
   const isValid = isInputValid(form);
+
+  useEffect(() => {
+    if (!isCreating && doc && !isDirty && mode === "view") {
+      setForm(toInput(doc));
+    }
+  }, [doc?.id]);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -154,6 +161,14 @@ export default function DocumentPane({
     setMode("view");
   };
 
+  if (!isCreating && loading) {
+    return (
+      <div className="doc-pane">
+        <DocumentDetailSkeleton />
+      </div>
+    );
+  }
+
   if (!isCreating && !doc) {
     return <EmptyPane hasDocs={hasDocs} loading={loading} />;
   }
@@ -175,8 +190,14 @@ export default function DocumentPane({
         onCancel={handleCancel}
       />
 
-      {mode === "view" && doc ? (
-        <DocumentView doc={doc} />
+      {mode === "view" ? (
+        loading || !doc ? (
+          <div className="doc-pane-loading">
+            <DocumentDetailSkeleton />
+          </div>
+        ) : (
+          <DocumentView doc={doc} />
+        )
       ) : (
         <DocumentEdit form={form} onChange={setForm} />
       )}

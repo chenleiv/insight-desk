@@ -5,9 +5,9 @@ type Props = {
   doc: DocumentItem;
 };
 
-export const DocumentView: React.FC<Props> = ({ doc }) => {
+export const DocumentView = React.memo(function DocumentView({ doc }: Props) {
   return (
-    <div key={doc.id} className="doc-pane-body doc-pane-anim">
+    <div className="doc-pane-body doc-pane-anim">
       <div className="doc-pane-section">
         <div className="doc-pane-label">Summary</div>
         <div className="doc-pane-text">{doc.summary}</div>
@@ -19,4 +19,4 @@ export const DocumentView: React.FC<Props> = ({ doc }) => {
       </div>
     </div>
   );
-};
+});
