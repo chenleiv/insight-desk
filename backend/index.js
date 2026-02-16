@@ -1,6 +1,7 @@
 import './loadEnv.js';
 import express from 'express';
 import mongoose from 'mongoose';
+import compression from 'compression';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
@@ -19,6 +20,7 @@ import rateLimit from 'express-rate-limit';
 import { documentSchema, importBulkSchema } from './schemas.js';
 
 const app = express();
+app.use(compression());
 
 // --- Static Hosting (Prioritized for SPA performance and stability) ---
 const distPath = path.resolve(__dirname, '../dist');
