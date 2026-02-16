@@ -1,14 +1,8 @@
 @use "../../styles/mixins";
 
 .assistant-shell {
-  height: calc(100vh - 80px);
-  background-color: var(--panel);
-  display: grid;
-  grid-template-columns: 340px 1fr;
-  grid-template-rows: minmax(0, 1fr);
-  padding: 32px;
-  align-items: stretch;
-  overflow: hidden;
+  @include mixins.layout-shell;
+  grid-template-columns: 340px 1fr; // override if needed, but it matches the mixin
 }
 
 .assistant-page-inner {
@@ -49,17 +43,13 @@
 }
 
 .messages {
+  @include mixins.scrollbar-stable;
   flex: 1;
   min-height: 0;
-  overflow: auto;
   padding: 12px;
   border-radius: 8px;
   border: 1px solid var(--soft);
   background: var(--bg);
-}
-
-.messages {
-  scrollbar-gutter: stable;
 }
 
 .message {
@@ -330,19 +320,15 @@
 }
 
 .context-list {
+  @include mixins.scrollbar-stable;
   display: flex;
   flex-direction: column;
-  overflow: auto;
   background: var(--bg);
   border-top: 1px solid var(--border);
   gap: 12px;
   padding: 16px 32px 16px 28px;
   min-height: 0;
   flex: 1;
-}
-
-.context-list {
-  scrollbar-gutter: stable;
 }
 
 .context-item {
@@ -458,15 +444,8 @@
   }
 
   .context-panel-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100vh;
-    z-index: 2000;
-    background: var(--bg);
+    @include mixins.mobile-view-fixed;
     transform: translateX(-100%);
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 
     display: flex;
     flex-direction: column;

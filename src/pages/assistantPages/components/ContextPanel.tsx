@@ -1,5 +1,6 @@
 import type { DocumentItem } from "../../../api/documentsClient";
 import { DocumentRowSkeleton } from "../../../components/skeleton/Skeleton";
+import { matchesQuery } from "../../documentsPages/utils/docs";
 import { useAuth } from "../../../auth/useAuth";
 import { Star } from "lucide-react";
 
@@ -16,14 +17,6 @@ type Props = {
   onClearSelection: () => void;
 };
 
-function matchesQuery(d: DocumentItem, q: string) {
-  const title = (d.title ?? "").toLowerCase();
-  const category = (d.category ?? "").toLowerCase();
-  const summary = (d.summary ?? "").toLowerCase();
-
-  return title.includes(q) || category.includes(q) || summary.includes(q);
-}
-
 export default function ContextPanel({
   docs,
   loading,
@@ -36,11 +29,7 @@ export default function ContextPanel({
 }: Props) {
   const { favoritesMap: favorites } = useAuth();
 
-  const filteredDocs = (() => {
-    const q = contextQuery.toLowerCase().trim();
-    if (!q) return docs;
-    return docs.filter((d) => matchesQuery(d, q));
-  })();
+  const filteredDocs = docs.filter((d) => matchesQuery(d, contextQuery));
 
   const hasSelection = selectedIds.length > 0;
 

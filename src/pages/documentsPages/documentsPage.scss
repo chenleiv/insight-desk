@@ -1,14 +1,8 @@
 @use "../../styles/mixins";
 
 .documents-layout {
-  height: calc(100vh - 80px);
-  display: grid;
-  grid-template-columns: 340px 1fr;
-  grid-template-rows: minmax(0, 1fr);
+  @include mixins.layout-shell;
   gap: 0;
-  overflow: hidden;
-  background: var(--panel);
-  padding: 32px;
 
 
   .documents-sidebar {
@@ -102,8 +96,7 @@
   }
 
   .sidebar-list {
-    scrollbar-gutter: stable;
-    overflow: auto;
+    @include mixins.scrollbar-stable;
     background: var(--bg);
     border-top: 1px solid var(--border);
     padding: 16px 22px 16px 26px;
@@ -297,7 +290,7 @@
   }
 
   .doc-pane-body {
-    overflow: auto;
+    @include mixins.scrollbar-stable;
     padding: 12px 6px 26px;
     display: flex;
     flex-direction: column;
@@ -446,15 +439,8 @@
     }
 
     .documents-pane {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100vh;
-      z-index: 2000;
-      background: var(--bg);
+      @include mixins.mobile-view-fixed;
       transform: translateX(100%);
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       padding: 16px;
 

@@ -14,7 +14,7 @@ function getMql(query: string): MediaQueryList | null {
   return mql;
 }
 
-export function useMobile(breakpoint = 960) {
+export function useMobile(breakpoint = 767) {
   const query = `(max-width: ${breakpoint}px)`;
 
   const subscribe = (onStoreChange: () => void) => {

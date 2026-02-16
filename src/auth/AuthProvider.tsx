@@ -2,8 +2,11 @@ import React, { useEffect, useState } from "react";
 import { me, logout as apiLogout } from "../api/authClient";
 import { toggleFavorite as apiToggleFavorite } from "../api/documentsClient";
 import type { AuthUser } from "./authTypes";
-import { AUTH_USER_KEY } from "./authTypes";
-import { loadUserFromStorage } from "./authStorage";
+import {
+  loadUserFromStorage,
+  saveUserToStorage,
+  clearUserFromStorage,
+} from "./authStorage";
 import { AuthContext } from "./authContext";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -17,10 +20,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const u = await me();
         setUser(u);
-        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(u));
+        saveUserToStorage(u);
       } catch {
         setUser(null);
-        localStorage.removeItem(AUTH_USER_KEY);
+        clearUserFromStorage();
       } finally {
         setIsReady(true);
       }
@@ -29,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function doLogout() {
     setUser(null);
-    localStorage.removeItem(AUTH_USER_KEY);
+    clearUserFromStorage();
 
     try {
       await apiLogout();
@@ -56,12 +59,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Sync with server response
       const nextUser = { ...user, favorites: resp.favorites };
       setUser(nextUser);
-      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser));
+      saveUserToStorage(nextUser);
     } catch (err) {
       console.error("toggle favorite failed", err);
       // Rollback
       setUser(user);
-      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+      saveUserToStorage(user);
       throw err;
     }
   }
@@ -81,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         favoritesMap,
         loginSuccess: (u) => {
           setUser(u);
-          localStorage.setItem(AUTH_USER_KEY, JSON.stringify(u));
+          saveUserToStorage(u);
         },
         logout: doLogout,
         toggleFavorite,

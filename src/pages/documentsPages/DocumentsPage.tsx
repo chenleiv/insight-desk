@@ -22,6 +22,7 @@ import DocumentsSidebar from "./components/DocumentsSidebar";
 import { useDocuments } from "../../context/DocumentsContext";
 import { X } from "lucide-react";
 import { useMobile } from "../../hooks/useMobile";
+import { matchesQuery } from "./utils/docs";
 
 export default function DocumentsPage() {
   const {
@@ -264,16 +265,7 @@ export default function DocumentsPage() {
       result = result.filter((d) => favorites[d.id]);
     }
 
-    const q = query.toLowerCase().trim();
-    if (!q) return result;
-
-    return result.filter(
-      (d) =>
-        d.title.toLowerCase().includes(q) ||
-        d.category.toLowerCase().includes(q) ||
-        d.summary.toLowerCase().includes(q) ||
-        d.content.toLowerCase().includes(q),
-    );
+    return result.filter((d) => matchesQuery(d, query));
   })();
 
   const regularDocs = filteredDocs;

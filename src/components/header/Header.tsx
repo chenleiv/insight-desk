@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { getNavLinkClass } from "../../utils/nav";
 import { useTheme } from "../../hooks/useTheme";
 import ThemeToggle from "../../themeToggle/ThemeToggle";
 import UserMenu from "../userMenu/UserMenu";
@@ -24,17 +25,13 @@ export default function Header() {
       {isAuthed && !isMobile && (
         <nav>
           <NavLink
-            className={({ isActive }) =>
-              `nav-link${isActive ? " is-active" : ""}`
-            }
+            className={(props) => getNavLinkClass(props, "nav-link")}
             to="/documents"
           >
             Documents
           </NavLink>
           <NavLink
-            className={({ isActive }) =>
-              `nav-link${isActive ? " is-active" : ""}`
-            }
+            className={(props) => getNavLinkClass(props, "nav-link")}
             to="/assistant"
           >
             AI Assistant
