@@ -122,7 +122,6 @@ function SortableRow({
               }}
             >
               <EllipsisVertical size={16} />
-              {/* <GripHorizontalIcon /> */}
             </button>
             <Menu
               open={isMenuOpen}
