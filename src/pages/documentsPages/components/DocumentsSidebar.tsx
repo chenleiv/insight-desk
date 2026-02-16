@@ -48,7 +48,6 @@ export default function DocumentsSidebar({
         </InlineBanner>
       )}
 
-      {/* Sticky area */}
       <div className="sidebar-top">
         <DocumentsHeader
           onNew={onNew}
