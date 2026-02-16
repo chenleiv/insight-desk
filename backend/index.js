@@ -250,7 +250,11 @@ app.post('/api/documents/:id/toggle-favorite', getCurrentUser, async (req, res) 
 });
 
 
-// --- Moved to top ---
+
+app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.send('User-agent: *\nAllow: /');
+});
 
 // Handle SPA routing: return index.html for all non-api routes
 app.get('*', (req, res) => {
