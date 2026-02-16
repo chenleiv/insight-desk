@@ -32,10 +32,10 @@ if (process.env.NODE_ENV === 'production') {
 app.use(express.static(distPath, {
     setHeaders: (res, filePath) => {
         if (filePath.includes('/assets/')) {
-            // Cache למשך שנה (31536000 שניות)
+            // Cache for one year (31536000 seconds)
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         } else {
-            // לא לשמור ב-Cache (תמיד לבדוק מול השרת)
+            // Do not cache (always check with the server)
             res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
         }
     }
@@ -101,8 +101,7 @@ app.use(cors({
             callback(null, true);
         } else {
             console.warn(`CORS Warning: Request from unauthorized origin: ${origin}. Allowing anyway but browser may block if credentials needed.`);
-            // Instead of throwing an Error (which causes a 500), we return true or false.
-            // In a simple setup, allowing any origin is safer for debugging.
+            // On real production we'll throw an error CORS not allowed.
             callback(null, true); 
         }
     },
