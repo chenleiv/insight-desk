@@ -20,6 +20,7 @@ import type { DocumentItem } from "../../../api/documentsClient";
 import DocumentListItem from "./DocumentListItem";
 import Menu from "../../../components/menu/Menu";
 import { DocumentRowSkeleton } from "../../../components/skeleton/Skeleton";
+import { EllipsisVertical, GripHorizontalIcon } from "lucide-react";
 
 type Props = {
   docs: DocumentItem[];
@@ -81,7 +82,7 @@ function SortableRow({
 
   const menuItems = [
     {
-      label: isFavorite ? "Remove from favorites" : "Add to favorites",
+      label: isFavorite ? "Remove favorite" : "Add favorite",
       onClick: onToggleFavorite,
     },
     ...(isAdmin
@@ -120,9 +121,9 @@ function SortableRow({
                 onToggleMenu();
               }}
             >
-              ⋯
+              <EllipsisVertical size={16} />
+              {/* <GripHorizontalIcon /> */}
             </button>
-
             <Menu
               open={isMenuOpen}
               onClose={onCloseMenu}
