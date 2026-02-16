@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig({
   plugins: [
@@ -7,6 +8,11 @@ export default defineConfig({
       babel: {
         plugins: [["babel-plugin-react-compiler", { target: "19" }]],
       },
+    }),
+    visualizer({
+      open: true,
+      gzipSize: true,
+      brotliSize: true,
     }),
   ],
   server: {
