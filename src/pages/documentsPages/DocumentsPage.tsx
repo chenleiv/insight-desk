@@ -72,8 +72,10 @@ export default function DocumentsPage() {
   }, [loadDocuments]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (docs.length === 0) {
+      void load();
+    }
+  }, [load, docs.length]);
 
   useEffect(() => {
     if (docs.length > 0) {

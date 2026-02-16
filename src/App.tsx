@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 const DocumentsPage = lazy(
@@ -11,7 +11,6 @@ const LoginPage = lazy(() => import("./pages/loginPage/LoginPage"));
 const UsersPage = lazy(() => import("./pages/loginPage/UsersPage"));
 
 import "./components/confirmModal/confirmDialog.scss";
-
 import Header from "./components/header/Header";
 import MobileNav from "./components/mobileNav/MobileNav";
 
@@ -20,15 +19,26 @@ import RequireAuth from "./auth/RequireAuth";
 import RequireRole from "./auth/RequireRole";
 import { useMobile } from "./hooks/useMobile";
 import { Loader } from "./components/loader/Loader";
+import { useDocuments } from "./context/DocumentsContext"; // 1. הוספת האימפורט
 
 function App() {
   const { isAuthed } = useAuth();
   const isMobile = useMobile();
 
+  // 2. שליפת הפונקציה לטעינת מסמכים
+  const { loadDocuments, docs } = useDocuments();
+
+  // 3. טעינה מוקדמת (Prefetching)
+  // זה גורם לבקשת הרשת לצאת *לפני* שהעמוד DocumentsPage סיים להיטען
+  useEffect(() => {
+    if (isAuthed && docs.length === 0) {
+      void loadDocuments();
+    }
+  }, [isAuthed, loadDocuments, docs.length]);
+
   return (
     <div className="app-layout">
       <Header />
-
       <main>
         <Suspense
           fallback={
@@ -51,7 +61,6 @@ function App() {
               <Route path="/" element={<Navigate to="/documents" replace />} />
               <Route path="/documents" element={<DocumentsPage />} />
 
-              {/* Admin-only: create */}
               <Route element={<RequireRole allow={["admin"]} />}>
                 <Route path="/users" element={<UsersPage />} />
               </Route>
