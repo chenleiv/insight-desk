@@ -3,15 +3,13 @@ import { DocumentRowSkeleton } from "../../../components/skeleton/Skeleton";
 import { matchesQuery } from "../../documentsPages/utils/docs";
 import { useAuth } from "../../../auth/useAuth";
 import { Star } from "lucide-react";
+import { useMemo, useState } from "react";
 
 type Props = {
   docs: DocumentItem[];
   loading: boolean;
-  error: string | null;
-
   selectedIds: number[];
   contextQuery: string;
-
   onToggleSelected: (id: number) => void;
   onChangeQuery: (value: string) => void;
   onClearSelection: () => void;
@@ -20,7 +18,6 @@ type Props = {
 export default function ContextPanel({
   docs,
   loading,
-  error,
   selectedIds,
   contextQuery,
   onToggleSelected,
@@ -29,7 +26,17 @@ export default function ContextPanel({
 }: Props) {
   const { favoritesMap: favorites } = useAuth();
 
-  const filteredDocs = docs.filter((d) => matchesQuery(d, contextQuery));
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+
+  const filteredDocs = useMemo(() => {
+    let result = docs;
+
+    if (showOnlyFavorites) {
+      result = result.filter((d) => favorites[d.id]);
+    }
+
+    return result.filter((d) => matchesQuery(d, contextQuery));
+  }, [docs, showOnlyFavorites, favorites, contextQuery]);
 
   const hasSelection = selectedIds.length > 0;
 
@@ -78,9 +85,24 @@ export default function ContextPanel({
           placeholder="Search documents..."
           disabled={loading}
         />
+        <button
+          className={`favorite-button text-btn ${showOnlyFavorites ? "active" : ""}`}
+          type="button"
+          onClick={() => setShowOnlyFavorites((prev) => !prev)}
+          title={
+            showOnlyFavorites ? "Show all documents" : "Show only favorites"
+          }
+          aria-label={
+            showOnlyFavorites ? "Show all documents" : "Show only favorites"
+          }
+        >
+          <Star
+            size={20}
+            width={20}
+            fill={showOnlyFavorites ? "currentColor" : "none"}
+          />
+        </button>
       </div>
-
-      {error && <div className="error">{error}</div>}
 
       <div className="context-list">
         {loading && docs.length === 0 && (

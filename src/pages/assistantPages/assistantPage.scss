@@ -259,7 +259,7 @@
 }
 
 .context-header-main {
-  padding: 14px 14px 6px;
+  padding: 14px 14px 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -284,21 +284,29 @@
 }
 
 .context-search {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
   padding: 14px 14px 18px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 
-  .context-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-
   input {
     flex: 1;
     font-size: 12px;
+  }
+
+  .favorite-button {
+    padding: 0;
+
+    &:hover {
+      color: var(--gold);
+      background: transparent;
+    }
+
+    &.active {
+      color: var(--gold);
+    }
   }
 
   .context-count {
@@ -332,7 +340,7 @@
 
 .context-item {
   position: relative;
-  padding: 10px 16px 10px 10px;
+  padding: 10px;
   border-radius: 8px;
   background: var(--panel);
   border: 1px solid var(--border);

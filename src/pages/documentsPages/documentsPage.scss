@@ -39,7 +39,7 @@
   .sidebar-top {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 14px;
     border-bottom: 1px solid var(--border);
     background: var(--panel);
     padding: 14px 14px 18px;
@@ -69,14 +69,6 @@
         align-self: flex-start;
         padding: 0;
       }
-
-      .favorite-button {
-        padding: 0;
-
-        &.active {
-          color: var(--gold);
-        }
-      }
     }
   }
 
@@ -88,10 +80,27 @@
   }
 
   .search-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
     input[type="text"] {
       width: 100%;
       border-radius: 12px;
       font-size: 12px;
+    }
+
+    .favorite-button {
+      padding: 0;
+
+      &:hover {
+        color: var(--gold);
+        background: transparent;
+      }
+
+      &.active {
+        color: var(--gold);
+      }
     }
   }
 

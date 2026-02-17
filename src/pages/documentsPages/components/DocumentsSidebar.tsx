@@ -1,6 +1,7 @@
 import React from "react";
 import InlineBanner from "../../../components/banners/InlineBanner";
 import DocumentsHeader from "./DocumentsHeader";
+import { Star } from "lucide-react";
 
 type Props = {
   isAdmin: boolean;
@@ -54,8 +55,6 @@ export default function DocumentsSidebar({
           onExport={onExport}
           onImport={onImport}
           isAdmin={isAdmin}
-          showOnlyFavorites={showOnlyFavorites}
-          onToggleFavorites={onToggleFavorites}
         />
 
         <div className="search-row">
@@ -65,6 +64,23 @@ export default function DocumentsSidebar({
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
           />
+          <button
+            className={`favorite-button text-btn ${showOnlyFavorites ? "active" : ""}`}
+            type="button"
+            onClick={onToggleFavorites}
+            title={
+              showOnlyFavorites ? "Show all documents" : "Show only favorites"
+            }
+            aria-label={
+              showOnlyFavorites ? "Show all documents" : "Show only favorites"
+            }
+          >
+            <Star
+              size={20}
+              width={20}
+              fill={showOnlyFavorites ? "currentColor" : "none"}
+            />
+          </button>
         </div>
 
         {error ? <div className="error">{error}</div> : null}

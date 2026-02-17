@@ -14,12 +14,7 @@ import Composer from "./components/Composer";
 import { loadJson, saveJson } from "../../utils/storage";
 
 export default function AssistantPage() {
-  const {
-    docs,
-    loading: docsLoading,
-    error: docsError,
-    loadDocuments,
-  } = useDocuments();
+  const { docs, loading: docsLoading, loadDocuments } = useDocuments();
 
   const GREETING_TEXT = "How can I help you?";
 
@@ -184,7 +179,6 @@ export default function AssistantPage() {
           <ContextPanel
             docs={docs}
             loading={docsLoading}
-            error={docsError}
             selectedIds={selectedIds}
             contextQuery={contextQuery}
             onToggleSelected={toggleSelected}

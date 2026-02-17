@@ -7,12 +7,8 @@ export function matchesQuery(d: DocumentItem, q: string) {
   const title = (d.title ?? "").toLowerCase();
   const category = (d.category ?? "").toLowerCase();
   const summary = (d.summary ?? "").toLowerCase();
-  const content = (d.content ?? "").toLowerCase();
 
   return (
-    title.includes(query) ||
-    category.includes(query) ||
-    summary.includes(query) ||
-    content.includes(query)
+    title.includes(query) || category.includes(query) || summary.includes(query)
   );
 }

@@ -1,14 +1,12 @@
 import { useState } from "react";
 import ImportMenuButton from "./ImportMenuButton";
-import { FilePlusCorner, Star } from "lucide-react";
+import { FilePlusCorner } from "lucide-react";
 
 type Props = {
   onNew: () => void;
   onExport: () => Promise<void> | void;
   onImport: (mode: "merge" | "replace") => void;
   isAdmin: boolean;
-  showOnlyFavorites: boolean;
-  onToggleFavorites: () => void;
 };
 
 export default function DocumentsHeader({
@@ -16,8 +14,6 @@ export default function DocumentsHeader({
   onExport,
   onImport,
   isAdmin,
-  showOnlyFavorites,
-  onToggleFavorites,
 }: Props) {
   const [isExporting, setIsExporting] = useState(false);
 
@@ -46,21 +42,6 @@ export default function DocumentsHeader({
         </button>
         {isAdmin && <ImportMenuButton onImport={onImport} />}
       </div>
-      <button
-        className={`favorite-button text-btn ${showOnlyFavorites ? "active" : ""}`}
-        type="button"
-        onClick={onToggleFavorites}
-        title={showOnlyFavorites ? "Show all documents" : "Show only favorites"}
-        aria-label={
-          showOnlyFavorites ? "Show all documents" : "Show only favorites"
-        }
-      >
-        <Star
-          size={22}
-          width={22}
-          fill={showOnlyFavorites ? "currentColor" : "none"}
-        />
-      </button>
       <button
         className="add-btn text-btn"
         type="button"
