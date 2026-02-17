@@ -1,12 +1,5 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-} from "react";
-import { listDocuments, type DocumentItem } from "../api/documentsClient";
+import { createContext, useContext } from "react";
+import { type DocumentItem } from "../api/documentsClient";
 
 interface DocumentsContextType {
   docs: DocumentItem[];
@@ -17,19 +10,19 @@ interface DocumentsContextType {
   setDocs: React.Dispatch<React.SetStateAction<DocumentItem[]>>;
 }
 
-const DocumentsContext = createContext<DocumentsContextType | undefined>(
+export const DocumentsContext = createContext<DocumentsContextType | undefined>(
   undefined,
 );
 
 const CACHE_KEY = "docsCache:v1";
 const CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 6; // 6 hours
 
-type CachePayload = {
+export type CachePayload = {
   savedAt: number;
   docs: DocumentItem[];
 };
 
-function readCache(): DocumentItem[] | null {
+export function readCache(): DocumentItem[] | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
@@ -42,57 +35,13 @@ function readCache(): DocumentItem[] | null {
   }
 }
 
-function writeCache(docs: DocumentItem[]) {
+export function writeCache(docs: DocumentItem[]) {
   try {
     const payload: CachePayload = { savedAt: Date.now(), docs };
     localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
   } catch {
     // ignore
   }
-}
-
-export function DocumentsProvider({ children }: { children: React.ReactNode }) {
-  const [docs, setDocs] = useState<DocumentItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isReady, setIsReady] = useState(false);
-
-  const didFetchOnceRef = useRef(false);
-
-  useEffect(() => {
-    const cached = readCache();
-    if (cached && cached.length) {
-      setDocs(cached);
-      setIsReady(true);
-    }
-  }, []);
-
-  const loadDocuments = useCallback(async (force = false) => {
-    if (!force && didFetchOnceRef.current) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const data = await listDocuments();
-      setDocs(data);
-      writeCache(data);
-      setIsReady(true);
-      didFetchOnceRef.current = true;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load documents");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  return (
-    <DocumentsContext.Provider
-      value={{ docs, loading, error, isReady, loadDocuments, setDocs }}
-    >
-      {children}
-    </DocumentsContext.Provider>
-  );
 }
 
 export function useDocuments() {

@@ -65,12 +65,6 @@ export default function DocumentPane({
   const isValid = isInputValid(form);
 
   useEffect(() => {
-    if (!isCreating && doc && !isDirty && mode === "view") {
-      setForm(toInput(doc));
-    }
-  }, [doc?.id]);
-
-  useEffect(() => {
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
 
