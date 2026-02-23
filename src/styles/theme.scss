@@ -17,12 +17,14 @@
     --overlay: rgba(0, 0, 0, 0.7);
 
     --primary: #84aedd;
+    --secondary: #b48ced;
     --primary-bg: color-mix(in srgb, var(--primary) 16%, var(--bg));
     --primary-border: #d5d5d53d;
     --primary-text: #000000;
     --primary-hover: #74a9ffdb;
     --gold: goldenrod;
     --focus: #cddef14f;
+    --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.4);
 
     --success-bg: #6b6d6e5c;
     --success-border: #86d8fcdb;
@@ -49,6 +51,7 @@
     --secondery-text: #111113bb;
     --muted: #6b6b73;
     --primary: #007aff;
+    --secondary: #5856d6;
 
     --info-bg: color-mix(in srgb, var(--primary) 8%, var(--bg));
     --info-border: #86d8fcdb;
@@ -61,6 +64,7 @@
 
     --border: #e3e3e6;
     --shadow: rgba(0, 0, 0, 0.08);
+    --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.12);
     --overlay: rgba(0, 0, 0, 0.35);
     --gold: gold;
     --focus: rgba(0, 0, 0, 0.12);

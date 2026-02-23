@@ -32,7 +32,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
     return new Promise<boolean>((resolve) => {
       resolverRef.current = resolve;
     });
-  }
+  };
 
   function close(result: boolean) {
     setOpen(false);

@@ -67,7 +67,8 @@ export default function UserMenu() {
         className="user-menu__trigger"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
-        title={user.email}
+        data-tooltip={user.email}
+        data-tooltip-pos="bottom"
         aria-label="User menu"
         aria-expanded={open}
         type="button"
@@ -86,7 +87,11 @@ export default function UserMenu() {
       >
         <div className="user-menu__panel">
           <div className="user-menu__header">
-            <div className="user-menu__email" title={user.email}>
+            <div
+              className="user-menu__email"
+              data-tooltip={user.email}
+              data-tooltip-pos="bottom"
+            >
               {user.email}
             </div>
             <div className={`user-menu__role ${user.role}`}>

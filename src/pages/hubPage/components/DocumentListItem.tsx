@@ -37,8 +37,12 @@ export default function DocumentListItem({
       <div className="doc-row-main">
         <div className="doc-row-title-row">
           {isFavorite ? (
-            <div className="doc-row-favorite" title="Favorite">
-              <Star size={14} fill="currentColor" />
+            <div
+              className="doc-row-favorite"
+              data-tooltip="Favorite"
+              data-tooltip-pos="bottom"
+            >
+              <Star size={10} strokeWidth={3} fill="currentColor" />
             </div>
           ) : (
             <div className="doc-row-favorite"></div>

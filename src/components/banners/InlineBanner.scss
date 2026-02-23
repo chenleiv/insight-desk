@@ -1,18 +1,19 @@
 .inline-banner {
     margin-bottom: 16px;
-    padding: 12px 14px;
-    border-radius: 8px;
+    padding: 14px 16px;
+    border-radius: 12px;
     font-size: 14px;
+    border: 1px solid transparent;
 
     &.error {
-        background: rgba(255, 80, 80, 0.12);
-        border: 1px solid rgba(255, 80, 80, 0.35);
-        color: #ffb3b3;
+        background: var(--danger-bg);
+        border-color: var(--danger-border);
+        color: var(--danger-text);
     }
 
     &.info {
-        background: rgba(120, 120, 255, 0.12);
-        border: 1px solid rgba(120, 120, 255, 0.35);
-        color: #cfcfff;
+        background: var(--info-bg);
+        border-color: var(--info-border);
+        color: var(--info-text);
     }
 }

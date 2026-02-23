@@ -5,12 +5,12 @@
     transform: translateX(-50%);
     z-index: 1000;
     width: min(92vw, 460px);
-    background: var(--panel);
+    background: color-mix(in srgb, var(--panel) 90%, transparent);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    box-shadow: 0 12px 40px var(--shadow);
+    border-radius: 12px;
+    box-shadow: var(--shadow-elevated);
 
-    animation: slideUpFade 180ms ease-out;
+    animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .statusbar-inner {
@@ -22,14 +22,7 @@
     }
 }
 
-.statusbar-content {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    padding: 14px 16px;
-}
 
-/* accent stripe */
 .statusbar::before {
     content: "";
     position: absolute;
@@ -37,7 +30,7 @@
     top: 0;
     bottom: 0;
     width: 4px;
-    border-radius: 8px 0 0 8px;
+    border-radius: 12px 0 0 12px;
 }
 
 /* ===== kinds ===== */
@@ -46,7 +39,7 @@
     border-color: var(--success-border);
     background: linear-gradient(to right,
             var(--success-bg),
-            var(--panel) 40%);
+            transparent 40%);
 
     &::before {
         background: var(--success-border);
@@ -61,7 +54,7 @@
     border-color: var(--danger-border);
     background: linear-gradient(to right,
             var(--danger-bg),
-            var(--panel) 40%);
+            transparent 40%);
 
     &::before {
         background: var(--danger-border);
@@ -76,7 +69,7 @@
     border-color: var(--info-border);
     background: linear-gradient(to right,
             var(--info-bg),
-            var(--panel) 40%);
+            transparent 40%);
 
     &::before {
         background: var(--info-border);

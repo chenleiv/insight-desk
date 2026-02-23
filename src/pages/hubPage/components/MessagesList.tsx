@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { ChatMessage } from "../types";
+import type { ChatMessage } from "../assistantTypes";
 import TypewriterText from "./TypewriterText";
 import InitialGreeting from "./InitialGreeting";
 

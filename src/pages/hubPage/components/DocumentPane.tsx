@@ -16,6 +16,8 @@ import {
 } from "../utils/documentForm";
 import { DocumentDetailSkeleton } from "../../../components/skeleton/Skeleton";
 
+import { Maximize2 } from "lucide-react";
+
 type Props = {
   doc: DocumentItem | null;
   canEdit: boolean;
@@ -28,6 +30,11 @@ type Props = {
   onDirtyChange?: (isDirty: boolean) => void;
   onModeChange?: (mode: "view" | "edit") => void;
   loading?: boolean;
+  isMaximized?: boolean;
+  onToggleMaximize?: () => void;
+  onMinimize?: () => void;
+  isMinimized?: boolean;
+  onExpand?: () => void;
 };
 
 export default function DocumentPane({
@@ -41,6 +48,11 @@ export default function DocumentPane({
   onDirtyChange,
   onModeChange,
   loading,
+  isMaximized,
+  onToggleMaximize,
+  onMinimize,
+  isMinimized,
+  onExpand,
 }: Props) {
   const status = useStatus();
   const confirm = useConfirm();
@@ -92,7 +104,8 @@ export default function DocumentPane({
       }
 
       const cleaned: DocumentInput = DOCUMENT_FIELDS.reduce((acc, field) => {
-        acc[field] = (formData.get(field) as string).trim();
+        const val = formData.get(field);
+        acc[field] = (typeof val === "string" ? val : "").trim();
         return acc;
       }, {} as DocumentInput);
 
@@ -134,6 +147,27 @@ export default function DocumentPane({
 
   const canSave = canEdit && !isPending && isDirty && isValid;
 
+  const handleMinimize = async () => {
+    if (isDirty) {
+      const ok = await confirm({
+        title: "Unsaved Changes",
+        message: "You have unsaved changes. Minimize anyway?",
+        confirmLabel: "Minimize",
+        cancelLabel: "Stay",
+        variant: "danger",
+      });
+      if (!ok) return;
+    }
+
+    if (isCreating) {
+      onCancelCreate();
+      return;
+    }
+    setForm(baseline);
+    setMode("view");
+    onMinimize?.();
+  };
+
   const handleCancel = async () => {
     if (isDirty) {
       const ok = await confirm({
@@ -154,6 +188,33 @@ export default function DocumentPane({
     setForm(baseline);
     setMode("view");
   };
+
+  if (isMinimized) {
+    const paneTitle = isCreating
+      ? "New document"
+      : (doc?.title ?? "SELECT DOCUMENT");
+    return (
+      <div
+        className="doc-pane-minimized"
+        onClick={() => onExpand && onExpand()}
+        data-tooltip="Expand Document"
+        data-tooltip-pos="right"
+      >
+        <button
+          className="icon-btn expand-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onExpand) onExpand();
+          }}
+        >
+          <Maximize2 size={16} />
+        </button>
+        <div className="doc-pane-rotated-title">
+          <p>{paneTitle}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isCreating && loading) {
     return (
@@ -182,6 +243,9 @@ export default function DocumentPane({
         canSave={canSave}
         onEdit={() => setMode("edit")}
         onCancel={handleCancel}
+        {...(isMaximized !== undefined && { isMaximized })}
+        {...(onToggleMaximize !== undefined && { onToggleMaximize })}
+        {...(onMinimize !== undefined && { onMinimize: handleMinimize })}
       />
 
       {mode === "view" ? (

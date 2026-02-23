@@ -17,7 +17,8 @@ export default function ThemeToggle({ value, onChange }: Props) {
       role="switch"
       aria-checked={isDark}
       aria-label="Toggle theme"
-      title="Toggle theme"
+      data-tooltip="Toggle theme"
+      data-tooltip-pos="left"
     >
       <span className="track" />
       <span className="thumb">{isDark ? "🌙" : "☀️"}</span>

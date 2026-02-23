@@ -6,6 +6,32 @@
     margin: 0 auto;
     animation: fadeIn 0.5s ease-out;
 
+    .page-top-nav {
+        margin-bottom: 24px;
+
+        .btn-back-prominent {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px 8px 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+            &:hover {
+                color: var(--text);
+                background: var(--soft);
+                border-color: var(--muted);
+                transform: translateX(-2px);
+            }
+        }
+    }
+
     .header-section {
         display: flex;
         justify-content: space-between;
@@ -21,14 +47,16 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            letter-spacing: -0.01em;
 
             span {
                 font-size: 14px;
-                font-weight: 400;
+                font-weight: 500;
                 background: var(--soft-2);
                 color: var(--muted);
                 padding: 4px 12px;
-                border-radius: 20px;
+                border-radius: 8px;
+                border: 1px solid var(--border);
             }
         }
 
@@ -53,7 +81,6 @@
         border-radius: 12px;
         overflow: hidden;
         box-shadow: 0 4px 12px var(--shadow);
-        backdrop-filter: blur(10px);
 
         table {
             width: 100%;
@@ -77,6 +104,8 @@
                 color: var(--text);
                 font-size: 14px;
                 vertical-align: middle;
+                background: var(--panel);
+                transition: background 0.2s ease;
 
                 &:last-child {
                     text-align: right;
@@ -124,8 +153,9 @@
                     }
 
                     &.active {
-                        background: rgba(129, 199, 132, 0.15);
+                        background: var(--success-bg);
                         color: var(--success-text);
+                        border-color: var(--success-border);
 
                         &::before {
                             background: var(--success-text);
@@ -133,11 +163,12 @@
                     }
 
                     &.inactive {
-                        background: rgba(195, 194, 194, 0.15);
-                        color: var(--muted);
+                        background: var(--danger-bg);
+                        color: var(--danger-text);
+                        border-color: var(--danger-border);
 
                         &::before {
-                            background: var(--muted);
+                            background: var(--danger-text);
                         }
                     }
                 }
@@ -151,7 +182,7 @@
                     input {
                         width: 100%;
                         padding-right: 40px;
-                        background: rgba(255, 255, 255, 0.03);
+                        background: var(--bg);
                         border: 1px solid var(--border);
                         color: var(--text);
                         border-radius: 6px;
@@ -199,7 +230,7 @@
                     border-bottom: none;
                 }
 
-                &:hover {
+                &:hover td {
                     background: var(--soft);
                 }
 
@@ -269,7 +300,6 @@
             border: none;
             background: transparent;
             box-shadow: none;
-            backdrop-filter: none;
 
             table {
                 display: block;
@@ -290,7 +320,6 @@
                     margin-bottom: 16px;
                     padding: 16px;
                     box-shadow: 0 4px 12px var(--shadow);
-                    backdrop-filter: blur(10px);
 
                     &:hover {
                         background: var(--panel); // Disable hover effect on mobile cards
@@ -305,6 +334,7 @@
                     border-bottom: 1px solid var(--border);
                     width: 100%;
                     text-align: right;
+                    background: transparent;
 
                     &:last-child {
                         border-bottom: none;

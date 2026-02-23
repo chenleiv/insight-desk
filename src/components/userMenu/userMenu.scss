@@ -29,8 +29,8 @@
 
 .user-menu__avatar {
     width: 40px;
-    height: 28px;
-    border-radius: 8px;
+    height: 32px;
+    border-radius: 10px;
     display: grid;
     place-items: center;
     font-weight: 600;
@@ -38,6 +38,12 @@
     background: var(--primary);
     color: var(--primary-text);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px var(--primary-bg);
+    }
 }
 
 .user-menu__panel {

@@ -1,4 +1,4 @@
-import type { DocumentItem } from "../../api/documentsClient";
+import type { DocumentItem } from "../../../api/documentsClient";
 
 export const CHAT_KEY = "assistantChat";
 export const CONTEXT_KEY = "assistantContext";

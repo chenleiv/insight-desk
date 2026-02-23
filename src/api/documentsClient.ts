@@ -40,7 +40,7 @@ export async function deleteDocument(id: number) {
   return { ok: true as const };
 }
 
-// viewer/admin
+// viewer & admin
 export function exportDocuments() {
   return apiFetch<DocumentItem[]>("/api/documents/export", { method: "POST" });
 }

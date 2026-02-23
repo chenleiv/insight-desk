@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { Navigate, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useAuth } from "../../auth/useAuth";
 import "./UsersPage.scss";
 
@@ -34,6 +34,7 @@ const MOCK_USERS: UserRecord[] = [
 
 export default function UsersPage() {
   const { user: currentUser, isReady } = useAuth();
+  const navigate = useNavigate();
   const [users] = useState<UserRecord[]>(MOCK_USERS);
   const [searchTerm, setSearchTerm] = useState("");
   const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(
@@ -67,6 +68,17 @@ export default function UsersPage() {
 
   return (
     <div className="users-page">
+      <div className="page-top-nav">
+        <button
+          type="button"
+          className="btn-back-prominent"
+          onClick={() => navigate("/documents")}
+        >
+          <ArrowLeft size={16} />
+          <span>Back to Insights Hub</span>
+        </button>
+      </div>
+
       <header className="header-section">
         <h1>
           Directory <span>{users.length} users</span>
