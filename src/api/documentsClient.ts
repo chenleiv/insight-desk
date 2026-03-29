@@ -6,6 +6,8 @@ export type DocumentItem = {
   category: string;
   summary: string;
   content: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type DocumentInput = Omit<DocumentItem, "id">;

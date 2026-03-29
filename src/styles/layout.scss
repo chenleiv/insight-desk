@@ -164,6 +164,13 @@
     /* Let pages handle their own padding */
     animation: fadeIn 0.4s ease-out;
   }
+
+  &.hub-fullscreen {
+    main {
+      height: 100vh;
+      min-height: 100vh;
+    }
+  }
 }
 
 @keyframes fadeIn {

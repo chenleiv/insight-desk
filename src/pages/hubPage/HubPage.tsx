@@ -1,126 +1,33 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { arrayMove } from "@dnd-kit/sortable";
-import type { DragEndEvent } from "@dnd-kit/core";
-import { X, PanelLeftOpen, PanelLeftClose, Bot } from "lucide-react";
 
-import HubSidebar from "./components/HubSidebar";
-import HubDocumentList from "./components/HubDocumentList";
-import HubPane from "./components/HubPane";
-import HubAssistant from "./components/HubAssistant";
+import AppSidebar from "./components/AppSidebar";
+import DocumentsGridView from "./components/DocumentsGridView";
+import AIAssistantView from "./components/AIAssistantView";
 import DocumentPane from "./components/DocumentPane";
 
 import { useDocuments } from "../../context/DocumentsContext";
 import { useAuth } from "../../auth/useAuth";
 import { useStatus } from "../../components/statusBar/useStatus";
 import useConfirm from "../../hooks/useConfirm";
-import { useMobile } from "../../hooks/useMobile";
-import { useResize } from "../../hooks/useResize";
-import { useOnboarding } from "../../hooks/useOnboarding";
-import { ResizeHandle } from "../../components/resizeHandle/ResizeHandle";
-import { Popover } from "../../components/popover/Popover";
 
 import { normalizeOrder, sameArray, applyOrder } from "./utils/ordering";
 import { saveJson, loadJson, scopedKey } from "../../utils/storage";
-import { normalizeImportedDocuments } from "./utils/hubHelpers";
 import {
   deleteDocument,
-  importDocumentsBulk,
   type DocumentItem,
 } from "../../api/documentsClient";
-import { downloadExport } from "../../api/downloadExport";
-import { matchesQuery } from "./utils/docs";
+import { matchesQuery, matchesCategory, getUniqueCategories } from "./utils/docs";
 import { CONTEXT_KEY } from "./utils/assistantUtils";
 
 import "./hubPage.scss";
 
+import DashboardView from "./components/DashboardView";
+import type { View } from "./components/AppSidebar";
+
 export default function HubPage() {
-  const {
-    user,
-    toggleFavorite: globalToggleFavorite,
-    favoritesMap: favorites,
-  } = useAuth();
+  const { user, toggleFavorite: globalToggleFavorite, favoritesMap: favorites } = useAuth();
   const status = useStatus();
-  const isMobile = useMobile();
   const confirm = useConfirm();
-  const {
-    hasClickedFab,
-    hasSelectedContext,
-    hasSeenDemo,
-    completeFab,
-    completeCtx,
-    completeDemo,
-  } = useOnboarding();
-
-  const [demoStep, setDemoStep] = useState(-1);
-
-  useEffect(() => {
-    if (!hasSeenDemo) {
-      setDemoStep(0);
-      if (isMobile) {
-        setIsAssistantOpen(false);
-      }
-    }
-  }, [hasSeenDemo, isMobile]);
-
-  const nextDemoStep = () => {
-    const maxSteps = isMobile ? 2 : 4;
-    if (demoStep < maxSteps) {
-      setDemoStep((prev) => prev + 1);
-    } else {
-      setDemoStep(-1);
-      completeDemo();
-    }
-  };
-
-  const skipDemo = () => {
-    setDemoStep(-1);
-    completeDemo();
-  };
-
-  const renderDemoAction = (isLast: boolean) => (
-    <div
-      style={{
-        display: "flex",
-        gap: "12px",
-        justifyContent: "flex-end",
-        alignItems: "center",
-      }}
-    >
-      {!isLast && (
-        <button
-          className="text-btn"
-          style={{
-            fontSize: "12px",
-            opacity: 0.8,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            color: "inherit",
-            padding: 0,
-          }}
-          onClick={skipDemo}
-        >
-          Skip Tour
-        </button>
-      )}
-      <button
-        className="text-btn"
-        style={{
-          fontSize: "13px",
-          fontWeight: 600,
-          padding: "6px 16px",
-          borderRadius: "20px",
-          background: "var(--bg)",
-          color: "var(--text)",
-          border: "none",
-          cursor: "pointer",
-        }}
-        onClick={nextDemoStep}
-      >
-        {isLast ? "Start exploring!" : "Next"}
-      </button>
-    </div>
-  );
 
   const isAdmin = user?.role === "admin";
   const orderKey = scopedKey("documentsOrder", user?.email);
@@ -133,35 +40,50 @@ export default function HubPage() {
     error: docsError,
   } = useDocuments();
 
-  // Unified State
-  const [query, setQuery] = useState("");
+  const [view, setView] = useState<View>("dashboard");
+
+  function handleViewChange(newView: View) {
+    if (isPaneDirty) {
+      void confirm({
+        title: "Unsaved Changes",
+        message: "Discard unsaved changes?",
+        confirmLabel: "Discard",
+        variant: "danger",
+      }).then((ok) => {
+        if (ok) {
+          setIsPaneDirty(false);
+          setIsCreating(false);
+          if (!docSplitView) setActiveDocId(null);
+          setView(newView);
+        }
+      });
+      return;
+    }
+    
+    setIsCreating(false);
+    if (!docSplitView && (newView === "documents" || newView === "favorites" || view === newView)) {
+      setActiveDocId(null);
+    }
+    setView(newView);
+  }
+
+  const [docSearchQuery, setDocSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [docViewMode, setDocViewMode] = useState<"grid" | "list">("grid");
+  const [docSplitView, setDocSplitView] = useState<boolean>(() =>
+    loadJson<boolean>("docSplitView", false)
+  );
   const [order, setOrder] = useState<number[]>([]);
   const [activeDocId, setActiveDocId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>(() =>
-    loadJson<number[]>(CONTEXT_KEY, []),
+    loadJson<number[]>(CONTEXT_KEY, [])
   );
-
-  const [isAssistantOpen, setIsAssistantOpen] = useState(true);
-  const [isAssistantMaximized, setIsAssistantMaximized] = useState(false);
-  const [isAssistantMinimized, setIsAssistantMinimized] = useState(false);
-  const [isDocumentMaximized, setIsDocumentMaximized] = useState(false);
-  const [isDocumentMinimized, setIsDocumentMinimized] = useState(false);
-
   const [isCreating, setIsCreating] = useState(false);
   const [isPaneDirty, setIsPaneDirty] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-  const [showForbidden, setShowForbidden] = useState(false);
-  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [mobileView, setMobileView] = useState<"list" | "detail">("list");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  const { width: sidebarWidth, startResize: startSidebarResize } = useResize(
-    320, // initial
-    240, // min
-    480, // max
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() =>
+    loadJson<boolean>("sidebarCollapsed", false)
   );
-
   const lastActiveDocIdRef = useRef<number | null>(null);
 
   const activeDoc = useMemo(() => {
@@ -169,9 +91,7 @@ export default function HubPage() {
     return docs.find((d) => d.id === activeDocId) ?? null;
   }, [activeDocId, docs]);
 
-  // Initial Load
   const load = useCallback(async () => {
-    setError(null);
     await loadDocuments();
   }, [loadDocuments]);
 
@@ -186,7 +106,6 @@ export default function HubPage() {
         if (!sameArray(next, prev)) saveJson(orderKey, next);
         return next;
       });
-
       setActiveDocId((prev) => {
         if (prev != null)
           return docs.some((d) => d.id === prev) ? prev : (docs[0]?.id ?? null);
@@ -196,10 +115,13 @@ export default function HubPage() {
   }, [docs, orderKey]);
 
   useEffect(() => {
-    if (docsError) setError(docsError);
-  }, [docsError]);
+    if (docsError) status.show({ kind: "error", message: docsError });
+  }, [docsError, status]);
 
-  // Sync AI Selection
+  useEffect(() => {
+    contentRef.current?.focus({ preventScroll: true });
+  }, [view]);
+
   useEffect(() => {
     if (docs.length > 0) {
       const ids = new Set(docs.map((d) => d.id));
@@ -211,61 +133,20 @@ export default function HubPage() {
     }
   }, [docs]);
 
-  // Handlers
-  function toggleSelected(id: number) {
-    setSelectedIds((prev) => {
-      const next = prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : [...prev, id];
-      saveJson(CONTEXT_KEY, next);
-      return next;
+  const orderedDocs = useMemo(() => applyOrder(docs, order), [docs, order]);
+  const filteredDocs = useMemo(() => {
+    return orderedDocs.filter((d) => {
+      const isFavMatch = view === "favorites" ? !!favorites[d.id] : true;
+      return isFavMatch && matchesQuery(d, docSearchQuery) && matchesCategory(d, categoryFilter);
     });
-    if (!hasSelectedContext) completeCtx();
-    // Only auto-open the assistant pane on desktop
-    if (!isMobile && !isAssistantOpen) setIsAssistantOpen(true);
-  }
+  }, [orderedDocs, docSearchQuery, categoryFilter, view, favorites]);
 
-  async function openDocument(id: number) {
-    if (id === activeDocId && !isCreating) {
-      if (isMobile) setIsAssistantOpen(false);
-      setMobileView("detail");
-      return;
-    }
+  const categories = useMemo(() => getUniqueCategories(docs), [docs]);
 
-    if (isPaneDirty) {
-      const ok = await confirm({
-        title: "Unsaved Changes",
-        message: "You have unsaved changes. Discard them?",
-        confirmLabel: "Discard",
-        variant: "danger",
-      });
-      if (!ok) return;
-    }
-
-    setIsCreating(false);
-    setActiveDocId(id);
-    setIsAssistantMaximized(false);
-    setIsDocumentMaximized(false);
-    setIsDocumentMinimized(false);
-    if (isMobile) setIsAssistantOpen(false);
-    setMobileView("detail");
-  }
-
-  function handleCreated(doc: DocumentItem) {
-    setIsCreating(false);
-    setDocs((prev) => [doc, ...prev]);
-    setOrder((prev) => {
-      const next = [doc.id, ...prev.filter((x) => x !== doc.id)];
-      saveJson(orderKey, next);
-      return next;
-    });
-    setActiveDocId(doc.id);
-    setIsAssistantMaximized(false);
-    setIsDocumentMaximized(false);
-    setIsDocumentMinimized(false);
-    if (isMobile) setIsAssistantOpen(false);
-    setMobileView("detail");
-  }
+  const recentDocs = useMemo(
+    () => orderedDocs.slice(0, 5).map((d) => ({ id: d.id, title: d.title })),
+    [orderedDocs]
+  );
 
   async function openCreate() {
     if (isPaneDirty) {
@@ -277,24 +158,77 @@ export default function HubPage() {
       });
       if (!ok) return;
     }
-    setQuery("");
+    setDocSearchQuery("");
     lastActiveDocIdRef.current = activeDocId;
     setIsCreating(true);
     setActiveDocId(null);
-    setIsAssistantMaximized(false);
-    setIsDocumentMinimized(false);
-    if (isMobile) setIsAssistantOpen(false);
-    setMobileView("detail");
+    if (view !== "favorites") {
+      setView("documents");
+    }
   }
 
-  const orderedDocs = useMemo(() => applyOrder(docs, order), [docs, order]);
-  const filteredDocs = useMemo(() => {
-    let result = orderedDocs;
-    if (showOnlyFavorites) result = result.filter((d) => favorites[d.id]);
-    return result.filter((d) => matchesQuery(d, query));
-  }, [orderedDocs, showOnlyFavorites, favorites, query]);
+  function handleCreated(doc: DocumentItem) {
+    setIsCreating(false);
+    setDocs((prev) => [doc, ...prev]);
+    setOrder((prev) => {
+      const next = [doc.id, ...prev.filter((x) => x !== doc.id)];
+      saveJson(orderKey, next);
+      return next;
+    });
+    setActiveDocId(doc.id);
+  }
 
-  // Logic from DocumentsPage (Import/Export/Delete)
+  function openDocument(id: number) {
+    if (isPaneDirty) {
+      void confirm({
+        title: "Unsaved Changes",
+        message: "Discard unsaved changes?",
+        confirmLabel: "Discard",
+        variant: "danger",
+      }).then((ok) => {
+        if (ok) doOpen(id);
+      });
+      return;
+    }
+    doOpen(id);
+  }
+
+  function doOpen(id: number) {
+    setIsCreating(false);
+    setActiveDocId(id);
+    if (view !== "favorites") {
+      setView("documents");
+    }
+  }
+
+  function toggleDocSplitView() {
+    setDocSplitView((prev) => {
+      const next = !prev;
+      saveJson("docSplitView", next);
+      return next;
+    });
+  }
+
+  function closeDocument() {
+    if (isPaneDirty) {
+      void confirm({
+        title: "Unsaved Changes",
+        message: "Discard unsaved changes?",
+        confirmLabel: "Discard",
+        variant: "danger",
+      }).then((ok) => {
+        if (ok) doCloseDocument();
+      });
+      return;
+    }
+    doCloseDocument();
+  }
+
+  function doCloseDocument() {
+    setIsCreating(false);
+    setActiveDocId(lastActiveDocIdRef.current);
+  }
+
   async function onDelete(doc: DocumentItem) {
     const ok = await confirm({
       title: "Delete document",
@@ -314,7 +248,6 @@ export default function HubPage() {
       });
       if (wasActive) {
         setActiveDocId(orderedDocs.find((d) => d.id !== doc.id)?.id ?? null);
-        setMobileView("list");
       }
       status.show({ kind: "success", message: "Document deleted." });
     } catch (e) {
@@ -326,387 +259,116 @@ export default function HubPage() {
     }
   }
 
-  async function requestImport(mode: "merge" | "replace") {
-    if (!isAdmin) {
-      status.show({
-        kind: "error",
-        title: "Forbidden",
-        message: "Admins only.",
-      });
-      return;
-    }
-    if (mode === "replace") {
-      const ok = await confirm({
-        title: "Replace all?",
-        message: "This will delete everything. Proceed?",
-        confirmLabel: "Replace",
-        variant: "danger",
-      });
-      if (!ok) return;
-    }
-    onImport(mode);
-  }
-
-  async function onImport(mode: "merge" | "replace") {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "application/json";
-    input.onchange = async () => {
-      try {
-        const file = input.files?.[0];
-        if (!file) return;
-        const text = await file.text();
-        const documents = normalizeImportedDocuments(JSON.parse(text));
-        if (documents.length === 0) return;
-        await importDocumentsBulk({ mode, documents });
-        await load();
-        status.show({ kind: "success", message: "Import completed." });
-      } catch (_e) {
-        status.show({
-          kind: "error",
-          title: "Import failed",
-          message: "Error",
-        });
-      }
-    };
-    input.click();
-  }
-
-  async function onExport() {
-    try {
-      await downloadExport();
-      status.show({ kind: "success", message: "Export started." });
-    } catch (_e) {
-      status.show({ kind: "error", title: "Export failed", message: "Error" });
-    }
-  }
-
-  function onDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setOrder((prev) => {
-      const oldIdx = prev.indexOf(active.id as number);
-      const newIdx = prev.indexOf(over.id as number);
-      if (oldIdx === -1 || newIdx === -1) return prev;
-      const next = arrayMove(prev, oldIdx, newIdx);
-      saveJson(orderKey, next);
-      return next;
-    });
-  }
-
   return (
-    <div
-      className={`hub-layout ${isMobile && mobileView === "detail" ? "mobile-view-detail" : "mobile-view-list"} ${!sidebarOpen ? "sidebar-closed" : ""}`}
-    >
-      <aside
-        className="hub-sidebar demo-nav-target"
-        style={
-          !isMobile && sidebarOpen
-            ? { width: sidebarWidth, minWidth: sidebarWidth }
-            : undefined
-        }
-        onClick={() => {
-          if (!sidebarOpen && !isMobile) {
-            setSidebarOpen(true);
-            // Optionally, un-maximize others when explicitly opening sidebar via click
-            setIsDocumentMaximized(false);
-            setIsAssistantMaximized(false);
-          }
-        }}
-        data-tooltip={!sidebarOpen && !isMobile ? "Expand Sidebar" : undefined}
-        data-tooltip-pos="right"
-      >
-        <HubSidebar
-          isAdmin={isAdmin}
-          query={query}
-          onQueryChange={setQuery}
-          error={error}
-          showForbidden={showForbidden}
-          onCloseForbidden={() => setShowForbidden(false)}
+    <div className={`hub-layout hub-layout-refactored ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      <aside className={`hub-sidebar app-sidebar-wrapper ${isSidebarCollapsed ? "collapsed" : ""}`}>
+        <AppSidebar
+          view={view}
+          onViewChange={handleViewChange}
+          query={docSearchQuery}
+          onQueryChange={setDocSearchQuery}
           onNew={openCreate}
-          onExport={onExport}
-          onImport={requestImport}
-          showOnlyFavorites={showOnlyFavorites}
-          onToggleFavorites={() => setShowOnlyFavorites(!showOnlyFavorites)}
-          sidebarToggle={
-            !isMobile ? (
-              <button
-                type="button"
-                className="icon-btn"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                data-tooltip={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-                data-tooltip-pos="bottom"
-              >
-                {sidebarOpen ? (
-                  <PanelLeftClose size={18} />
-                ) : (
-                  <PanelLeftOpen size={18} />
-                )}
-              </button>
-            ) : null
-          }
-          onExpand={() => {
-            if (!sidebarOpen) setSidebarOpen(true);
+          recentDocs={recentDocs}
+          sidebarOpen={true}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => {
+            setIsSidebarCollapsed(prev => {
+              const next = !prev;
+              saveJson("sidebarCollapsed", next);
+              return next;
+            });
           }}
-        >
-          <HubDocumentList
-            docs={filteredDocs}
-            activeDocId={activeDocId}
-            selectedIds={selectedIds}
-            favorites={favorites}
-            isAdmin={isAdmin}
-            openMenuId={openMenuId}
-            onToggleMenu={setOpenMenuId}
-            onCloseMenu={() => setOpenMenuId(null)}
-            onOpen={openDocument}
-            onToggleFavorite={globalToggleFavorite}
-            onToggleSelected={toggleSelected}
-            onDelete={onDelete}
-            onDragEnd={onDragEnd}
-            loading={docsLoading}
-          />
-        </HubSidebar>
+        />
       </aside>
 
-      {!isMobile && sidebarOpen && (
-        <ResizeHandle onMouseDown={startSidebarResize} />
-      )}
-
       <main className="hub-main">
-        <HubPane
-          isMobile={isMobile}
-          isAssistantOpen={isAssistantOpen}
-          onToggleAssistant={() => {
-            if (isAssistantOpen) {
-              setIsAssistantMaximized(false);
-            }
-            setIsAssistantOpen(!isAssistantOpen);
-          }}
-          isAssistantMaximized={isAssistantMaximized}
-          isAssistantMinimized={isAssistantMinimized}
-          isDocumentMaximized={isDocumentMaximized}
-          isDocumentMinimized={isDocumentMinimized}
-          editorNode={
-            <DocumentPane
-              key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
-              doc={activeDoc}
-              canEdit={isAdmin}
-              isCreating={isCreating}
-              onCancelCreate={() => {
-                setIsCreating(false);
-                setActiveDocId(lastActiveDocIdRef.current);
-              }}
-              onCreated={handleCreated}
-              hasDocs={docs.length > 0}
-              loading={docsLoading}
-              onSaved={(updated) =>
-                setDocs((p) =>
-                  p.map((d) => (d.id === updated.id ? updated : d)),
-                )
-              }
-              onDirtyChange={setIsPaneDirty}
-              isMaximized={isDocumentMaximized}
-              onToggleMaximize={() => {
-                const nextMax = !isDocumentMaximized;
-                setIsDocumentMaximized(nextMax);
-                if (nextMax) {
-                  setIsAssistantMaximized(false);
-                  setIsAssistantMinimized(true);
-                  setIsDocumentMinimized(false);
-                  setSidebarOpen(false);
-                } else {
-                  setSidebarOpen(true);
-                  setIsAssistantMinimized(false);
-                }
-              }}
-              onMinimize={() => {
-                if (isMobile) {
-                  setMobileView("list");
-                  return;
-                }
-                setIsDocumentMinimized(true);
-                setIsDocumentMaximized(false);
-                setIsAssistantMaximized(true);
-                setIsAssistantMinimized(false);
-              }}
-              isMinimized={isDocumentMinimized || isAssistantMaximized}
-              onExpand={() => {
-                setIsDocumentMinimized(false);
-                setIsAssistantMaximized(false);
-                setIsDocumentMaximized(false);
-              }}
-            />
-          }
-          assistantNode={
-            <HubAssistant
-              isMobile={isMobile}
-              selectedIds={selectedIds}
-              isMaximized={isAssistantMaximized}
-              isMinimized={isAssistantMinimized || isDocumentMaximized}
-              onToggleMaximize={() => {
-                const nextMax = !isAssistantMaximized;
-                setIsAssistantMaximized(nextMax);
-                if (nextMax) {
-                  setSidebarOpen(false);
-                  setIsDocumentMaximized(false);
-                  setIsDocumentMinimized(true);
-                  setIsAssistantMinimized(false);
-                } else {
-                  setIsDocumentMinimized(false);
-                }
-              }}
-              onMinimize={() => {
-                if (isMobile) {
-                  setIsAssistantOpen(false);
-                  return;
-                }
-                setIsAssistantMaximized(false);
-                setIsAssistantMinimized(true);
-                setIsDocumentMaximized(false);
-                setIsDocumentMinimized(false);
-              }}
-              onExpand={() => {
-                setIsAssistantMinimized(false);
-                setIsAssistantMaximized(false);
-                setIsDocumentMaximized(false);
-              }}
-              onSelectDocuments={() => {
-                if (isMobile) {
-                  setMobileView("list");
-                  setIsAssistantOpen(false);
-                }
-              }}
-              onToggleSelected={toggleSelected}
-              onClearSelection={() => {
-                setSelectedIds([]);
-                saveJson(CONTEXT_KEY, []);
-              }}
-            />
-          }
-        />
-      </main>
-
-      {/* Global AI Assistant Floating Action Button */}
-      {!isAssistantOpen && isMobile && (
-        <>
-          <button
-            onClick={() => {
-              setIsAssistantOpen(true);
-              if (isMobile) setMobileView("detail"); // Switch view context so sheet can open
-              if (!hasClickedFab) completeFab();
-            }}
-            className="global-fab-assistant"
-            aria-label="Open AI Assistant"
-            data-tooltip="Open AI Assistant"
-            data-tooltip-pos="left"
+        <div className="hub-main-layout">
+          <div
+            ref={contentRef}
+            className={`hub-content ${view === "documents" && docSplitView ? "with-detail" : ""}`}
+            tabIndex={-1}
+            role="main"
+            aria-label={view === "documents" ? "Documents" : view === "favorites" ? "Favorites" : view === "assistant" ? "AI Assistant" : view === "dashboard" ? "Dashboard" : "Content"}
+            style={(view === "documents" || view === "favorites") && !docSplitView && (activeDocId || isCreating) ? { display: "none" } : undefined}
           >
-            <Bot size={26} />
-          </button>
+            {view === "dashboard" && (
+              <DashboardView
+                onViewAllDocuments={() => setView("documents")}
+                onNewDocument={openCreate}
+                onOpenDocument={(id) => openDocument(id)}
+              />
+            )}
+            {(view === "documents" || view === "favorites") && (docSplitView || !activeDocId && !isCreating) && (
+              <DocumentsGridView
+                docs={filteredDocs}
+                favorites={favorites}
+                categories={categories}
+                categoryFilter={categoryFilter}
+                onCategoryFilterChange={setCategoryFilter}
+                onOpen={openDocument}
+                onToggleFavorite={globalToggleFavorite}
+                viewMode={docViewMode}
+                onViewModeChange={setDocViewMode}
+                searchQuery={docSearchQuery}
+                onSearchChange={setDocSearchQuery}
+                onNew={openCreate}
+                loading={docsLoading}
+                splitView={docSplitView}
+                onToggleSplitView={toggleDocSplitView}
+              />
+            )}
 
-          <Popover
-            isOpen={!hasClickedFab && demoStep === -1}
-            onClose={completeFab}
-            title="Chat with your Docs"
-            body="New! Click the AI Assistant to ask questions and extract knowledge from your workspace."
-            position="top"
-            targetSelector=".global-fab-assistant"
-          />
-        </>
-      )}
+            {view === "assistant" && (
+              <AIAssistantView
+                docs={docs}
+                selectedIds={selectedIds}
+                onSelectDocuments={() => setView("documents")}
+                onNew={openCreate}
+                onToggleSelected={(id) => {
+                  setSelectedIds((prev) => {
+                    const next = prev.includes(id)
+                      ? prev.filter((x) => x !== id)
+                      : [...prev, id];
+                    saveJson(CONTEXT_KEY, next);
+                    return next;
+                  });
+                }}
+                onClearSelection={() => {
+                  setSelectedIds([]);
+                  saveJson(CONTEXT_KEY, []);
+                }}
+              />
+            )}
 
-      {isMobile && mobileView === "detail" && (
-        <button
-          onClick={() => setMobileView("list")}
-          className="mobile-context-close-btn"
-          aria-label="Back to list"
-        >
-          <X />
-        </button>
-      )}
+          </div>
 
-      {/* Guided First-Time Demo */}
-      <Popover
-        isOpen={demoStep === 0 && !isMobile}
-        onClose={skipDemo}
-        title="Welcome to your Workspace!"
-        body="The Editor lives in the center, flanked by your Tools. You can write, generate, and explore all in one view."
-        position="bottom"
-        targetSelector=".demo-welcome-target"
-        offset={20}
-        actionButton={renderDemoAction(false)}
-      />
-
-      <Popover
-        isOpen={demoStep === 1 && !isMobile}
-        onClose={skipDemo}
-        title="The Nav Sidebar"
-        body="This sidebar holds your documents. You can collapse it to focus, and instantly reopen it by clicking anywhere on the thin rail edge."
-        position="right"
-        targetSelector=".demo-nav-target"
-        actionButton={renderDemoAction(false)}
-      />
-
-      <Popover
-        isOpen={demoStep === 2 && !isMobile}
-        onClose={skipDemo}
-        title="The Rail System"
-        body="Need more room to write? Click here to collapse the AI Hub into a thin visual rail. Click anywhere on the rail to expand it again."
-        position="left"
-        targetSelector=".demo-rail-target"
-        actionButton={renderDemoAction(false)}
-      />
-
-      <Popover
-        isOpen={demoStep === 3 && !isMobile}
-        onClose={skipDemo}
-        title="Instant Focus"
-        body="You can instantly focus on any panel by Maximizing it. The other panels will automatically yield space and become rails."
-        position="bottom"
-        targetSelector=".demo-mutex-target"
-        actionButton={renderDemoAction(false)}
-      />
-
-      <Popover
-        isOpen={demoStep === 4 && !isMobile}
-        onClose={skipDemo}
-        title="Select AI Context"
-        body="Check the bubbles next to documents to load them into the AI's active memory. Enjoy your Hub!"
-        position="right"
-        targetSelector=".demo-context-target"
-        actionButton={renderDemoAction(true)}
-      />
-
-      {/* Mobile Guided First-Time Demo */}
-      <Popover
-        isOpen={demoStep === 0 && isMobile}
-        onClose={skipDemo}
-        title="Open the Editor"
-        body="Tap anywhere on a document card to open the Document Editor where you can read and write."
-        position="bottom"
-        targetSelector=".hub-doc-row-wrapper"
-        offset={20}
-        actionButton={renderDemoAction(false)}
-      />
-
-      <Popover
-        isOpen={demoStep === 1 && isMobile}
-        onClose={skipDemo}
-        title="Select AI Context"
-        body="Tap the checkboxes on the left to load specific documents into the AI's active memory."
-        position="right"
-        targetSelector=".docs-list .hub-doc-row-wrapper:first-child .selection-area svg"
-        actionButton={renderDemoAction(false)}
-      />
-
-      <Popover
-        isOpen={demoStep === 2 && isMobile}
-        onClose={skipDemo}
-        title="Chat with your Docs"
-        body="Tap the floating button below to open the AI Assistant and ask questions about your selected context!"
-        position="top"
-        targetSelector=".global-fab-assistant"
-        actionButton={renderDemoAction(true)}
-      />
+          {(view === "documents" || view === "favorites") && (docSplitView || activeDocId || isCreating) && (
+            <div className={`hub-detail-pane ${!docSplitView ? "hub-detail-pane-full" : ""}`}>
+              <DocumentPane
+                key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
+                doc={activeDoc}
+                canEdit={isAdmin}
+                isCreating={isCreating}
+                onCancelCreate={() => {
+                  setIsCreating(false);
+                  setActiveDocId(lastActiveDocIdRef.current);
+                }}
+                onCreated={handleCreated}
+                hasDocs={docs.length > 0}
+                loading={docsLoading}
+                onSaved={(updated) =>
+                  setDocs((p) =>
+                    p.map((d) => (d.id === updated.id ? updated : d))
+                  )
+                }
+                onDelete={onDelete}
+                onDirtyChange={setIsPaneDirty}
+                {...(!docSplitView && { onBack: closeDocument })}
+              />
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

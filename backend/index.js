@@ -61,33 +61,9 @@ app.use(helmet({
     },
 }));
 
-// Rate Limiting
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { detail: 'Too many requests, please try again later.' }
-});
-app.use('/api/', limiter);
-
 const PORT = process.env.PORT || 8000;
 
-// Connect to MongoDB
-if (!process.env.MONGODB_URI) {
-    console.error('CRITICAL: MONGODB_URI is not defined in environment variables.');
-} else {
-    mongoose.connect(process.env.MONGODB_URI)
-        .then(() => {
-            console.log('SUCCESS: Connected to MongoDB');
-            seedUsersIfEmpty(); // Seed after connection
-        })
-        .catch(err => {
-            console.error('ERROR: MongoDB connection failed:', err.message);
-        });
-}
-
-// CORS configuration (mostly for local dev)
+// CORS must run BEFORE rate limiter so error responses (429) include CORS headers
 const allowOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
@@ -109,6 +85,30 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Rate Limiting (after CORS so 429 responses get CORS headers)
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: process.env.NODE_ENV === 'production' ? 100 : 1000, // Relax when not in production
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { detail: 'Too many requests, please try again later.' }
+});
+app.use('/api/', limiter);
+
+// Connect to MongoDB
+if (!process.env.MONGODB_URI) {
+    console.error('CRITICAL: MONGODB_URI is not defined in environment variables.');
+} else {
+    mongoose.connect(process.env.MONGODB_URI)
+        .then(() => {
+            console.log('SUCCESS: Connected to MongoDB');
+            seedUsersIfEmpty(); // Seed after connection
+        })
+        .catch(err => {
+            console.error('ERROR: MongoDB connection failed:', err.message);
+        });
+}
 
 app.use(express.json({ limit: '10kb' })); // Limit body size
 app.use(cookieParser());

@@ -16,7 +16,7 @@ import {
 } from "../utils/documentForm";
 import { DocumentDetailSkeleton } from "../../../components/skeleton/Skeleton";
 
-import { Maximize2 } from "lucide-react";
+import { Maximize2, ArrowLeft } from "lucide-react";
 
 type Props = {
   doc: DocumentItem | null;
@@ -25,6 +25,7 @@ type Props = {
   onCancelCreate: () => void;
   onCreated: (doc: DocumentItem) => void;
   onSaved: (doc: DocumentItem) => void;
+  onDelete?: (doc: DocumentItem) => void;
   hasDocs: boolean;
   onBack?: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
@@ -44,7 +45,9 @@ export default function DocumentPane({
   onCancelCreate,
   onCreated,
   onSaved,
+  onDelete,
   hasDocs,
+  onBack,
   onDirtyChange,
   onModeChange,
   loading,
@@ -243,6 +246,19 @@ export default function DocumentPane({
         canSave={canSave}
         onEdit={() => setMode("edit")}
         onCancel={handleCancel}
+        leftAction={onBack && (
+          <button
+            type="button"
+            className="icon-btn doc-pane-back"
+            onClick={onBack}
+            aria-label="Back to list"
+            data-tooltip="Back to list"
+            data-tooltip-pos="bottom"
+          >
+            <ArrowLeft size={20} />
+          </button>
+        )}
+        {...(doc && onDelete && { onDelete: () => onDelete(doc) })}
         {...(isMaximized !== undefined && { isMaximized })}
         {...(onToggleMaximize !== undefined && { onToggleMaximize })}
         {...(onMinimize !== undefined && { onMinimize: handleMinimize })}

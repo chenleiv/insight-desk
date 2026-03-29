@@ -4,6 +4,7 @@ import {
   Maximize2,
   Minimize2,
   PanelLeftClose,
+  Trash2,
 } from "lucide-react";
 import { Loader } from "../../../components/loader/Loader";
 
@@ -17,6 +18,7 @@ type Props = {
   canSave: boolean;
   onEdit: () => void;
   onCancel: () => void;
+  onDelete?: () => void;
   leftAction?: React.ReactNode;
   isMaximized?: boolean;
   onToggleMaximize?: () => void;
@@ -33,6 +35,7 @@ export const DocumentHeader: React.FC<Props> = ({
   canSave,
   onEdit,
   onCancel,
+  onDelete,
   leftAction,
   isMaximized,
   onToggleMaximize,
@@ -56,7 +59,7 @@ export const DocumentHeader: React.FC<Props> = ({
         <div className="doc-pane-actions">
           {mode === "view" ? (
             <>
-              {canEdit && !isCreating ? (
+              {canEdit && !isCreating && (
                 <button
                   type="button"
                   className="icon-btn doc-pane-edit"
@@ -67,7 +70,19 @@ export const DocumentHeader: React.FC<Props> = ({
                 >
                   <SquarePenIcon size={22} width={22} />
                 </button>
-              ) : null}
+              )}
+              {onDelete && !isCreating && (
+                <button
+                  type="button"
+                  className="icon-btn danger"
+                  onClick={onDelete}
+                  data-tooltip="Delete"
+                  data-tooltip-pos="bottom"
+                  aria-label="Delete"
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
             </>
           ) : (
             <>

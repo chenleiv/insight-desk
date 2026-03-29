@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 const HubPage = lazy(() => import("./pages/hubPage/HubPage"));
 const LoginPage = lazy(() => import("./pages/loginPage/LoginPage"));
@@ -7,6 +7,7 @@ const UsersPage = lazy(() => import("./pages/loginPage/UsersPage"));
 
 import "./components/confirmModal/confirmDialog.scss";
 import "./components/popover/popover.scss";
+import "./components/userMenu/userMenu.scss";
 import Header from "./components/header/Header";
 
 import { useAuth } from "./auth/useAuth";
@@ -17,6 +18,8 @@ import { useDocuments } from "./context/DocumentsContext";
 
 function App() {
   const { isAuthed } = useAuth();
+  const location = useLocation();
+  const isHub = location.pathname === "/hub";
 
   const { loadDocuments, docs } = useDocuments();
 
@@ -27,8 +30,8 @@ function App() {
   }, [isAuthed, loadDocuments, docs.length]);
 
   return (
-    <div className="app-layout">
-      <Header />
+    <div className={`app-layout ${isHub ? "hub-fullscreen" : ""}`}>
+      {!isHub && <Header />}
       <main>
         <Suspense
           fallback={
