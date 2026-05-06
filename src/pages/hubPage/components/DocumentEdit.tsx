@@ -6,7 +6,7 @@ type Props = {
   form: DocumentInput;
   onChange: (form: DocumentInput) => void;
   isCreating: boolean;
-  updatedAt?: string;
+  updatedAt?: string | undefined;
 };
 
 function formatRelativeTime(iso: string | undefined): string {

@@ -1,6 +1,5 @@
 import {
   FileText,
-  Sparkles,
   LayoutDashboard,
   Star,
   Settings,

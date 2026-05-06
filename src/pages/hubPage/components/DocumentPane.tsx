@@ -285,7 +285,7 @@ export default function DocumentPane({
         variant={variant}
         onEdit={() => setMode("edit")}
         onCancel={handleCancel}
-        onClose={isDrawer ? onClose : undefined}
+        {...(isDrawer && onClose ? { onClose } : {})}
         leftAction={
           !isDrawer &&
           onBack && (
