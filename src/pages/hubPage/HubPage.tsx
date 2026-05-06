@@ -24,6 +24,20 @@ import "./hubPage.scss";
 import DashboardView from "./components/DashboardView";
 import type { View } from "./components/AppSidebar";
 
+const HUB_VIEWS: readonly View[] = [
+  "dashboard",
+  "documents",
+  "favorites",
+  "assistant",
+  "settings",
+];
+
+function normalizeHubView(raw: unknown): View {
+  return typeof raw === "string" && (HUB_VIEWS as readonly string[]).includes(raw)
+    ? (raw as View)
+    : "dashboard";
+}
+
 export default function HubPage() {
   const { user, toggleFavorite: globalToggleFavorite, favoritesMap: favorites } = useAuth();
   const status = useStatus();
@@ -31,6 +45,7 @@ export default function HubPage() {
 
   const isAdmin = user?.role === "admin";
   const orderKey = scopedKey("documentsOrder", user?.email);
+  const hubViewKey = scopedKey("hubView", user?.email);
 
   const {
     docs,
@@ -40,7 +55,21 @@ export default function HubPage() {
     error: docsError,
   } = useDocuments();
 
-  const [view, setView] = useState<View>("dashboard");
+  const [view, setView] = useState<View>(() =>
+    normalizeHubView(loadJson(hubViewKey, "dashboard")),
+  );
+
+  const setHubView = useCallback(
+    (next: View) => {
+      setView(next);
+      saveJson(hubViewKey, next);
+    },
+    [hubViewKey],
+  );
+
+  useEffect(() => {
+    setView(normalizeHubView(loadJson(hubViewKey, "dashboard")));
+  }, [hubViewKey]);
 
   function handleViewChange(newView: View) {
     if (isPaneDirty) {
@@ -53,26 +82,25 @@ export default function HubPage() {
         if (ok) {
           setIsPaneDirty(false);
           setIsCreating(false);
-          if (!docSplitView) setActiveDocId(null);
-          setView(newView);
+          setActiveDocId(null);
+          setHubView(newView);
         }
       });
       return;
     }
     
     setIsCreating(false);
-    if (!docSplitView && (newView === "documents" || newView === "favorites" || view === newView)) {
-      setActiveDocId(null);
-    }
-    setView(newView);
+    setActiveDocId(null);
+    setIsPaneDirty(false);
+    setHubView(newView);
   }
 
   const [docSearchQuery, setDocSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [docViewMode, setDocViewMode] = useState<"grid" | "list">("grid");
-  const [docSplitView, setDocSplitView] = useState<boolean>(() =>
-    loadJson<boolean>("docSplitView", false)
+  const [docDrawerFullscreen, setDocDrawerFullscreen] = useState<boolean>(() =>
+    loadJson<boolean>("docDrawerFullscreen", false)
   );
   const [order, setOrder] = useState<number[]>([]);
   const [activeDocId, setActiveDocId] = useState<number | null>(null);
@@ -107,9 +135,10 @@ export default function HubPage() {
         return next;
       });
       setActiveDocId((prev) => {
-        if (prev != null)
+        if (prev != null) {
           return docs.some((d) => d.id === prev) ? prev : (docs[0]?.id ?? null);
-        return docs.length > 0 ? docs[0].id : null;
+        }
+        return null;
       });
     }
   }, [docs, orderKey]);
@@ -141,7 +170,15 @@ export default function HubPage() {
     });
   }, [orderedDocs, docSearchQuery, categoryFilter, view, favorites]);
 
-  const categories = useMemo(() => getUniqueCategories(docs), [docs]);
+  const favoritedDocs = useMemo(
+    () => orderedDocs.filter((d) => favorites[d.id]),
+    [orderedDocs, favorites],
+  );
+
+  const categories = useMemo(() => {
+    const source = view === "favorites" ? favoritedDocs : orderedDocs;
+    return getUniqueCategories(source);
+  }, [view, orderedDocs, favoritedDocs]);
 
   const recentDocs = useMemo(
     () => orderedDocs.slice(0, 5).map((d) => ({ id: d.id, title: d.title })),
@@ -157,17 +194,19 @@ export default function HubPage() {
         variant: "danger",
       });
       if (!ok) return;
+      setIsPaneDirty(false);
     }
     setDocSearchQuery("");
     lastActiveDocIdRef.current = activeDocId;
     setIsCreating(true);
     setActiveDocId(null);
     if (view !== "favorites") {
-      setView("documents");
+      setHubView("documents");
     }
   }
 
   function handleCreated(doc: DocumentItem) {
+    setIsPaneDirty(false);
     setIsCreating(false);
     setDocs((prev) => [doc, ...prev]);
     setOrder((prev) => {
@@ -194,17 +233,18 @@ export default function HubPage() {
   }
 
   function doOpen(id: number) {
+    setIsPaneDirty(false);
     setIsCreating(false);
     setActiveDocId(id);
     if (view !== "favorites") {
-      setView("documents");
+      setHubView("documents");
     }
   }
 
-  function toggleDocSplitView() {
-    setDocSplitView((prev) => {
+  function toggleDocDrawerFullscreen() {
+    setDocDrawerFullscreen((prev) => {
       const next = !prev;
-      saveJson("docSplitView", next);
+      saveJson("docDrawerFullscreen", next);
       return next;
     });
   }
@@ -225,6 +265,7 @@ export default function HubPage() {
   }
 
   function doCloseDocument() {
+    setIsPaneDirty(false);
     setIsCreating(false);
     setActiveDocId(lastActiveDocIdRef.current);
   }
@@ -259,6 +300,25 @@ export default function HubPage() {
     }
   }
 
+  const docDrawerOpen =
+    (view === "documents" || view === "favorites") &&
+    (activeDocId !== null || isCreating);
+
+  const closeDocumentRef = useRef(closeDocument);
+  closeDocumentRef.current = closeDocument;
+
+  useEffect(() => {
+    if (!docDrawerOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeDocumentRef.current();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [docDrawerOpen]);
+
   return (
     <div className={`hub-layout hub-layout-refactored ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <aside className={`hub-sidebar app-sidebar-wrapper ${isSidebarCollapsed ? "collapsed" : ""}`}>
@@ -281,24 +341,25 @@ export default function HubPage() {
         />
       </aside>
 
-      <main className="hub-main">
-        <div className="hub-main-layout">
+      <main className={`hub-main ${docDrawerOpen ? "hub-main--drawer-open" : ""}`}>
+        <div
+          className={`hub-main-layout ${docDrawerOpen ? "hub-main-layout--drawer-open" : ""}`}
+        >
           <div
             ref={contentRef}
-            className={`hub-content ${view === "documents" && docSplitView ? "with-detail" : ""}`}
+            className="hub-content"
             tabIndex={-1}
             role="main"
             aria-label={view === "documents" ? "Documents" : view === "favorites" ? "Favorites" : view === "assistant" ? "AI Assistant" : view === "dashboard" ? "Dashboard" : "Content"}
-            style={(view === "documents" || view === "favorites") && !docSplitView && (activeDocId || isCreating) ? { display: "none" } : undefined}
           >
             {view === "dashboard" && (
               <DashboardView
-                onViewAllDocuments={() => setView("documents")}
+                onViewAllDocuments={() => setHubView("documents")}
                 onNewDocument={openCreate}
                 onOpenDocument={(id) => openDocument(id)}
               />
             )}
-            {(view === "documents" || view === "favorites") && (docSplitView || !activeDocId && !isCreating) && (
+            {(view === "documents" || view === "favorites") && (
               <DocumentsGridView
                 docs={filteredDocs}
                 favorites={favorites}
@@ -313,8 +374,6 @@ export default function HubPage() {
                 onSearchChange={setDocSearchQuery}
                 onNew={openCreate}
                 loading={docsLoading}
-                splitView={docSplitView}
-                onToggleSplitView={toggleDocSplitView}
               />
             )}
 
@@ -322,7 +381,7 @@ export default function HubPage() {
               <AIAssistantView
                 docs={docs}
                 selectedIds={selectedIds}
-                onSelectDocuments={() => setView("documents")}
+                onSelectDocuments={() => setHubView("documents")}
                 onNew={openCreate}
                 onToggleSelected={(id) => {
                   setSelectedIds((prev) => {
@@ -342,30 +401,46 @@ export default function HubPage() {
 
           </div>
 
-          {(view === "documents" || view === "favorites") && (docSplitView || activeDocId || isCreating) && (
-            <div className={`hub-detail-pane ${!docSplitView ? "hub-detail-pane-full" : ""}`}>
-              <DocumentPane
-                key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
-                doc={activeDoc}
-                canEdit={isAdmin}
-                isCreating={isCreating}
-                onCancelCreate={() => {
-                  setIsCreating(false);
-                  setActiveDocId(lastActiveDocIdRef.current);
-                }}
-                onCreated={handleCreated}
-                hasDocs={docs.length > 0}
-                loading={docsLoading}
-                onSaved={(updated) =>
-                  setDocs((p) =>
-                    p.map((d) => (d.id === updated.id ? updated : d))
-                  )
-                }
-                onDelete={onDelete}
-                onDirtyChange={setIsPaneDirty}
-                {...(!docSplitView && { onBack: closeDocument })}
+          {docDrawerOpen && (
+            <>
+              <button
+                type="button"
+                className="doc-drawer-backdrop"
+                aria-label="Close document"
+                onClick={closeDocument}
               />
-            </div>
+              <aside
+                className={`doc-drawer ${docDrawerFullscreen ? "doc-drawer--fullscreen" : ""}`}
+                role="dialog"
+                aria-modal="true"
+              >
+                <DocumentPane
+                  key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
+                  doc={activeDoc}
+                  canEdit={isAdmin}
+                  isCreating={isCreating}
+                  variant="drawer"
+                  onClose={closeDocument}
+                  onCancelCreate={() => {
+                    setIsPaneDirty(false);
+                    setIsCreating(false);
+                    setActiveDocId(lastActiveDocIdRef.current);
+                  }}
+                  onCreated={handleCreated}
+                  hasDocs={docs.length > 0}
+                  loading={docsLoading}
+                  onSaved={(updated) =>
+                    setDocs((p) =>
+                      p.map((d) => (d.id === updated.id ? updated : d))
+                    )
+                  }
+                  onDelete={onDelete}
+                  onDirtyChange={setIsPaneDirty}
+                  isMaximized={docDrawerFullscreen}
+                  onToggleMaximize={toggleDocDrawerFullscreen}
+                />
+              </aside>
+            </>
           )}
         </div>
       </main>

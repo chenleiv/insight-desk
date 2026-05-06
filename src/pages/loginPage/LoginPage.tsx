@@ -19,7 +19,7 @@ export default function LoginPage() {
 
   const redirectTo = (() => {
     const state = location.state as LoginLocationState | null;
-    return state?.from?.pathname ?? "/documents";
+    return state?.from?.pathname ?? "/hub";
   })();
 
   const [error, loginAction, isPending] = useActionState(

@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from "react";
-import { FileText, Star, Sparkles, HardDrive, Filter, Download } from "lucide-react";
+import { FileText, Star, Sparkles, HardDrive, Download } from "lucide-react";
 import { useDocuments } from "../../../context/DocumentsContext";
 import { useAuth } from "../../../auth/useAuth";
 import { formatRelativeTime } from "../../../utils/relativeTime";
@@ -47,18 +47,6 @@ export default function DashboardView({
       <div className="dashboard-header">
         <div className="dashboard-welcome">
           <h1>Welcome back, {displayName}</h1>
-        </div>
-        <div className="dashboard-actions">
-          <div className="search-bar">
-            <input type="text" placeholder="Search documents..." readOnly />
-            <kbd>⌘K</kbd>
-          </div>
-          <button type="button" className="icon-btn" aria-label="Filter">
-            <Filter size={18} />
-          </button>
-          <button type="button" className="icon-btn" aria-label="Download">
-            <Download size={18} />
-          </button>
         </div>
       </div>
 
@@ -137,8 +125,8 @@ export default function DashboardView({
                     style={
                       vis
                         ? ({
-                            "--recent-cat-accent": vis.tagFg,
-                          } as CSSProperties)
+                          "--recent-cat-accent": vis.tagFg,
+                        } as CSSProperties)
                         : undefined
                     }
                   >

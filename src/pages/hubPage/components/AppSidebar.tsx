@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Moon,
   Sun,
+  Bot,
 } from "lucide-react";
 import { useAuth } from "../../../auth/useAuth";
 import { useTheme } from "../../../hooks/useTheme";
@@ -40,7 +41,7 @@ const WORKSPACE_ITEMS: { id: View; label: string; icon: React.ElementType }[] =
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "documents", label: "Documents", icon: FileText },
     { id: "favorites", label: "Favorites", icon: Star },
-    { id: "assistant", label: "AI Assistant", icon: Sparkles },
+    { id: "assistant", label: "AI Assistant", icon: Bot },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -103,9 +104,6 @@ export default function AppSidebar({
                 >
                   <Icon size={18} />
                   {!isCollapsed && <span>{label}</span>}
-                  {id === "documents" && view === "documents" && (
-                    <span className="nav-item-indicator" />
-                  )}
                 </button>
               </li>
             ))}
@@ -115,8 +113,8 @@ export default function AppSidebar({
 
       <div className="sidebar-footer">
         {onToggleCollapse && (
-          <button 
-            className="sidebar-collapse-btn" 
+          <button
+            className="sidebar-collapse-btn"
             onClick={onToggleCollapse}
             aria-label={isCollapsed ? "Expand sidebar" : "Pin sidebar"}
             title={isCollapsed ? "Expand sidebar" : "Pin sidebar"}

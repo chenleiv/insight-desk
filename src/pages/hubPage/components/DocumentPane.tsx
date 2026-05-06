@@ -22,6 +22,8 @@ type Props = {
   doc: DocumentItem | null;
   canEdit: boolean;
   isCreating: boolean;
+  variant?: "default" | "drawer";
+  onClose?: () => void;
   onCancelCreate: () => void;
   onCreated: (doc: DocumentItem) => void;
   onSaved: (doc: DocumentItem) => void;
@@ -42,6 +44,8 @@ export default function DocumentPane({
   doc,
   canEdit,
   isCreating,
+  variant = "default",
+  onClose,
   onCancelCreate,
   onCreated,
   onSaved,
@@ -234,30 +238,69 @@ export default function DocumentPane({
   const paneTitle = isCreating ? "New document" : (doc?.title ?? "");
   const paneCategory = isCreating ? "" : (doc?.category ?? "");
 
+  const isEditingExisting = mode === "edit" && !isCreating;
+
+  const headerTitle =
+    mode === "edit"
+      ? isCreating
+        ? "New document"
+        : ""
+      : paneTitle;
+  const headerCategory =
+    mode === "edit" ? form.category.trim() || undefined : paneCategory;
+
+  const isDrawer = variant === "drawer";
+
   return (
-    <form className="doc-pane" action={saveAction}>
+    <form
+      className={`doc-pane ${mode === "edit" ? "doc-pane--editing" : ""} ${isDrawer ? "doc-pane--drawer" : ""} ${isEditingExisting ? "doc-pane--editing-existing" : ""}`}
+      action={saveAction}
+    >
       <DocumentHeader
-        title={paneTitle}
-        category={paneCategory}
+        title={headerTitle}
+        titleSlot={
+          isEditingExisting ? (
+            <input
+              name="title"
+              className="doc-pane-header-title-input"
+              value={form.title}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, title: e.target.value }))
+              }
+              placeholder="Untitled document"
+              autoComplete="off"
+              aria-label="Document title"
+              autoFocus
+            />
+          ) : undefined
+        }
+        category={headerCategory}
         mode={mode}
         isCreating={isCreating}
+        isEditingExisting={isEditingExisting}
         isPending={isPending}
         canEdit={canEdit}
         canSave={canSave}
+        isDirty={mode === "edit" && isDirty}
+        variant={variant}
         onEdit={() => setMode("edit")}
         onCancel={handleCancel}
-        leftAction={onBack && (
-          <button
-            type="button"
-            className="icon-btn doc-pane-back"
-            onClick={onBack}
-            aria-label="Back to list"
-            data-tooltip="Back to list"
-            data-tooltip-pos="bottom"
-          >
-            <ArrowLeft size={20} />
-          </button>
-        )}
+        onClose={isDrawer ? onClose : undefined}
+        leftAction={
+          !isDrawer &&
+          onBack && (
+            <button
+              type="button"
+              className="icon-btn doc-pane-back"
+              onClick={onBack}
+              aria-label="Back to list"
+              data-tooltip="Back to list"
+              data-tooltip-pos="bottom"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )
+        }
         {...(doc && onDelete && { onDelete: () => onDelete(doc) })}
         {...(isMaximized !== undefined && { isMaximized })}
         {...(onToggleMaximize !== undefined && { onToggleMaximize })}
@@ -273,7 +316,12 @@ export default function DocumentPane({
           <DocumentView doc={doc} />
         )
       ) : (
-        <DocumentEdit form={form} onChange={setForm} />
+        <DocumentEdit
+          form={form}
+          onChange={setForm}
+          isCreating={isCreating}
+          updatedAt={doc?.updatedAt}
+        />
       )}
     </form>
   );

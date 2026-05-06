@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import "./aiAssistant.scss";
-import { BrainCircuit, Send, X, Sparkles, Bot } from "lucide-react";
+import { BrainCircuit, Send, Bot, ChevronDown, Check } from "lucide-react";
 import { chatWithAI } from "../../../api/aiClient";
 import type { DocumentItem } from "../../../api/documentsClient";
 import { buildSnippet, scoreDoc, uid } from "../utils/assistantUtils";
@@ -25,7 +25,13 @@ type Props = {
   onClearSelection?: () => void;
 };
 
-export default function AIAssistantView({ docs, selectedIds, onToggleSelected }: Props) {
+export default function AIAssistantView({
+  docs,
+  selectedIds,
+  onToggleSelected,
+  onClearSelection,
+  onSelectDocuments,
+}: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     loadJson<ChatMessage[]>(CHAT_KEY, [
       {
@@ -147,32 +153,6 @@ export default function AIAssistantView({ docs, selectedIds, onToggleSelected }:
 
   return (
     <div className="ai-assistant-view">
-      {(selectedIds.length > 0 || docs.length > 0) && (
-        <div className="ai-top-context-bar" aria-live="polite">
-          <Sparkles size={14} className="sparkle-icon" />
-          <span className="context-label">Context:</span>
-          {selectedIds.length === 0 ? (
-            <span className="context-pill">All documents ({docs.length})</span>
-          ) : (
-            selectedDocs.map((d) => (
-              <span key={d.id} className="context-pill">
-                {d.title.slice(0, 30)}{d.title.length > 30 ? "…" : ""}
-                {onToggleSelected && (
-                  <button
-                    type="button"
-                    className="context-pill-remove"
-                    onClick={() => onToggleSelected(d.id)}
-                    aria-label="Remove from context"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </span>
-            ))
-          )}
-        </div>
-      )}
-
       <div className={`ai-assistant-content ${hasStartedChat ? "has-messages" : ""}`}>
         {!hasStartedChat ? (
           <>
@@ -283,9 +263,79 @@ export default function AIAssistantView({ docs, selectedIds, onToggleSelected }:
             <Send size={16} />
           </button>
         </div>
-        <p className="ai-composer-hint">
-          Using mock responses • Select documents for context
-        </p>
+
+        <div className="ai-bottom-panel">
+          <div className="ai-composer-footer-row">
+            <p className="ai-composer-hint">
+              {selectedIds.length === 0
+                ? "Using all documents for context"
+                : `${selectedIds.length} document${selectedIds.length === 1 ? "" : "s"} in context`}
+            </p>
+            <div className="ai-context-picker" ref={pickerRef}>
+              <button
+                type="button"
+                className="ai-context-picker-trigger"
+                onClick={() => setPickerOpen((o) => !o)}
+                aria-expanded={pickerOpen}
+                aria-haspopup="listbox"
+                disabled={docs.length === 0}
+              >
+                Choose documents
+                <ChevronDown size={14} className={pickerOpen ? "open" : ""} />
+              </button>
+              {pickerOpen && docs.length > 0 && (
+                <div className="ai-context-picker-panel" role="listbox">
+                  {onClearSelection && (
+                    <button
+                      type="button"
+                      role="option"
+                      className={`ai-context-picker-row ${selectedIds.length === 0 ? "selected" : ""}`}
+                      onClick={() => {
+                        onClearSelection();
+                      }}
+                    >
+                      <span className="ai-context-picker-title">All documents</span>
+                      {selectedIds.length === 0 && (
+                        <Check size={14} className="ai-context-picker-check" />
+                      )}
+                    </button>
+                  )}
+                  {docs.map((d) => {
+                    const isOn = selectedIds.includes(d.id);
+                    return (
+                      <button
+                        key={d.id}
+                        type="button"
+                        role="option"
+                        aria-selected={isOn}
+                        className={`ai-context-picker-row ${isOn ? "selected" : ""}`}
+                        onClick={() => onToggleSelected?.(d.id)}
+                      >
+                        <span className="ai-context-picker-title">
+                          {d.title.slice(0, 48)}
+                          {d.title.length > 48 ? "…" : ""}
+                        </span>
+                        {isOn && <Check size={14} className="ai-context-picker-check" />}
+                      </button>
+                    );
+                  })}
+                  {onSelectDocuments && (
+                    <button
+                      type="button"
+                      className="ai-context-picker-browse"
+                      onClick={() => {
+                        setPickerOpen(false);
+                        onSelectDocuments();
+                      }}
+                    >
+                      Open document library…
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
