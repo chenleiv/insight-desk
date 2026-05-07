@@ -111,13 +111,7 @@ export default function HubPage() {
   );
   const [isCreating, setIsCreating] = useState(false);
   const [isPaneDirty, setIsPaneDirty] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() =>
-    loadJson<boolean>("sidebarCollapsed", false)
-  );
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isTabletOrMobile, setIsTabletOrMobile] = useState(() =>
-    window.matchMedia('(max-width: 1024px)').matches
-  );
   const [drawerWidth, setDrawerWidth] = useState<number>(() =>
     loadJson<number>("drawerWidth", 560)
   );
@@ -175,12 +169,6 @@ export default function HubPage() {
     contentRef.current?.focus({ preventScroll: true });
   }, [view]);
 
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1024px)');
-    const handler = (e: MediaQueryListEvent) => setIsTabletOrMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
 
   useEffect(() => {
     if (docs.length > 0) {
@@ -388,7 +376,7 @@ export default function HubPage() {
   }, [docDrawerOpen]);
 
   return (
-    <div className={`hub-layout hub-layout-refactored ${isSidebarCollapsed && !isTabletOrMobile ? "sidebar-collapsed" : ""} ${isMobileSidebarOpen ? "mobile-sidebar-open" : ""}`}>
+    <div className={`hub-layout hub-layout-refactored ${isMobileSidebarOpen ? "mobile-sidebar-open" : ""}`}>
 
       {isMobileSidebarOpen && (
         <button
@@ -398,7 +386,7 @@ export default function HubPage() {
         />
       )}
 
-      <aside className={`hub-sidebar app-sidebar-wrapper ${isSidebarCollapsed && !isTabletOrMobile ? "collapsed" : ""}`}>
+      <aside className="hub-sidebar app-sidebar-wrapper">
         <AppSidebar
           view={view}
           onViewChange={handleViewChange}
@@ -407,15 +395,7 @@ export default function HubPage() {
           onNew={openCreate}
           recentDocs={recentDocs}
           sidebarOpen={true}
-          isCollapsed={isTabletOrMobile ? false : isSidebarCollapsed}
           onMobileClose={() => setIsMobileSidebarOpen(false)}
-          onToggleCollapse={() => {
-            setIsSidebarCollapsed(prev => {
-              const next = !prev;
-              saveJson("sidebarCollapsed", next);
-              return next;
-            });
-          }}
         />
       </aside>
 

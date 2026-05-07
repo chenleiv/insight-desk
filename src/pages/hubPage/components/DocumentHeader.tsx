@@ -108,7 +108,7 @@ export const DocumentHeader: React.FC<Props> = ({
   isPending,
   canEdit,
   canSave,
-  isDirty = false,
+  isDirty: _isDirty = false,
   variant = "default",
   onEdit,
   onCancel,

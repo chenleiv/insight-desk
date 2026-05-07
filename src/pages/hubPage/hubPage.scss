@@ -31,6 +31,7 @@
         min-width: 80px;
     }
 
+
     .hub-main {
         flex: 1;
         min-height: 0;
@@ -288,7 +289,11 @@
             min-width: 0 !important;
         }
 
-        /* Hide pin button — not meaningful in overlay mode */
+        /* Show close button, hide collapse button */
+        .sidebar-mobile-close-btn {
+            display: flex;
+        }
+
         .sidebar-collapse-btn {
             display: none !important;
         }
@@ -374,8 +379,34 @@
     .sidebar-header-actions {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         flex-shrink: 0;
+    }
+
+    .sidebar-collapse-btn {
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border: none;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        background: transparent;
+        color: var(--muted);
+        transition: background 0.2s ease, color 0.2s ease;
+
+        &:hover {
+            background: var(--soft);
+            color: var(--text);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--focus);
+            outline-offset: 2px;
+        }
     }
 
     /* Compact squircle: moon (light UI) / sun (dark UI) — matches small theme indicator pattern */
@@ -501,10 +532,9 @@
         align-items: stretch;
     }
 
-    .sidebar-collapse-btn {
-        display: flex;
+    .sidebar-mobile-close-btn {
+        display: none;
         align-items: center;
-        justify-content: center;
         gap: 8px;
         width: 100%;
         padding: 8px 12px;
@@ -516,7 +546,7 @@
         font-size: 13px;
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: background 0.2s ease;
 
         &:hover {
             background: var(--soft);
@@ -616,21 +646,6 @@
         .nav-item {
             justify-content: center;
             padding: 12px;
-        }
-
-        .sidebar-collapse-btn {
-            width: auto;
-            align-self: center;
-            padding: 8px;
-            background: var(--text);
-            color: var(--bg);
-            border-radius: 6px;
-            border: none;
-
-            &:hover {
-                opacity: 0.9;
-                background: var(--text);
-            }
         }
 
         .sidebar-user-profile {

@@ -5,8 +5,6 @@ import {
   Settings,
   LogOut,
   BrainCircuit,
-  Pin,
-  ChevronRight,
   Moon,
   Sun,
   Bot,
@@ -30,7 +28,6 @@ type Props = {
   recentDocs: { id: number; title: string }[];
   sidebarOpen: boolean;
   isCollapsed?: boolean;
-  onToggleCollapse?: () => void;
   onMobileClose?: () => void;
   searchInputRef?: React.RefObject<HTMLInputElement | null>;
   children?: React.ReactNode;
@@ -58,7 +55,6 @@ export default function AppSidebar({
   onViewChange,
   sidebarOpen,
   isCollapsed,
-  onToggleCollapse,
   onMobileClose,
   children,
 }: Props) {
@@ -113,18 +109,6 @@ export default function AppSidebar({
       </div>
 
       <div className="sidebar-footer">
-        {onToggleCollapse && (
-          <button
-            className="sidebar-collapse-btn"
-            onClick={onToggleCollapse}
-            aria-label={isCollapsed ? "Expand sidebar" : "Pin sidebar"}
-            title={isCollapsed ? "Expand sidebar" : "Pin sidebar"}
-          >
-            {isCollapsed ? <ChevronRight size={18} /> : <Pin size={16} />}
-            {!isCollapsed && <span>Pin sidebar</span>}
-          </button>
-        )}
-
         <button
           className="sidebar-user-profile"
           aria-haspopup="menu"
