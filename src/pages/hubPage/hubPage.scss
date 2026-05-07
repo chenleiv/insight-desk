@@ -124,6 +124,40 @@
         box-shadow: -16px 0 48px rgba(0, 0, 0, 0.28);
         animation: doc-drawer-slide-in 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 
+        .doc-drawer-resize-handle {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            cursor: ew-resize;
+            z-index: 1;
+            border-radius: 20px 0 0 20px;
+            transition: background 0.15s;
+
+            &::after {
+                content: "";
+                position: absolute;
+                left: 2px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 2px;
+                height: 32px;
+                border-radius: 2px;
+                background: var(--border);
+                opacity: 0;
+                transition: opacity 0.15s;
+            }
+
+            &:hover {
+                background: color-mix(in srgb, var(--accent) 12%, transparent);
+
+                &::after {
+                    opacity: 1;
+                }
+            }
+        }
+
         &.doc-drawer--fullscreen {
             left: 0;
             width: 100%;
@@ -132,6 +166,167 @@
             border-radius: 0;
             border-left: none;
             box-shadow: none;
+        }
+    }
+}
+
+/* ===== Responsive ===== */
+
+/* Desktop default: hide mobile elements */
+.hub-layout.hub-layout-refactored {
+    .mobile-top-bar {
+        display: none;
+    }
+
+    .mobile-sidebar-backdrop {
+        display: none;
+    }
+}
+
+/* Tablet + Mobile (≤1024px): overlay sidebar pattern */
+@media (max-width: 1024px) {
+    .hub-layout.hub-layout-refactored {
+        flex-direction: column;
+        position: relative;
+        /* positioning context for hub-main absolute */
+
+        .mobile-top-bar {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 12px;
+            height: 56px;
+            min-height: 56px;
+            padding: 0 16px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .mobile-hamburger {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+            border-radius: 8px;
+
+            &:hover {
+                background: var(--soft);
+            }
+        }
+
+        .mobile-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        /* Sidebar: always overlay, never inline */
+        .hub-sidebar.app-sidebar-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 280px !important;
+            min-width: 280px !important;
+            z-index: 300;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+        }
+
+        &.mobile-sidebar-open .hub-sidebar.app-sidebar-wrapper {
+            transform: translateX(0);
+        }
+
+        .mobile-sidebar-backdrop {
+            display: block;
+            position: fixed;
+            inset: 0;
+            z-index: 299;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            border: none;
+            cursor: pointer;
+        }
+
+        /* Absolute positioning guarantees height regardless of flex chain */
+        .hub-main {
+            position: absolute;
+            top: 56px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: auto;
+            /* override any height: 100vh from parent selectors */
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .hub-main-layout {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+        }
+
+        .hub-content {
+            padding: 20px;
+        }
+
+        .doc-drawer {
+            width: min(480px, 90vw) !important;
+            min-width: 0 !important;
+        }
+
+        /* Hide pin button — not meaningful in overlay mode */
+        .sidebar-collapse-btn {
+            display: none !important;
+        }
+    }
+}
+
+/* Mobile only: extra overrides for ≤767px */
+@include mixins.mobile {
+    .hub-layout.hub-layout-refactored {
+
+        /* Full-width sidebar on mobile */
+        .hub-sidebar.app-sidebar-wrapper {
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        /* No backdrop needed — sidebar covers full screen */
+        .mobile-sidebar-backdrop {
+            display: none !important;
+        }
+
+        .hub-content {
+            padding: 16px;
+        }
+
+        .doc-drawer {
+            width: 100% !important;
+            max-width: none !important;
+            border-radius: 0 !important;
+            border-left: none !important;
+
+            .doc-drawer-resize-handle {
+                display: none;
+            }
+        }
+
+        .doc-drawer-backdrop {
+            display: none;
         }
     }
 }
@@ -482,6 +677,33 @@
         color: var(--muted);
     }
 
+    .documents-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+
+        .icon-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--panel);
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+
+            &:hover {
+                color: var(--text);
+                background: var(--soft);
+                border-color: var(--text);
+            }
+        }
+    }
+
     .documents-new-btn {
         display: inline-flex;
         align-items: center;
@@ -495,9 +717,24 @@
         font-weight: 600;
         cursor: pointer;
         transition: filter 0.2s ease;
+        white-space: nowrap;
 
         &:hover {
             filter: brightness(0.95);
+        }
+    }
+
+    @include mixins.mobile {
+        flex-direction: column;
+        align-items: flex-start;
+
+        .documents-header-actions {
+            width: 100%;
+
+            .documents-new-btn {
+                flex: 1;
+                justify-content: center;
+            }
         }
     }
 }
@@ -560,6 +797,7 @@
     align-items: center;
     gap: 16px;
     margin-bottom: 20px;
+    flex-wrap: wrap;
 
     .documents-search-container {
         flex: 1;
@@ -601,6 +839,16 @@
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-shrink: 0;
+    }
+
+    @include mixins.mobile {
+        gap: 12px;
+
+        .documents-search-container {
+            flex: 1 1 100%;
+            order: -1;
+        }
     }
 
     .documents-view-toggle {
@@ -1706,7 +1954,7 @@
             position: absolute;
             bottom: calc(100% + 12px);
             left: 0;
-            width: 320px;
+            width: min(320px, calc(100vw - 40px));
             max-height: 240px;
             background: color-mix(in srgb, var(--panel) 85%, transparent);
             border: 1px solid var(--border);
@@ -2186,22 +2434,6 @@
             justify-content: center;
         }
 
-        .doc-pane-unsaved-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            box-sizing: border-box;
-            height: 36px;
-            min-height: 36px;
-            padding: 0 10px;
-            font-size: 11px;
-            font-weight: 600;
-            border-radius: 8px;
-            border: 1px solid color-mix(in srgb, #f97316 55%, var(--border));
-            color: #fb923c;
-            background: color-mix(in srgb, #f97316 10%, transparent);
-        }
-
         .doc-pane-pending {
             display: flex;
             align-items: center;
@@ -2320,7 +2552,7 @@
                 .doc-pane-content-editor {
                     flex: 1;
                     min-height: 200px;
-                    resize: vertical;
+                    resize: none;
                     line-height: 1.65;
                 }
             }
@@ -2388,7 +2620,7 @@
 
         .doc-pane-content-editor {
             min-height: 220px;
-            resize: vertical;
+            resize: none;
             line-height: 1.65;
         }
 
@@ -2449,7 +2681,7 @@
             }
 
             textarea {
-                resize: vertical;
+                resize: none;
             }
         }
 
@@ -2468,7 +2700,7 @@
                 font-family: inherit;
                 font-size: 15px;
                 line-height: 1.6;
-                resize: vertical;
+                resize: none;
                 transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
                 box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
 
@@ -2655,7 +2887,7 @@
 }
 
 @include mixins.mobile {
-    .hub-layout {
+    .hub-layout:not(.hub-layout-refactored) {
         display: block;
         height: calc(100vh - 80px);
 
@@ -2768,6 +3000,15 @@
         grid-template-columns: repeat(4, 1fr);
         gap: 16px;
 
+        @media (max-width: 1024px) {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        @include mixins.mobile {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
         .stat-card {
             padding: 20px;
             border-radius: 16px;
@@ -2847,6 +3088,10 @@
         display: grid;
         grid-template-columns: 2fr 1fr;
         gap: 24px;
+
+        @media (max-width: 1024px) {
+            grid-template-columns: 1fr;
+        }
 
         .panel-header {
             display: flex;

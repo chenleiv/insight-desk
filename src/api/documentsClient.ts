@@ -49,10 +49,10 @@ export function exportDocuments() {
 
 // admin only
 export function importDocumentsBulk(payload: {
-  mode: "merge" | "replace";
-  documents: DocumentItem[];
+  mode: "append" | "replace";
+  documents: Omit<DocumentItem, "id">[];
 }) {
-  return apiFetch<{ inserted: number; mode: "merge" | "replace" }>(
+  return apiFetch<{ inserted: number; mode: "append" | "replace" }>(
     "/api/documents/import-bulk",
     {
       method: "POST",

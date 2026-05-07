@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 const HubPage = lazy(() => import("./pages/hubPage/HubPage"));
@@ -10,24 +10,13 @@ import "./components/popover/popover.scss";
 import "./components/userMenu/userMenu.scss";
 import Header from "./components/header/Header";
 
-import { useAuth } from "./auth/useAuth";
 import RequireAuth from "./auth/RequireAuth";
 import RequireRole from "./auth/RequireRole";
 import { Loader } from "./components/loader/Loader";
-import { useDocuments } from "./context/DocumentsContext";
 
 function App() {
-  const { isAuthed } = useAuth();
   const location = useLocation();
   const isHub = location.pathname === "/hub";
-
-  const { loadDocuments, docs } = useDocuments();
-
-  useEffect(() => {
-    if (isAuthed && docs.length === 0) {
-      void loadDocuments();
-    }
-  }, [isAuthed, loadDocuments, docs.length]);
 
   return (
     <div className={`app-layout ${isHub ? "hub-fullscreen" : ""}`}>

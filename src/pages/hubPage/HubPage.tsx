@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Menu as MenuIcon, BrainCircuit } from "lucide-react";
 
 import AppSidebar from "./components/AppSidebar";
 import DocumentsGridView from "./components/DocumentsGridView";
 import AIAssistantView from "./components/AIAssistantView";
 import DocumentPane from "./components/DocumentPane";
 
-import { useDocuments } from "../../context/DocumentsContext";
+import { useDocuments, useSetDocs, DOCUMENTS_QUERY_KEY } from "../../context/DocumentsContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../auth/useAuth";
 import { useStatus } from "../../components/statusBar/useStatus";
 import useConfirm from "../../hooks/useConfirm";
@@ -14,6 +16,8 @@ import { normalizeOrder, sameArray, applyOrder } from "./utils/ordering";
 import { saveJson, loadJson, scopedKey } from "../../utils/storage";
 import {
   deleteDocument,
+  exportDocuments,
+  importDocumentsBulk,
   type DocumentItem,
 } from "../../api/documentsClient";
 import { matchesQuery, matchesCategory, getUniqueCategories } from "./utils/docs";
@@ -47,13 +51,9 @@ export default function HubPage() {
   const orderKey = scopedKey("documentsOrder", user?.email);
   const hubViewKey = scopedKey("hubView", user?.email);
 
-  const {
-    docs,
-    setDocs,
-    loadDocuments,
-    loading: docsLoading,
-    error: docsError,
-  } = useDocuments();
+  const { docs, loading: docsLoading, error: docsError } = useDocuments();
+  const setDocs = useSetDocs();
+  const queryClient = useQueryClient();
 
   const [view, setView] = useState<View>(() =>
     normalizeHubView(loadJson(hubViewKey, "dashboard")),
@@ -83,15 +83,17 @@ export default function HubPage() {
           setIsPaneDirty(false);
           setIsCreating(false);
           setActiveDocId(null);
+          if (newView === "favorites") setCategoryFilter(null);
           setHubView(newView);
         }
       });
       return;
     }
-    
+
     setIsCreating(false);
     setActiveDocId(null);
     setIsPaneDirty(false);
+    if (newView === "favorites") setCategoryFilter(null);
     setHubView(newView);
   }
 
@@ -112,20 +114,42 @@ export default function HubPage() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() =>
     loadJson<boolean>("sidebarCollapsed", false)
   );
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isTabletOrMobile, setIsTabletOrMobile] = useState(() =>
+    window.matchMedia('(max-width: 1024px)').matches
+  );
+  const [drawerWidth, setDrawerWidth] = useState<number>(() =>
+    loadJson<number>("drawerWidth", 560)
+  );
+  const drawerWidthRef = useRef(drawerWidth);
+  drawerWidthRef.current = drawerWidth;
   const lastActiveDocIdRef = useRef<number | null>(null);
+
+  function onDrawerResizeStart(e: React.MouseEvent) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = drawerWidthRef.current;
+
+    function onMove(ev: MouseEvent) {
+      const delta = startX - ev.clientX;
+      const next = Math.min(Math.max(startWidth + delta, 340), 900);
+      setDrawerWidth(next);
+    }
+
+    function onUp() {
+      saveJson("drawerWidth", drawerWidthRef.current);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
 
   const activeDoc = useMemo(() => {
     if (activeDocId == null) return null;
     return docs.find((d) => d.id === activeDocId) ?? null;
   }, [activeDocId, docs]);
-
-  const load = useCallback(async () => {
-    await loadDocuments();
-  }, [loadDocuments]);
-
-  useEffect(() => {
-    if (docs.length === 0) void load();
-  }, [load, docs.length]);
 
   useEffect(() => {
     if (docs.length > 0) {
@@ -150,6 +174,13 @@ export default function HubPage() {
   useEffect(() => {
     contentRef.current?.focus({ preventScroll: true });
   }, [view]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1024px)');
+    const handler = (e: MediaQueryListEvent) => setIsTabletOrMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
     if (docs.length > 0) {
@@ -270,6 +301,43 @@ export default function HubPage() {
     setActiveDocId(lastActiveDocIdRef.current);
   }
 
+  async function handleExport() {
+    try {
+      const data = await exportDocuments();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "documents-export.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      status.show({ kind: "success", message: "Documents exported." });
+    } catch (e) {
+      status.show({ kind: "error", title: "Export failed", message: e instanceof Error ? e.message : "Error" });
+    }
+  }
+
+  function handleImport(mode: "append" | "replace") {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text) as DocumentItem[];
+        const documents = parsed.map(({ id: _id, ...rest }) => rest);
+        const result = await importDocumentsBulk({ mode, documents });
+        await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
+        status.show({ kind: "success", message: `Imported ${result.inserted} documents.` });
+      } catch (e) {
+        status.show({ kind: "error", title: "Import failed", message: e instanceof Error ? e.message : "Error" });
+      }
+    };
+    input.click();
+  }
+
   async function onDelete(doc: DocumentItem) {
     const ok = await confirm({
       title: "Delete document",
@@ -288,7 +356,7 @@ export default function HubPage() {
         return next;
       });
       if (wasActive) {
-        setActiveDocId(orderedDocs.find((d) => d.id !== doc.id)?.id ?? null);
+        setActiveDocId(null);
       }
       status.show({ kind: "success", message: "Document deleted." });
     } catch (e) {
@@ -320,8 +388,17 @@ export default function HubPage() {
   }, [docDrawerOpen]);
 
   return (
-    <div className={`hub-layout hub-layout-refactored ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-      <aside className={`hub-sidebar app-sidebar-wrapper ${isSidebarCollapsed ? "collapsed" : ""}`}>
+    <div className={`hub-layout hub-layout-refactored ${isSidebarCollapsed && !isTabletOrMobile ? "sidebar-collapsed" : ""} ${isMobileSidebarOpen ? "mobile-sidebar-open" : ""}`}>
+
+      {isMobileSidebarOpen && (
+        <button
+          className="mobile-sidebar-backdrop"
+          aria-label="Close menu"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`hub-sidebar app-sidebar-wrapper ${isSidebarCollapsed && !isTabletOrMobile ? "collapsed" : ""}`}>
         <AppSidebar
           view={view}
           onViewChange={handleViewChange}
@@ -330,7 +407,8 @@ export default function HubPage() {
           onNew={openCreate}
           recentDocs={recentDocs}
           sidebarOpen={true}
-          isCollapsed={isSidebarCollapsed}
+          isCollapsed={isTabletOrMobile ? false : isSidebarCollapsed}
+          onMobileClose={() => setIsMobileSidebarOpen(false)}
           onToggleCollapse={() => {
             setIsSidebarCollapsed(prev => {
               const next = !prev;
@@ -340,6 +418,16 @@ export default function HubPage() {
           }}
         />
       </aside>
+
+      <header className="mobile-top-bar">
+        <button className="mobile-hamburger" onClick={() => setIsMobileSidebarOpen(true)} aria-label="Open menu">
+          <MenuIcon size={22} />
+        </button>
+        <div className="mobile-logo">
+          <BrainCircuit size={18} />
+          <span>InsightDesk</span>
+        </div>
+      </header>
 
       <main className={`hub-main ${docDrawerOpen ? "hub-main--drawer-open" : ""}`}>
         <div
@@ -357,6 +445,9 @@ export default function HubPage() {
                 onViewAllDocuments={() => setHubView("documents")}
                 onNewDocument={openCreate}
                 onOpenDocument={(id) => openDocument(id)}
+                onExport={handleExport}
+                onImport={handleImport}
+                isAdmin={isAdmin}
               />
             )}
             {(view === "documents" || view === "favorites") && (
@@ -373,6 +464,9 @@ export default function HubPage() {
                 searchQuery={docSearchQuery}
                 onSearchChange={setDocSearchQuery}
                 onNew={openCreate}
+                onExport={handleExport}
+                onImport={handleImport}
+                isAdmin={isAdmin}
                 loading={docsLoading}
               />
             )}
@@ -411,9 +505,13 @@ export default function HubPage() {
               />
               <aside
                 className={`doc-drawer ${docDrawerFullscreen ? "doc-drawer--fullscreen" : ""}`}
+                style={!docDrawerFullscreen ? { width: drawerWidth } : undefined}
                 role="dialog"
                 aria-modal="true"
               >
+                {!docDrawerFullscreen && (
+                  <div className="doc-drawer-resize-handle" onMouseDown={onDrawerResizeStart} />
+                )}
                 <DocumentPane
                   key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
                   doc={activeDoc}

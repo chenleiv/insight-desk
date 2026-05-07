@@ -1,15 +1,19 @@
-import { useMemo, type CSSProperties } from "react";
-import { FileText, Star, Sparkles, HardDrive, Download } from "lucide-react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { FileText, Star, Sparkles, HardDrive, Download, Upload } from "lucide-react";
 import { useDocuments } from "../../../context/DocumentsContext";
 import { useAuth } from "../../../auth/useAuth";
 import { formatRelativeTime } from "../../../utils/relativeTime";
 import type { DocumentItem } from "../../../api/documentsClient";
 import { getDocTags, getCategoryIconStyle, getCategoryTagStyle, resolveCategoryVisual } from "../utils/docs";
+import Menu from "../../../components/menu/Menu";
 
 type Props = {
   onViewAllDocuments?: () => void;
   onNewDocument?: () => void | Promise<void>;
   onOpenDocument?: (id: number) => void;
+  onExport?: () => void;
+  onImport?: (mode: "append" | "replace") => void;
+  isAdmin?: boolean;
 };
 
 function docTime(doc: DocumentItem): number {
@@ -23,7 +27,24 @@ export default function DashboardView({
   onViewAllDocuments,
   onNewDocument,
   onOpenDocument,
+  onExport,
+  onImport,
+  isAdmin,
 }: Props) {
+  const [showImportMenu, setShowImportMenu] = useState(false);
+  const importBtnRef = useRef<HTMLButtonElement>(null);
+
+  const importMenuOptions = [
+    {
+      label: "Merge",
+      onClick: () => { onImport?.("append"); setShowImportMenu(false); },
+    },
+    {
+      label: "Replace",
+      onClick: () => { onImport?.("replace"); setShowImportMenu(false); },
+      danger: true,
+    },
+  ];
   const { docs } = useDocuments();
   const { user, favoritesMap, toggleFavorite } = useAuth();
 
@@ -173,9 +194,29 @@ export default function DashboardView({
               >
                 + New Document
               </button>
-              <button type="button" className="action-btn secondary">
-                <Download size={16} /> Import JSON
-              </button>
+              {onExport && (
+                <button type="button" className="action-btn secondary" onClick={onExport}>
+                  <Download size={16} /> Export JSON
+                </button>
+              )}
+              {isAdmin && onImport && (
+                <>
+                  <button
+                    type="button"
+                    className="action-btn secondary"
+                    ref={importBtnRef}
+                    onClick={() => setShowImportMenu(true)}
+                  >
+                    <Upload size={16} /> Import JSON
+                  </button>
+                  <Menu
+                    open={showImportMenu}
+                    onClose={() => setShowImportMenu(false)}
+                    items={importMenuOptions}
+                    anchorRef={importBtnRef}
+                  />
+                </>
+              )}
             </div>
           </div>
         </div>

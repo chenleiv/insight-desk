@@ -11,7 +11,7 @@ type Props = {
   onCloseForbidden: () => void;
   onNew: () => void;
   onExport: () => void;
-  onImport: (mode: "merge" | "replace") => void;
+  onImport: (mode: "append" | "replace") => void;
   showOnlyFavorites: boolean;
   onToggleFavorites: () => void;
   sidebarToggle?: React.ReactNode;
@@ -42,7 +42,7 @@ export default function HubSidebar({
     {
       label: "Merge",
       onClick: () => {
-        onImport("merge");
+        onImport("append");
         setShowImportMenu(false);
       },
     },

@@ -31,6 +31,7 @@ type Props = {
   sidebarOpen: boolean;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  onMobileClose?: () => void;
   searchInputRef?: React.RefObject<HTMLInputElement | null>;
   children?: React.ReactNode;
 };
@@ -58,6 +59,7 @@ export default function AppSidebar({
   sidebarOpen,
   isCollapsed,
   onToggleCollapse,
+  onMobileClose,
   children,
 }: Props) {
   const { user, logout } = useAuth();
@@ -98,7 +100,7 @@ export default function AppSidebar({
               <li key={id}>
                 <button
                   className={`nav-item ${view === id ? "active" : ""}`}
-                  onClick={() => onViewChange(id)}
+                  onClick={() => { onViewChange(id); onMobileClose?.(); }}
                   title={isCollapsed ? label : undefined}
                 >
                   <Icon size={18} />

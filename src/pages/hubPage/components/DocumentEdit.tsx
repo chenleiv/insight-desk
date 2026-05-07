@@ -57,21 +57,19 @@ export const DocumentEdit: React.FC<Props> = ({
   return (
     <div className="doc-pane-body doc-pane-body--edit">
       <div
-        className={`doc-pane-edit-meta ${!isCreating ? "doc-pane-edit-meta--time-only" : ""}`}
+        className="doc-pane-edit-meta"
       >
-        {isCreating && (
-          <label className="doc-pane-category-pill-label">
-            <input
-              name="category"
-              className="doc-pane-category-pill"
-              value={form.category}
-              onChange={handleChange}
-              placeholder="Category"
-              autoComplete="off"
-              aria-label="Category"
-            />
-          </label>
-        )}
+        <label className="doc-pane-category-pill-label">
+          <input
+            name="category"
+            className="doc-pane-category-pill"
+            value={form.category}
+            onChange={handleChange}
+            placeholder="Category"
+            autoComplete="off"
+            aria-label="Category"
+          />
+        </label>
         <span className="doc-pane-edited-at">
           <Clock size={14} strokeWidth={2} aria-hidden />
           <span>{timeLabel}</span>

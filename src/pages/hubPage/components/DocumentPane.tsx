@@ -246,8 +246,7 @@ export default function DocumentPane({
         ? "New document"
         : ""
       : paneTitle;
-  const headerCategory =
-    mode === "edit" ? form.category.trim() || undefined : paneCategory;
+  const headerCategory = mode === "edit" ? undefined : paneCategory;
 
   const isDrawer = variant === "drawer";
 

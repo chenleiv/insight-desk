@@ -1,8 +1,10 @@
 import type { CSSProperties } from "react";
-import { LayoutGrid, List, Plus, PanelRight, FileText, Star, Search, Filter, GripVertical } from "lucide-react";
+import { useRef, useState } from "react";
+import { LayoutGrid, List, Plus, PanelRight, FileText, Star, Search, Filter, GripVertical, Download, Upload } from "lucide-react";
 import type { DocumentItem } from "../../../api/documentsClient";
 import { formatRelativeTime } from "../../../utils/relativeTime";
 import { Skeleton } from "../../../components/skeleton/Skeleton";
+import Menu from "../../../components/menu/Menu";
 import {
   FILTER_ALL_ACTIVE_BG,
   FILTER_ALL_ACTIVE_FG,
@@ -22,6 +24,9 @@ type Props = {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onNew?: () => void;
+  onExport?: () => void;
+  onImport?: (mode: "append" | "replace") => void;
+  isAdmin?: boolean;
   loading?: boolean;
   splitView?: boolean;
   onToggleSplitView?: () => void;
@@ -54,6 +59,9 @@ export default function DocumentsGridView({
   searchQuery,
   onSearchChange,
   onNew,
+  onExport,
+  onImport,
+  isAdmin,
   loading,
   splitView = false,
   onToggleSplitView,
@@ -61,6 +69,21 @@ export default function DocumentsGridView({
   categoryFilter = null,
   onCategoryFilterChange,
 }: Props) {
+  const [showImportMenu, setShowImportMenu] = useState(false);
+  const importBtnRef = useRef<HTMLButtonElement>(null);
+
+  const importMenuOptions = [
+    {
+      label: "Merge",
+      onClick: () => { onImport?.("append"); setShowImportMenu(false); },
+    },
+    {
+      label: "Replace",
+      onClick: () => { onImport?.("replace"); setShowImportMenu(false); },
+      danger: true,
+    },
+  ];
+
   return (
     <div className="documents-view">
       <div className="documents-header">
@@ -68,12 +91,37 @@ export default function DocumentsGridView({
           <h1 className="documents-title">Documents</h1>
           <span className="documents-count">{docs.length} document{docs.length !== 1 ? "s" : ""}</span>
         </div>
-        {onNew && (
-          <button className="documents-new-btn" onClick={onNew}>
-            <Plus size={18} />
-            New Document
-          </button>
-        )}
+        <div className="documents-header-actions">
+          {onExport && (
+            <button className="icon-btn" onClick={onExport} title="Export documents">
+              <Download size={16} />
+            </button>
+          )}
+          {isAdmin && onImport && (
+            <>
+              <button
+                className="icon-btn"
+                ref={importBtnRef}
+                onClick={() => setShowImportMenu(true)}
+                title="Import documents"
+              >
+                <Upload size={16} />
+              </button>
+              <Menu
+                open={showImportMenu}
+                onClose={() => setShowImportMenu(false)}
+                items={importMenuOptions}
+                anchorRef={importBtnRef}
+              />
+            </>
+          )}
+          {onNew && (
+            <button className="documents-new-btn" onClick={onNew}>
+              <Plus size={18} />
+              New Document
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="documents-toolbar">
