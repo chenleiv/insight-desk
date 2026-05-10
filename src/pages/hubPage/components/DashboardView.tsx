@@ -12,7 +12,7 @@ type Props = {
   onNewDocument?: () => void | Promise<void>;
   onOpenDocument?: (id: number) => void;
   onExport?: () => void;
-  onImport?: (mode: "append" | "replace") => void;
+  onImport?: (mode: "append" | "replace", fileType: "json" | "text" | "excel" | "word") => void;
   isAdmin?: boolean;
 };
 
@@ -36,13 +36,20 @@ export default function DashboardView({
 
   const importMenuOptions = [
     {
-      label: "Merge",
-      onClick: () => { onImport?.("append"); setShowImportMenu(false); },
+      label: "JSON",
+      onClick: () => { onImport?.("append", "json"); setShowImportMenu(false); },
     },
     {
-      label: "Replace",
-      onClick: () => { onImport?.("replace"); setShowImportMenu(false); },
-      danger: true,
+      label: "TXT / MD / RTF",
+      onClick: () => { onImport?.("append", "text"); setShowImportMenu(false); },
+    },
+    {
+      label: "Excel (.xlsx)",
+      onClick: () => { onImport?.("append", "excel"); setShowImportMenu(false); },
+    },
+    {
+      label: "Word (.docx)",
+      onClick: () => { onImport?.("append", "word"); setShowImportMenu(false); },
     },
   ];
   const { docs } = useDocuments();
@@ -194,7 +201,7 @@ export default function DashboardView({
               >
                 + New Document
               </button>
-              {onExport && (
+              {isAdmin && onExport && (
                 <button type="button" className="action-btn secondary" onClick={onExport}>
                   <Download size={16} /> Export JSON
                 </button>
@@ -207,7 +214,7 @@ export default function DashboardView({
                     ref={importBtnRef}
                     onClick={() => setShowImportMenu(true)}
                   >
-                    <Upload size={16} /> Import JSON
+                    <Upload size={16} /> Import
                   </button>
                   <Menu
                     open={showImportMenu}

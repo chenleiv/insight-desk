@@ -25,7 +25,7 @@ type Props = {
   onSearchChange: (q: string) => void;
   onNew?: () => void;
   onExport?: () => void;
-  onImport?: (mode: "append" | "replace") => void;
+  onImport?: (mode: "append" | "replace", fileType: "json" | "text" | "excel" | "word") => void;
   isAdmin?: boolean;
   loading?: boolean;
   splitView?: boolean;
@@ -74,13 +74,20 @@ export default function DocumentsGridView({
 
   const importMenuOptions = [
     {
-      label: "Merge",
-      onClick: () => { onImport?.("append"); setShowImportMenu(false); },
+      label: "JSON",
+      onClick: () => { onImport?.("append", "json"); setShowImportMenu(false); },
     },
     {
-      label: "Replace",
-      onClick: () => { onImport?.("replace"); setShowImportMenu(false); },
-      danger: true,
+      label: "TXT / MD / RTF",
+      onClick: () => { onImport?.("append", "text"); setShowImportMenu(false); },
+    },
+    {
+      label: "Excel (.xlsx)",
+      onClick: () => { onImport?.("append", "excel"); setShowImportMenu(false); },
+    },
+    {
+      label: "Word (.docx)",
+      onClick: () => { onImport?.("append", "word"); setShowImportMenu(false); },
     },
   ];
 
@@ -92,7 +99,7 @@ export default function DocumentsGridView({
           <span className="documents-count">{docs.length} document{docs.length !== 1 ? "s" : ""}</span>
         </div>
         <div className="documents-header-actions">
-          {onExport && (
+          {isAdmin && onExport && (
             <button className="icon-btn" onClick={onExport} title="Export documents">
               <Download size={16} />
             </button>

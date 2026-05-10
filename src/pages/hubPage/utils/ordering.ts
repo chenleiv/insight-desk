@@ -4,10 +4,11 @@ export function normalizeOrder(
   currentOrder: number[],
   docs: DocumentItem[]
 ): number[] {
-  const ids = docs.map((d) => d.id);
-  const next = currentOrder.filter((id) => ids.includes(id));
-  for (const id of ids) if (!next.includes(id)) next.push(id);
-  return next;
+  const docIds = new Set(docs.map((d) => d.id));
+  const orderSet = new Set(currentOrder);
+  const kept = currentOrder.filter((id) => docIds.has(id));
+  const newIds = docs.map((d) => d.id).filter((id) => !orderSet.has(id));
+  return [...newIds, ...kept];
 }
 
 export function applyOrder(

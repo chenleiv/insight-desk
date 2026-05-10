@@ -42,9 +42,9 @@ export async function deleteDocument(id: number) {
   return { ok: true as const };
 }
 
-// viewer & admin
+// admin only
 export function exportDocuments() {
-  return apiFetch<DocumentItem[]>("/api/documents/export", { method: "POST" });
+  return apiFetch<DocumentItem[]>("/api/documents/export");
 }
 
 // admin only

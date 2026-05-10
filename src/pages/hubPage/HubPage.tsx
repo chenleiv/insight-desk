@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Menu as MenuIcon, BrainCircuit } from "lucide-react";
+import { Menu as MenuIcon, BrainCircuit, ChevronLeft, ChevronRight } from "lucide-react";
 
 import AppSidebar from "./components/AppSidebar";
 import DocumentsGridView from "./components/DocumentsGridView";
@@ -19,13 +19,16 @@ import {
   exportDocuments,
   importDocumentsBulk,
   type DocumentItem,
+  type DocumentInput,
 } from "../../api/documentsClient";
 import { matchesQuery, matchesCategory, getUniqueCategories } from "./utils/docs";
 import { CONTEXT_KEY } from "./utils/assistantUtils";
+import { parseImportFiles } from "./utils/parseImportFile";
 
 import "./hubPage.scss";
 
 import DashboardView from "./components/DashboardView";
+import ImportPreviewDialog from "./components/ImportPreviewDialog";
 import type { View } from "./components/AppSidebar";
 
 const HUB_VIEWS: readonly View[] = [
@@ -111,34 +114,12 @@ export default function HubPage() {
   );
   const [isCreating, setIsCreating] = useState(false);
   const [isPaneDirty, setIsPaneDirty] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [drawerWidth, setDrawerWidth] = useState<number>(() =>
-    loadJson<number>("drawerWidth", 560)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() =>
+    loadJson<boolean>("sidebarCollapsed", false)
   );
-  const drawerWidthRef = useRef(drawerWidth);
-  drawerWidthRef.current = drawerWidth;
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [importPreview, setImportPreview] = useState<{ mode: "append" | "replace"; docs: Partial<DocumentInput>[] } | null>(null);
   const lastActiveDocIdRef = useRef<number | null>(null);
-
-  function onDrawerResizeStart(e: React.MouseEvent) {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = drawerWidthRef.current;
-
-    function onMove(ev: MouseEvent) {
-      const delta = startX - ev.clientX;
-      const next = Math.min(Math.max(startWidth + delta, 340), 900);
-      setDrawerWidth(next);
-    }
-
-    function onUp() {
-      saveJson("drawerWidth", drawerWidthRef.current);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    }
-
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }
 
   const activeDoc = useMemo(() => {
     if (activeDocId == null) return null;
@@ -305,20 +286,36 @@ export default function HubPage() {
     }
   }
 
-  function handleImport(mode: "append" | "replace") {
+  async function doImport(mode: "append" | "replace", documents: DocumentInput[]) {
+    const result = await importDocumentsBulk({ mode, documents });
+    await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
+    status.show({ kind: "success", message: `Imported ${result.inserted} documents.` });
+  }
+
+  function handleImport(mode: "append" | "replace", fileType: "json" | "text" | "excel" | "word") {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".json";
+    const acceptMap: Record<typeof fileType, string> = {
+      json:  ".json",
+      text:  ".txt,.md,.rtf",
+      excel: ".xlsx",
+      word:  ".docx",
+    };
+    input.accept = acceptMap[fileType];
+    input.multiple = fileType !== "json";
     input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
+      const files = Array.from((e.target as HTMLInputElement).files ?? []);
+      if (files.length === 0) return;
       try {
-        const text = await file.text();
-        const parsed = JSON.parse(text) as DocumentItem[];
-        const documents = parsed.map(({ id: _id, ...rest }) => rest);
-        const result = await importDocumentsBulk({ mode, documents });
-        await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
-        status.show({ kind: "success", message: `Imported ${result.inserted} documents.` });
+        const parsed = await parseImportFiles(files);
+        const needsPreview = parsed.some(
+          (d) => !d.title?.trim() || !d.category?.trim() || !d.summary?.trim() || !d.content?.trim()
+        );
+        if (needsPreview) {
+          setImportPreview({ mode, docs: parsed });
+        } else {
+          await doImport(mode, parsed as DocumentInput[]);
+        }
       } catch (e) {
         status.show({ kind: "error", title: "Import failed", message: e instanceof Error ? e.message : "Error" });
       }
@@ -386,7 +383,7 @@ export default function HubPage() {
         />
       )}
 
-      <aside className="hub-sidebar app-sidebar-wrapper">
+      <aside className={`hub-sidebar app-sidebar-wrapper ${isSidebarCollapsed ? "collapsed" : ""}`}>
         <AppSidebar
           view={view}
           onViewChange={handleViewChange}
@@ -395,8 +392,21 @@ export default function HubPage() {
           onNew={openCreate}
           recentDocs={recentDocs}
           sidebarOpen={true}
+          isCollapsed={isSidebarCollapsed}
           onMobileClose={() => setIsMobileSidebarOpen(false)}
         />
+        <button
+          type="button"
+          className="sidebar-toggle-btn"
+          onClick={() => setIsSidebarCollapsed(prev => {
+            const next = !prev;
+            saveJson("sidebarCollapsed", next);
+            return next;
+          })}
+          aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
       </aside>
 
       <header className="mobile-top-bar">
@@ -485,13 +495,9 @@ export default function HubPage() {
               />
               <aside
                 className={`doc-drawer ${docDrawerFullscreen ? "doc-drawer--fullscreen" : ""}`}
-                style={!docDrawerFullscreen ? { width: drawerWidth } : undefined}
                 role="dialog"
                 aria-modal="true"
               >
-                {!docDrawerFullscreen && (
-                  <div className="doc-drawer-resize-handle" onMouseDown={onDrawerResizeStart} />
-                )}
                 <DocumentPane
                   key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
                   doc={activeDoc}
@@ -522,6 +528,21 @@ export default function HubPage() {
           )}
         </div>
       </main>
+
+      {importPreview && (
+        <ImportPreviewDialog
+          docs={importPreview.docs}
+          onConfirm={async (documents) => {
+            setImportPreview(null);
+            try {
+              await doImport(importPreview.mode, documents);
+            } catch (e) {
+              status.show({ kind: "error", title: "Import failed", message: e instanceof Error ? e.message : "Error" });
+            }
+          }}
+          onCancel={() => setImportPreview(null)}
+        />
+      )}
     </div>
   );
 }

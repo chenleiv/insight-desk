@@ -9,9 +9,9 @@ export const loginSchema = z.object({
 // Document Schemas
 export const documentSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
-  category: z.string().min(1, 'Category is required'),
-  summary: z.string().min(1, 'Summary is required'),
-  content: z.string().min(1, 'Content is required'),
+  category: z.string().min(1, 'Category is required').max(100),
+  summary: z.string().min(1, 'Summary is required').max(2000),
+  content: z.string().min(1, 'Content is required').max(500000),
 });
 
 // AI Schemas

@@ -39,7 +39,6 @@ const WORKSPACE_ITEMS: { id: View; label: string; icon: React.ElementType }[] =
     { id: "documents", label: "Documents", icon: FileText },
     { id: "favorites", label: "Favorites", icon: Star },
     { id: "assistant", label: "AI Assistant", icon: Bot },
-    { id: "settings", label: "Settings", icon: Settings },
   ];
 
 function getInitials(email: string) {
@@ -68,25 +67,9 @@ export default function AppSidebar({
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <div className="logo-icon">
-              <BrainCircuit size={20} />
+              <BrainCircuit size={18} />
             </div>
             {!isCollapsed && <span className="logo-text">InsightDesk</span>}
-          </div>
-          <div className="sidebar-header-actions">
-            <button
-              type="button"
-              className={`sidebar-theme-btn ${isDark ? "is-dark" : "is-light"}`}
-              onClick={() => setTheme(isDark ? "light" : "dark")}
-              aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-              aria-pressed={isDark}
-              title={isDark ? "Light mode" : "Dark mode"}
-            >
-              {isDark ? (
-                <Sun size={18} strokeWidth={2} aria-hidden />
-              ) : (
-                <Moon size={18} strokeWidth={2} aria-hidden />
-              )}
-            </button>
           </div>
         </div>
 
@@ -109,6 +92,27 @@ export default function AppSidebar({
       </div>
 
       <div className="sidebar-footer">
+        <div className="sidebar-footer-actions">
+          <button
+            type="button"
+            className="sidebar-footer-btn"
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            title={isDark ? "Light mode" : "Dark mode"}
+          >
+            {isDark ? <Sun size={18} strokeWidth={2} /> : <Moon size={18} strokeWidth={2} />}
+          </button>
+          <button
+            type="button"
+            className="sidebar-footer-btn"
+            onClick={() => { onViewChange("settings"); onMobileClose?.(); }}
+            aria-label="Settings"
+            title="Settings"
+          >
+            <Settings size={18} />
+          </button>
+        </div>
+
         <button
           className="sidebar-user-profile"
           aria-haspopup="menu"
@@ -120,7 +124,7 @@ export default function AppSidebar({
           {!isCollapsed && (
             <>
               <div className="user-info">
-                <span className="user-name">Chen Lei</span>
+                <span className="user-name">Chen Leiv</span>
                 <span className="user-email">
                   {user?.email || "chen@insightdesk.io"}
                 </span>
