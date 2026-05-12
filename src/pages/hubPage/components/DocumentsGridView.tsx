@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { useRef, useState } from "react";
-import { LayoutGrid, List, Plus, PanelRight, FileText, Star, Search, Filter, GripVertical, Download, Upload } from "lucide-react";
+import { LayoutGrid, List, Plus, PanelRight, FileText, Star, Search, Filter, GripVertical, Download, Upload, Paperclip } from "lucide-react";
 import type { DocumentItem } from "../../../api/documentsClient";
 import { formatRelativeTime } from "../../../utils/relativeTime";
 import { Skeleton } from "../../../components/skeleton/Skeleton";
@@ -283,6 +283,12 @@ export default function DocumentsGridView({
                   <div className="card-drag-handle" aria-hidden>
                     <GripVertical size={14} />
                   </div>
+                  {doc.attachments && doc.attachments.length > 0 && (
+                    <span className="card-attachment-badge" title={`${doc.attachments.length} attachment${doc.attachments.length !== 1 ? "s" : ""}`}>
+                      <Paperclip size={11} />
+                      {doc.attachments.length}
+                    </span>
+                  )}
                   <Star
                     size={16}
                     fill={favorites?.[doc.id] ? "var(--gold)" : "none"}

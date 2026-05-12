@@ -29,7 +29,15 @@ router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
         if (context && context.length > 0) {
             let contextText = 'Use the following relevant documents to help answer the user\'s question:\n';
             context.forEach((doc, idx) => {
-                contextText += `${idx + 1}. [${doc.title}] ${doc.content}\n`;
+                let docText = `${idx + 1}. [${doc.title}] ${doc.content}`;
+                if (doc.attachments?.length) {
+                    const attachedContent = doc.attachments
+                        .filter(a => a.extractedText)
+                        .map(a => `[Attachment: ${a.fileName}] ${a.extractedText}`)
+                        .join('\n');
+                    if (attachedContent) docText += '\n' + attachedContent;
+                }
+                contextText += docText + '\n';
             });
             messages.push({ role: 'system', content: contextText });
         }

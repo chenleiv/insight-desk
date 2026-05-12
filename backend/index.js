@@ -14,6 +14,11 @@ import authRouter, { getCurrentUser, requireAdmin, seedUsersIfEmpty } from './au
 import aiRouter from './ai.js';
 import { Document } from './models.js';
 import fs from 'fs';
+import multer from 'multer';
+import mammoth from 'mammoth';
+import { PDFParse } from 'pdf-parse';
+import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -21,6 +26,31 @@ import { documentSchema, importBulkSchema } from './schemas.js';
 
 const app = express();
 app.use(compression());
+
+const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY
+    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+    : null;
+
+const ALLOWED_ATTACHMENT_MIMES = new Set([
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    'text/markdown',
+    'application/rtf',
+    'text/rtf',
+]);
+
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+        if (ALLOWED_ATTACHMENT_MIMES.has(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(Object.assign(new Error(`File type "${file.mimetype}" is not allowed`), { status: 400 }));
+        }
+    },
+});
 
 // --- Static Hosting (Prioritized for SPA performance and stability) ---
 const distPath = path.resolve(__dirname, '../dist');
@@ -251,6 +281,97 @@ app.post('/api/documents/:id/toggle-favorite', getCurrentUser, async (req, res) 
 
 
 
+// --- Attachment upload ---
+
+app.post('/api/documents/:id/attachments', requireAdmin, (req, res, next) => {
+    upload.single('file')(req, res, (err) => {
+        if (err) {
+            const status = err.status || (err.code === 'LIMIT_FILE_SIZE' ? 413 : 400);
+            return res.status(status).json({ detail: err.message });
+        }
+        next();
+    });
+}, async (req, res) => {
+    try {
+        if (!supabase) return res.status(503).json({ detail: 'Storage not configured' });
+
+        const doc = await Document.findById(req.params.id);
+        if (!doc) return res.status(404).json({ detail: 'Not found' });
+
+        const file = req.file;
+        if (!file) return res.status(400).json({ detail: 'No file uploaded' });
+
+        // Extract text from file
+        let extractedText = '';
+        try {
+            if (file.mimetype === 'application/pdf') {
+                const parser = new PDFParse({ data: file.buffer });
+                await parser.load();
+                const data = await parser.getText();
+                extractedText = (data.text || '').slice(0, 500000);
+            } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                const result = await mammoth.extractRawText({ buffer: file.buffer });
+                extractedText = result.value.trim().slice(0, 500000);
+            } else if (file.mimetype.startsWith('text/')) {
+                extractedText = file.buffer.toString('utf-8').slice(0, 500000);
+            }
+        } catch (extractErr) {
+            console.warn('Text extraction failed (non-fatal):', extractErr.message);
+        }
+
+        const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const storagePath = `${req.params.id}/${randomUUID()}-${safeName}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('document-attachments')
+            .upload(storagePath, file.buffer, { contentType: file.mimetype, upsert: false });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('document-attachments')
+            .getPublicUrl(storagePath);
+
+        doc.attachments.push({ url: publicUrl, fileName: file.originalname, fileType: file.mimetype, extractedText });
+        await doc.save();
+
+        res.json(doc.attachments[doc.attachments.length - 1]);
+    } catch (err) {
+        console.error('Upload attachment failed:', err);
+        res.status(500).json({ detail: err.message || 'Upload failed' });
+    }
+});
+
+// --- Attachment delete ---
+
+app.delete('/api/documents/:id/attachments/:attachmentId', requireAdmin, async (req, res) => {
+    try {
+        if (!supabase) return res.status(503).json({ detail: 'Storage not configured' });
+
+        const doc = await Document.findById(req.params.id);
+        if (!doc) return res.status(404).json({ detail: 'Not found' });
+
+        const attachment = doc.attachments.id(req.params.attachmentId);
+        if (!attachment) return res.status(404).json({ detail: 'Attachment not found' });
+
+        // Extract storage path from public URL
+        const marker = '/document-attachments/';
+        const idx = attachment.url.indexOf(marker);
+        if (idx !== -1) {
+            const storagePath = attachment.url.slice(idx + marker.length);
+            await supabase.storage.from('document-attachments').remove([storagePath]);
+        }
+
+        doc.attachments.pull({ _id: req.params.attachmentId });
+        await doc.save();
+
+        res.status(204).send();
+    } catch (err) {
+        console.error('Delete attachment failed:', err);
+        res.status(500).json({ detail: err.message || 'Delete failed' });
+    }
+});
+
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain');
     res.send('User-agent: *\nAllow: /');
@@ -266,6 +387,14 @@ app.get('*', (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+});
+
+process.on('SIGTERM', () => {
+    server.close(() => process.exit(0));
+});
+
+process.on('SIGINT', () => {
+    server.close(() => process.exit(0));
 });

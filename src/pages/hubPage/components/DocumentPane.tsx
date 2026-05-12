@@ -1,6 +1,6 @@
 import { useActionState, useState, useEffect, useMemo } from "react";
 import type { DocumentItem, DocumentInput } from "../../../api/documentsClient";
-import { createDocument, updateDocument } from "../../../api/documentsClient";
+import { createDocument, updateDocument, uploadAttachment, deleteAttachment } from "../../../api/documentsClient";
 import { useStatus } from "../../../components/statusBar/useStatus";
 import { EmptyPane } from "./EmptyPane";
 import { DocumentHeader } from "./DocumentHeader";
@@ -63,6 +63,7 @@ export default function DocumentPane({
 }: Props) {
   const status = useStatus();
   const confirm = useConfirm();
+  const [isUploading, setIsUploading] = useState(false);
 
   const [mode, setMode] = useState<"view" | "edit">(
     isCreating ? "edit" : "view",
@@ -153,6 +154,43 @@ export default function DocumentPane({
   );
 
   const canSave = canEdit && !isPending && isDirty && isValid;
+
+  const handleUploadAttachment = async (file: File) => {
+    if (!doc) return;
+    setIsUploading(true);
+    try {
+      await uploadAttachment(doc.id, file);
+      const { getDocument } = await import("../../../api/documentsClient");
+      const refreshed = await getDocument(doc.id);
+      onSaved(refreshed);
+      status.show({ kind: "success", message: "File attached." });
+    } catch (e) {
+      status.show({ kind: "error", title: "Upload failed", message: e instanceof Error ? e.message : "Upload failed." });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!doc) return;
+    const ok = await confirm({
+      title: "Remove attachment",
+      message: "Remove this file from the document?",
+      confirmLabel: "Remove",
+      cancelLabel: "Cancel",
+      variant: "danger",
+    });
+    if (!ok) return;
+    try {
+      await deleteAttachment(doc.id, attachmentId);
+      const { getDocument } = await import("../../../api/documentsClient");
+      const refreshed = await getDocument(doc.id);
+      onSaved(refreshed);
+      status.show({ kind: "success", message: "Attachment removed." });
+    } catch (e) {
+      status.show({ kind: "error", title: "Delete failed", message: e instanceof Error ? e.message : "Delete failed." });
+    }
+  };
 
   const handleMinimize = async () => {
     if (isDirty) {
@@ -312,7 +350,13 @@ export default function DocumentPane({
             <DocumentDetailSkeleton />
           </div>
         ) : (
-          <DocumentView doc={doc} />
+          <DocumentView
+            doc={doc}
+            canEdit={canEdit}
+            isUploading={isUploading}
+            onUploadAttachment={handleUploadAttachment}
+            onDeleteAttachment={handleDeleteAttachment}
+          />
         )
       ) : (
         <DocumentEdit

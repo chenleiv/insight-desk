@@ -18,10 +18,10 @@ export const documentSchema = z.object({
 export const aiChatSchema = z.object({
   message: z.string().min(1, 'Message is required'),
   context: z.array(z.object({
-    id: z.string().optional(),
+    id: z.union([z.string(), z.number()]).optional(),
     title: z.string(),
     content: z.string(),
-  })).optional(),
+  }).passthrough()).optional(),
 });
 
 // Import Bulk Schema

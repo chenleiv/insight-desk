@@ -1,4 +1,33 @@
 import { apiFetch } from "./base";
+import { getApiBase } from "./config";
+
+export async function uploadAttachment(docId: number | string, file: File): Promise<Attachment> {
+  const base = getApiBase();
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${base}/api/documents/${docId}/attachments`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Upload failed: ${res.status}`);
+  }
+  return res.json() as Promise<Attachment>;
+}
+
+export async function deleteAttachment(docId: number | string, attachmentId: string): Promise<void> {
+  await apiFetch<void>(`/api/documents/${docId}/attachments/${attachmentId}`, { method: "DELETE" });
+}
+
+export type Attachment = {
+  _id: string;
+  url: string;
+  fileName: string;
+  fileType: string;
+  extractedText?: string;
+};
 
 export type DocumentItem = {
   id: number;
@@ -8,6 +37,7 @@ export type DocumentItem = {
   content: string;
   createdAt?: string;
   updatedAt?: string;
+  attachments?: Attachment[];
 };
 
 export type DocumentInput = Omit<DocumentItem, "id">;

@@ -143,6 +143,17 @@ export default function AIAssistantView({
     sendMessage(suggestion);
   }
 
+  function clearChat() {
+    setMessages([{
+      id: uid(),
+      role: "assistant",
+      text: "How can I help you?",
+      isTyped: true,
+      isGreeting: true,
+    }]);
+    setLastError(null);
+  }
+
   useEffect(() => {
     saveJson(CHAT_KEY, messages);
   }, [messages]);
@@ -181,6 +192,11 @@ export default function AIAssistantView({
           </>
         ) : (
           <div className="ai-messages" aria-live="polite">
+            <div className="ai-messages-topbar">
+              <button type="button" className="ai-clear-chat-link" onClick={clearChat}>
+                Clear chat
+              </button>
+            </div>
             {messages.map((m) => {
               if (m.isGreeting) return null;
               const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

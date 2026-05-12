@@ -3390,6 +3390,116 @@
     }
 }
 
+/* ===== Attachments ===== */
+
+.attachment-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.attachment-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text);
+
+    .attachment-icon {
+        color: var(--muted);
+        flex-shrink: 0;
+    }
+
+    .attachment-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .attachment-open {
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        transition: color 0.15s;
+
+        &:hover { color: var(--accent); }
+    }
+
+    .attachment-delete {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        padding: 2px;
+        border-radius: 4px;
+        flex-shrink: 0;
+        transition: color 0.15s, background 0.15s;
+
+        &:hover {
+            color: var(--danger, #e55);
+            background: color-mix(in srgb, var(--danger, #e55) 12%, transparent);
+        }
+    }
+}
+
+.attachment-empty-text {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0;
+}
+
+.attachment-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--panel);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    align-self: flex-start;
+
+    &:hover:not(:disabled) {
+        color: var(--accent);
+        border-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 6%, transparent);
+    }
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+}
+
+.card-attachment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--soft);
+    border-radius: 20px;
+    padding: 2px 7px 2px 5px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
 /* ===== Import Preview Dialog ===== */
 .import-preview-modal {
     width: min(620px, 94vw);
