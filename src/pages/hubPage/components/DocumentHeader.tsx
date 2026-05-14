@@ -5,7 +5,6 @@ import {
   Minimize2,
   PanelLeftClose,
   Trash2,
-  FileText,
   X,
   Save,
 } from "lucide-react";
@@ -142,17 +141,22 @@ export const DocumentHeader: React.FC<Props> = ({
 
   const editActionsDrawer = (
     <div className="doc-pane-edit-drawer-toolbar">
-      <div className="doc-pane-edit-drawer-row">
+      <div className="doc-pane-edit-drawer-toolbar-content">
+        {isPending && <div className="doc-pane-pending"><Loader size={22} /></div>}
         {isEditingExisting && <span className="doc-pane-editing-badge">Editing</span>}
-        <div className="doc-pane-edit-drawer-toolbar-content">
-          {isPending && <div className="doc-pane-pending"><Loader size={22} /></div>}
-          <SaveBtn isPending={isPending} canSave={canSave} isDrawer />
-        </div>
+        <SaveBtn isPending={isPending} canSave={canSave} isDrawer />
+        <button
+          type="button"
+          className="doc-pane-cancel-btn"
+          onClick={onCancel}
+          disabled={isPending}
+        >
+          Cancel
+        </button>
       </div>
-      <div className="doc-pane-actions-grid doc-pane-actions-grid--pair" role="toolbar" aria-label="View options">
-        {onToggleMaximize ? <MaximizeBtn className="doc-pane-grid-btn" isMaximized={isMaximized} onClick={onToggleMaximize} /> : <Placeholder />}
-        {onClose ? <CloseBtn className="doc-pane-grid-btn" onClick={onClose} /> : <Placeholder />}
-      </div>
+      {onToggleMaximize && (
+        <MaximizeBtn className="doc-pane-grid-btn" isMaximized={isMaximized} onClick={onToggleMaximize} />
+      )}
     </div>
   );
 
@@ -173,11 +177,6 @@ export const DocumentHeader: React.FC<Props> = ({
       <div className={`doc-pane-top ${isDrawer ? "doc-pane-top--drawer" : ""}`}>
         <div className="doc-pane-title-container">
           {leftAction && <div className="doc-pane-left-action">{leftAction}</div>}
-          {mode === "edit" && !isEditingExisting && (
-            <div className="doc-pane-header-doc-icon" aria-hidden>
-              <FileText size={22} strokeWidth={1.75} />
-            </div>
-          )}
           <div className="doc-pane-title-stack demo-welcome-target">
             {titleSlot ? (
               <div className="doc-pane-title-slot" id="doc-drawer-title">

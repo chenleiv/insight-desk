@@ -1,12 +1,18 @@
-import React, { useMemo } from "react";
-import { Clock } from "lucide-react";
-import type { DocumentInput } from "../../../api/documentsClient";
+import React, { useMemo, useRef } from "react";
+import { Clock, Paperclip, ExternalLink, X, Plus } from "lucide-react";
+import type { DocumentInput, DocumentItem } from "../../../api/documentsClient";
 
 type Props = {
   form: DocumentInput;
   onChange: (form: DocumentInput) => void;
   isCreating: boolean;
   updatedAt?: string | undefined;
+  doc?: DocumentItem;
+  canEdit?: boolean;
+  isUploading?: boolean;
+  pendingFiles?: File[];
+  onUploadAttachment?: (file: File) => void;
+  onDeleteAttachment?: (attachmentId: string) => void;
 };
 
 function formatRelativeTime(iso: string | undefined): string {
@@ -40,7 +46,15 @@ export const DocumentEdit: React.FC<Props> = ({
   onChange,
   isCreating,
   updatedAt,
+  doc,
+  canEdit,
+  isUploading,
+  pendingFiles = [],
+  onUploadAttachment,
+  onDeleteAttachment,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -54,8 +68,92 @@ export const DocumentEdit: React.FC<Props> = ({
 
   const words = countWords(form.content);
 
+  const showAttachments = canEdit && (isCreating || !!doc);
+  const existingAttachments = doc?.attachments ?? [];
+
   return (
     <div className="doc-pane-body doc-pane-body--edit">
+      {showAttachments && (
+        <div className="doc-pane-section">
+          <div className="doc-pane-label">Attachments</div>
+
+          {/* Existing saved attachments (edit mode) */}
+          {existingAttachments.length > 0 && (
+            <ul className="attachment-list">
+              {existingAttachments.map((att) => (
+                <li key={att._id} className="attachment-item">
+                  <Paperclip size={13} className="attachment-icon" />
+                  <span className="attachment-name">{att.fileName}</span>
+                  <a
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="attachment-open"
+                    title="Open file"
+                  >
+                    <ExternalLink size={13} />
+                  </a>
+                  <button
+                    type="button"
+                    className="attachment-delete"
+                    title="Remove attachment"
+                    onClick={() => onDeleteAttachment?.(att._id)}
+                  >
+                    <X size={13} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Pending files queued for upload on save (new doc) */}
+          {pendingFiles.length > 0 && (
+            <ul className="attachment-list">
+              {pendingFiles.map((f) => (
+                <li key={f.name} className="attachment-item">
+                  <Paperclip size={13} className="attachment-icon" />
+                  <span className="attachment-name">{f.name}</span>
+                  <span className="attachment-pending-badge">on save</span>
+                  <button
+                    type="button"
+                    className="attachment-delete"
+                    title="Remove"
+                    onClick={() => onDeleteAttachment?.(f.name)}
+                  >
+                    <X size={13} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {existingAttachments.length === 0 && pendingFiles.length === 0 && (
+            <p className="attachment-empty-text">No attachments yet</p>
+          )}
+
+          <button
+            type="button"
+            className="attachment-add-btn"
+            disabled={isUploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Plus size={14} />
+            {isUploading ? "Uploading…" : "Add file"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            hidden
+            accept=".pdf,.docx,.txt,.md,.rtf"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onUploadAttachment?.(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      )}
+
       <div
         className="doc-pane-edit-meta"
       >

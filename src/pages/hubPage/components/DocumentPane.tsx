@@ -64,6 +64,7 @@ export default function DocumentPane({
   const status = useStatus();
   const confirm = useConfirm();
   const [isUploading, setIsUploading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const [mode, setMode] = useState<"view" | "edit">(
     isCreating ? "edit" : "view",
@@ -126,6 +127,14 @@ export default function DocumentPane({
       try {
         if (isCreating) {
           const created = await createDocument(cleaned);
+          if (pendingFiles.length > 0) {
+            setIsUploading(true);
+            for (const file of pendingFiles) {
+              await uploadAttachment(created.id, file);
+            }
+            setPendingFiles([]);
+            setIsUploading(false);
+          }
           onCreated(created);
           status.show({ kind: "success", message: "Document created." });
           return null;
@@ -364,6 +373,16 @@ export default function DocumentPane({
           onChange={setForm}
           isCreating={isCreating}
           updatedAt={doc?.updatedAt}
+          doc={doc ?? undefined}
+          canEdit={canEdit}
+          isUploading={isUploading}
+          pendingFiles={pendingFiles}
+          onUploadAttachment={isCreating
+            ? (file) => setPendingFiles((prev) => [...prev, file])
+            : handleUploadAttachment}
+          onDeleteAttachment={isCreating
+            ? (name) => setPendingFiles((prev) => prev.filter((f) => f.name !== name))
+            : handleDeleteAttachment}
         />
       )}
     </form>

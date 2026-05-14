@@ -21,16 +21,6 @@ export const DocumentView = React.memo(function DocumentView({
 
   return (
     <div className="doc-pane-body doc-pane-anim">
-      <div className="doc-pane-section">
-        <div className="doc-pane-label">Summary</div>
-        <div className="doc-pane-text">{doc.summary}</div>
-      </div>
-
-      <div className="doc-pane-section">
-        <div className="doc-pane-label">Content</div>
-        <div className="doc-pane-text prewrap">{doc.content}</div>
-      </div>
-
       {(canEdit || (doc.attachments && doc.attachments.length > 0)) && (
         <div className="doc-pane-section">
           <div className="doc-pane-label">Attachments</div>
@@ -92,6 +82,16 @@ export const DocumentView = React.memo(function DocumentView({
           )}
         </div>
       )}
+
+      <div className="doc-pane-section">
+        <div className="doc-pane-label">Summary</div>
+        <div className="doc-pane-text">{doc.summary}</div>
+      </div>
+
+      <div className="doc-pane-section">
+        <div className="doc-pane-label">Content</div>
+        <div className="doc-pane-text prewrap">{doc.content}</div>
+      </div>
     </div>
   );
 });

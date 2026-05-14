@@ -1,19 +1,20 @@
 import { useState, useEffect, useRef } from "react";
 import "./aiAssistant.scss";
-import { BrainCircuit, Send, Bot, ChevronDown, Check } from "lucide-react";
-import { chatWithAI } from "../../../api/aiClient";
+import { BrainCircuit, Send, Bot, ChevronDown, Check, ScrollText, X } from "lucide-react";
+import { chatWithAI, getSystemPrompt, type PromptConfig } from "../../../api/aiClient";
 import type { DocumentItem } from "../../../api/documentsClient";
 import { buildSnippet, scoreDoc, uid } from "../utils/assistantUtils";
 import { loadJson, saveJson } from "../../../utils/storage";
 import type { ChatMessage } from "../assistantTypes";
 import { CHAT_KEY } from "../utils/assistantUtils";
 import TypewriterText from "./TypewriterText";
+import { useAuth } from "../../../auth/useAuth";
 
 const PROMPT_SUGGESTIONS = [
-  "Summarize my latest research notes",
-  "What are the key takeaways from Q4 strategy?",
-  "Compare the product roadmap priorities",
-  "Extract action items from the meeting recap",
+  "What are the main themes across my documents?",
+  "Summarize the key decisions and their rationale",
+  "What open questions or unresolved issues are mentioned?",
+  "What data or metrics are referenced?",
 ];
 
 type Props = {
@@ -32,6 +33,12 @@ export default function AIAssistantView({
   onClearSelection,
   onSelectDocuments,
 }: Props) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  const [promptConfig, setPromptConfig] = useState<PromptConfig | null>(null);
+  const [promptModalOpen, setPromptModalOpen] = useState(false);
+
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     loadJson<ChatMessage[]>(CHAT_KEY, [
       {
@@ -162,8 +169,47 @@ export default function AIAssistantView({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending]);
 
+  async function openPromptModal() {
+    if (!promptConfig) {
+      try {
+        const config = await getSystemPrompt();
+        setPromptConfig(config);
+      } catch {
+        // not admin or unavailable
+        return;
+      }
+    }
+    setPromptModalOpen(true);
+  }
+
   return (
     <div className="ai-assistant-view">
+      {promptModalOpen && promptConfig && (
+        <div className="prompt-modal-overlay" onClick={() => setPromptModalOpen(false)}>
+          <div className="prompt-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="prompt-modal-header">
+              <div className="prompt-modal-title">
+                <ScrollText size={16} />
+                System Prompt
+              </div>
+              <button
+                type="button"
+                className="prompt-modal-close"
+                onClick={() => setPromptModalOpen(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="prompt-modal-meta">
+              <span>{promptConfig.name}</span>
+              <span className="prompt-modal-version">v{promptConfig.version}</span>
+            </div>
+            <p className="prompt-modal-description">{promptConfig.description}</p>
+            <pre className="prompt-modal-body">{promptConfig.prompt}</pre>
+          </div>
+        </div>
+      )}
+
       <div className={`ai-assistant-content ${hasStartedChat ? "has-messages" : ""}`}>
         {!hasStartedChat ? (
           <>
@@ -282,6 +328,17 @@ export default function AIAssistantView({
 
         <div className="ai-bottom-panel">
           <div className="ai-composer-footer-row">
+            {isAdmin && (
+              <button
+                type="button"
+                className="ai-prompt-config-btn"
+                onClick={openPromptModal}
+                title="View system prompt"
+              >
+                <ScrollText size={13} />
+                System Prompt
+              </button>
+            )}
             <p className="ai-composer-hint">
               {selectedIds.length === 0
                 ? "Using all documents for context"

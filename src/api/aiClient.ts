@@ -12,3 +12,14 @@ export async function chatWithAI(message: string, context: DocumentItem[]): Prom
     body: JSON.stringify({ message, context }),
   });
 }
+
+export interface PromptConfig {
+  prompt: string;
+  name: string;
+  version: string;
+  description: string;
+}
+
+export async function getSystemPrompt(): Promise<PromptConfig> {
+  return await apiFetch<PromptConfig>("/api/ai/prompt");
+}

@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
-    password_hash: { type: String, required: true },
+    password_hash: { type: String, default: null },
     role: { type: String, enum: ['admin', 'viewer'], default: 'viewer' },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Document' }],
 }, { timestamps: true });

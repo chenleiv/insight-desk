@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { User } from './models.js';
 
-import { loginSchema } from './schemas.js';
+import { loginSchema, registerSchema } from './schemas.js';
 
 const router = express.Router();
 
@@ -19,6 +19,12 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-secret-change-me'
 const ACCESS_TOKEN_MINUTES = parseInt(process.env.ACCESS_TOKEN_MINUTES || '60');
 const ENV = process.env.ENV || 'dev';
 const COOKIE_NAME = 'access_token';
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+// In production this is the same as the app URL. In dev set FRONTEND_URL=http://localhost:5173
+const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:8000';
+const FRONTEND_URL = process.env.FRONTEND_URL || APP_BASE_URL;
 
 // Seed initial users if none exist
 export async function seedUsersIfEmpty() {
@@ -68,31 +74,128 @@ export function requireAdmin(req, res, next) {
     });
 }
 
+function setAuthCookie(res, token) {
+    res.cookie(COOKIE_NAME, token, {
+        httpOnly: true,
+        secure: ENV === 'prod' || process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: ACCESS_TOKEN_MINUTES * 60 * 1000,
+    });
+}
+
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = loginSchema.parse(req.body);
 
         const user = await User.findOne({ email });
-        if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+        if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
             return res.status(401).json({ detail: 'Invalid credentials' });
         }
 
         const token = createAccessToken(user.email, user.role);
-
-        res.cookie(COOKIE_NAME, token, {
-            httpOnly: true,
-            secure: ENV === 'prod' || process.env.NODE_ENV === 'production',
-            sameSite: 'lax', // Use lax for better compatibility while maintaining security
-            path: '/',
-            maxAge: ACCESS_TOKEN_MINUTES * 60 * 1000
-        });
-
+        setAuthCookie(res, token);
         res.json({ user: { email: user.email, role: user.role, favorites: user.favorites || [] } });
     } catch (err) {
         if (err.name === 'ZodError') {
             return res.status(400).json({ detail: 'Validation failed', errors: err.errors });
         }
         res.status(500).json({ detail: 'Internal server error' });
+    }
+});
+
+router.post('/register', async (req, res) => {
+    try {
+        const { email, password } = registerSchema.parse(req.body);
+
+        const existing = await User.findOne({ email });
+        if (existing) {
+            return res.status(409).json({ detail: 'An account with this email already exists' });
+        }
+
+        const hash = await bcrypt.hash(password, 10);
+        const user = await User.create({ email, password_hash: hash, role: 'viewer' });
+
+        const token = createAccessToken(user.email, user.role);
+        setAuthCookie(res, token);
+        res.status(201).json({ user: { email: user.email, role: user.role, favorites: [] } });
+    } catch (err) {
+        if (err.name === 'ZodError') {
+            return res.status(400).json({ detail: 'Validation failed', errors: err.errors });
+        }
+        res.status(500).json({ detail: 'Internal server error' });
+    }
+});
+
+// --- Google OAuth (redirect flow) ---
+// Requires env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APP_BASE_URL
+router.get('/google', (req, res) => {
+    if (!GOOGLE_CLIENT_ID) {
+        return res.status(503).json({ detail: 'Google OAuth is not configured' });
+    }
+    const params = new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        redirect_uri: `${APP_BASE_URL}/api/auth/google/callback`,
+        response_type: 'code',
+        scope: 'openid email profile',
+        access_type: 'offline',
+        prompt: 'select_account',
+    });
+    res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+});
+
+router.get('/google/callback', async (req, res) => {
+    const { code, error } = req.query;
+
+    if (error || !code) {
+        return res.redirect(`${FRONTEND_URL}/login?error=google_cancelled`);
+    }
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+        return res.redirect(`${FRONTEND_URL}/login?error=google_not_configured`);
+    }
+
+    try {
+        // Exchange authorization code for tokens
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                code,
+                client_id: GOOGLE_CLIENT_ID,
+                client_secret: GOOGLE_CLIENT_SECRET,
+                redirect_uri: `${APP_BASE_URL}/api/auth/google/callback`,
+                grant_type: 'authorization_code',
+            }),
+        });
+        const tokens = await tokenRes.json();
+
+        if (!tokens.access_token) {
+            console.error('Google token exchange failed:', tokens);
+            return res.redirect(`${FRONTEND_URL}/login?error=google_token_failed`);
+        }
+
+        // Get the user's Google profile
+        const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: { Authorization: `Bearer ${tokens.access_token}` },
+        });
+        const profile = await profileRes.json();
+
+        if (!profile.email) {
+            return res.redirect(`${FRONTEND_URL}/login?error=google_no_email`);
+        }
+
+        // Find existing user or create a new one (viewer role by default)
+        let user = await User.findOne({ email: profile.email });
+        if (!user) {
+            user = await User.create({ email: profile.email, role: 'viewer' });
+        }
+
+        const token = createAccessToken(user.email, user.role);
+        setAuthCookie(res, token);
+        res.redirect(`${FRONTEND_URL}/hub`);
+    } catch (err) {
+        console.error('Google OAuth callback error:', err);
+        res.redirect(`${FRONTEND_URL}/login?error=google_server_error`);
     }
 });
 

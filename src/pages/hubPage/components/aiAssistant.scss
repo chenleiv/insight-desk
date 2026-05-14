@@ -418,3 +418,119 @@
     transform: translateY(-2px);
   }
 }
+
+// System Prompt button (admin only)
+.ai-prompt-config-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--text);
+    border-color: var(--text);
+  }
+}
+
+// System Prompt modal
+.prompt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.prompt-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: min(620px, 100%);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+
+  .prompt-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+
+    .prompt-modal-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .prompt-modal-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+
+      &:hover { color: var(--text); }
+    }
+  }
+
+  .prompt-modal-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+
+    .prompt-modal-version {
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--soft);
+      color: var(--muted);
+      padding: 2px 7px;
+      border-radius: 99px;
+    }
+  }
+
+  .prompt-modal-description {
+    padding: 0 20px 12px;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  .prompt-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    margin: 0;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}

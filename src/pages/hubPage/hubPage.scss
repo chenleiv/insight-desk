@@ -105,40 +105,8 @@
         }
     }
 
-    .hub-main--drawer-open {
-        overflow: hidden;
-    }
-
-    .hub-main-layout--drawer-open {
-        position: relative;
-
-        /* Leave search + category chips above the dimmed layer so they stay clickable
-           while the drawer is open (full-area backdrop was intercepting filter clicks). */
-        .doc-drawer-backdrop {
-            inset: unset;
-            top: min(320px, 44vh);
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: auto;
-            height: auto;
-        }
-    }
-
     .doc-drawer-backdrop {
-        position: absolute;
-        inset: 0;
-        z-index: 10;
-        border: none;
-        padding: 0;
-        margin: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(3px);
-        -webkit-backdrop-filter: blur(3px);
-        cursor: pointer;
-        animation: doc-drawer-backdrop-in 0.22s ease;
+        display: none;
     }
 
     .doc-drawer {
@@ -230,18 +198,19 @@
             color: var(--text);
         }
 
-        /* Sidebar: always overlay, never inline */
+        /* Sidebar: always overlay on the right, never inline */
         .hub-sidebar.app-sidebar-wrapper {
-            position: fixed;
-            top: 0;
-            left: 0;
-            bottom: 0;
+            position: fixed !important;
+            top: 0 !important;
+            right: 0 !important;
+            left: auto !important;
+            bottom: 0 !important;
             width: 280px !important;
             min-width: 280px !important;
             z-index: 300;
-            transform: translateX(-100%);
+            transform: translateX(100%);
             transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+            box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
         }
 
         &.mobile-sidebar-open .hub-sidebar.app-sidebar-wrapper {
@@ -2399,21 +2368,52 @@
             display: flex;
             align-items: center;
             gap: 22px;
-            width: 100%;
+            flex: 1;
+            min-width: 0;
         }
 
         .doc-pane-edit-drawer-toolbar-content {
             display: flex;
             align-items: center;
-            gap: 16px;
-            width: 100%;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
         }
 
         .doc-pane-edit-drawer-toolbar {
             display: flex;
             align-items: center;
-            gap: 16px;
+            justify-content: space-between;
+            gap: 12px;
             width: 100%;
+        }
+
+        .doc-pane-cancel-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 36px;
+            padding: 0 14px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s, border-color 0.15s;
+
+            &:hover:not(:disabled) {
+                background: var(--soft);
+                border-color: var(--muted);
+            }
+
+            &:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
         }
 
         .doc-pane-header-tool-btn {
@@ -3457,6 +3457,17 @@
     font-size: 13px;
     color: var(--muted);
     margin: 0;
+}
+
+.attachment-pending-badge {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: auto;
+    white-space: nowrap;
 }
 
 .attachment-add-btn {

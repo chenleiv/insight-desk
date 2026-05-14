@@ -12,6 +12,13 @@ export async function login(email: string, password: string) {
   });
 }
 
+export async function register(email: string, password: string) {
+  return apiFetch<LoginResponse>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
 export async function me() {
   return apiFetch<AuthUser>("/api/auth/me");
 }

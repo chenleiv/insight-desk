@@ -410,19 +410,17 @@ export default function HubPage() {
       </aside>
 
       <header className="mobile-top-bar">
-        <button className="mobile-hamburger" onClick={() => setIsMobileSidebarOpen(true)} aria-label="Open menu">
-          <MenuIcon size={22} />
-        </button>
         <div className="mobile-logo">
           <BrainCircuit size={18} />
           <span>InsightDesk</span>
         </div>
+        <button className="mobile-hamburger" onClick={() => setIsMobileSidebarOpen(true)} aria-label="Open menu">
+          <MenuIcon size={22} />
+        </button>
       </header>
 
       <main className={`hub-main ${docDrawerOpen ? "hub-main--drawer-open" : ""}`}>
-        <div
-          className={`hub-main-layout ${docDrawerOpen ? "hub-main-layout--drawer-open" : ""}`}
-        >
+        <div className="hub-main-layout">
           <div
             ref={contentRef}
             className="hub-content"
@@ -484,49 +482,41 @@ export default function HubPage() {
             )}
 
           </div>
-
-          {docDrawerOpen && (
-            <>
-              <button
-                type="button"
-                className="doc-drawer-backdrop"
-                aria-label="Close document"
-                onClick={closeDocument}
-              />
-              <aside
-                className={`doc-drawer ${docDrawerFullscreen ? "doc-drawer--fullscreen" : ""}`}
-                role="dialog"
-                aria-modal="true"
-              >
-                <DocumentPane
-                  key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
-                  doc={activeDoc}
-                  canEdit={isAdmin}
-                  isCreating={isCreating}
-                  variant="drawer"
-                  onClose={closeDocument}
-                  onCancelCreate={() => {
-                    setIsPaneDirty(false);
-                    setIsCreating(false);
-                    setActiveDocId(lastActiveDocIdRef.current);
-                  }}
-                  onCreated={handleCreated}
-                  hasDocs={docs.length > 0}
-                  loading={docsLoading}
-                  onSaved={(updated) =>
-                    setDocs((p) =>
-                      p.map((d) => (d.id === updated.id ? updated : d))
-                    )
-                  }
-                  onDelete={onDelete}
-                  onDirtyChange={setIsPaneDirty}
-                  isMaximized={docDrawerFullscreen}
-                  onToggleMaximize={toggleDocDrawerFullscreen}
-                />
-              </aside>
-            </>
-          )}
         </div>
+
+        {docDrawerOpen && (
+          <aside
+            className={`doc-drawer ${docDrawerFullscreen ? "doc-drawer--fullscreen" : ""}`}
+            role="dialog"
+            aria-modal="true"
+          >
+            <DocumentPane
+              key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
+              doc={activeDoc}
+              canEdit={isAdmin}
+              isCreating={isCreating}
+              variant="drawer"
+              onClose={closeDocument}
+              onCancelCreate={() => {
+                setIsPaneDirty(false);
+                setIsCreating(false);
+                setActiveDocId(lastActiveDocIdRef.current);
+              }}
+              onCreated={handleCreated}
+              hasDocs={docs.length > 0}
+              loading={docsLoading}
+              onSaved={(updated) =>
+                setDocs((p) =>
+                  p.map((d) => (d.id === updated.id ? updated : d))
+                )
+              }
+              onDelete={onDelete}
+              onDirtyChange={setIsPaneDirty}
+              isMaximized={docDrawerFullscreen}
+              onToggleMaximize={toggleDocDrawerFullscreen}
+            />
+          </aside>
+        )}
       </main>
 
       {importPreview && (
