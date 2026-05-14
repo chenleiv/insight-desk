@@ -1,6 +1,7 @@
 import React, { useMemo, useRef } from "react";
 import { Clock, Paperclip, ExternalLink, X, Plus } from "lucide-react";
 import type { DocumentInput, DocumentItem } from "../../../api/documentsClient";
+import { formatRelativeTime } from "../../../utils/relativeTime";
 
 type Props = {
   form: DocumentInput;
@@ -14,26 +15,6 @@ type Props = {
   onUploadAttachment?: (file: File) => void;
   onDeleteAttachment?: (attachmentId: string) => void;
 };
-
-function formatRelativeTime(iso: string | undefined): string {
-  if (!iso) return "Just now";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "Just now";
-  const diffMs = Date.now() - d.getTime();
-  const sec = Math.floor(diffMs / 1000);
-  if (sec < 45) return "Just now";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  if (day < 7) return `${day}d ago`;
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-  });
-}
 
 function countWords(text: string): number {
   const t = text.trim();

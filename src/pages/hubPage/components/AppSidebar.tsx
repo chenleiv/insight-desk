@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../../auth/useAuth";
 import { useTheme } from "../../../hooks/useTheme";
+import { getInitials } from "../../../utils/initials";
 
 export type View =
   | "dashboard"
@@ -40,14 +41,6 @@ const WORKSPACE_ITEMS: { id: View; label: string; icon: React.ElementType }[] =
     { id: "favorites", label: "Favorites", icon: Star },
     { id: "assistant", label: "AI Assistant", icon: Bot },
   ];
-
-function getInitials(email: string) {
-  const name = (email || "").split("@")[0] || "U";
-  const parts = name.split(/[.\-_]/).filter(Boolean);
-  const first = (parts[0]?.[0] ?? name[0] ?? "U").toUpperCase();
-  const second = (parts[1]?.[0] ?? name[1] ?? "").toUpperCase();
-  return (first + second).trim();
-}
 
 export default function AppSidebar({
   view,

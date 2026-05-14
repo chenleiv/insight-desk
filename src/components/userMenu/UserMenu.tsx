@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import Menu from "../menu/Menu";
 import { useMobile } from "../../hooks/useMobile";
+import { getInitials } from "../../utils/initials";
 
 type MenuItem =
   | { type: "link"; label: string; to: string; show?: boolean }
@@ -13,14 +14,6 @@ type MenuItem =
       danger?: boolean;
       show?: boolean;
     };
-
-function getInitials(email: string) {
-  const name = (email || "").split("@")[0] || "U";
-  const parts = name.split(/[.\-_]/).filter(Boolean);
-  const first = (parts[0]?.[0] ?? name[0] ?? "U").toUpperCase();
-  const second = (parts[1]?.[0] ?? name[1] ?? "").toUpperCase();
-  return (first + second).trim();
-}
 
 export default function UserMenu() {
   const { user, logout } = useAuth();

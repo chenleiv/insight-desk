@@ -32,12 +32,6 @@ export function applyOrder(
   return ordered;
 }
 
-export function makePreview(doc: DocumentItem, max = 160) {
-  const base = (doc.summary || doc.content || "").replace(/\s+/g, " ").trim();
-  if (!base) return "";
-  return base.length > max ? base.slice(0, max) + "…" : base;
-}
-
 export function sameArray(a: number[], b: number[]): boolean {
   if (a === b) return true;
   if (a.length !== b.length) return false;

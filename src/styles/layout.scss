@@ -5,51 +5,12 @@
   @include mixins.btn-primary;
 }
 
-.secondary-btn,
-.btn-secondary,
-.btn-outline {
+.secondary-btn {
   @include mixins.btn-secondary;
 }
 
 .danger-btn {
   @include mixins.btn-danger;
-}
-
-.text-btn {
-  background: none;
-  border: none;
-  padding: 6px 10px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-
-  &:hover:not(:disabled) {
-    background: var(--soft);
-    color: var(--text);
-  }
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--focus);
-  }
-
-  &.danger {
-    color: var(--danger-text);
-
-    &:hover:not(:disabled) {
-      background: var(--danger-bg);
-    }
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
 }
 
 .icon-btn {
