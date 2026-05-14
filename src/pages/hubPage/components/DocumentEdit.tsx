@@ -7,7 +7,7 @@ type Props = {
   onChange: (form: DocumentInput) => void;
   isCreating: boolean;
   updatedAt?: string | undefined;
-  doc?: DocumentItem;
+  doc?: DocumentItem | undefined;
   canEdit?: boolean;
   isUploading?: boolean;
   pendingFiles?: File[];
