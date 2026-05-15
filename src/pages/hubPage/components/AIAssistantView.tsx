@@ -21,10 +21,10 @@ const PROMPT_SUGGESTIONS = [
 
 type Props = {
   docs: DocumentItem[];
-  selectedIds: number[];
+  selectedIds: string[];
   onSelectDocuments?: () => void;
   onNew?: () => void;
-  onToggleSelected?: (id: number) => void;
+  onToggleSelected?: (id: string) => void;
   onClearSelection?: () => void;
 };
 
@@ -98,7 +98,7 @@ export default function AIAssistantView({
       const top = ranked.filter((x) => x.score > 0).slice(0, 3).map((x) => x.doc);
 
       const response = await chatWithAI(question, top);
-      const sources = response.sources.map((s: { id: number; title: string }) => ({
+      const sources = response.sources.map((s: { id: string; title: string }) => ({
         id: s.id,
         title: s.title,
         snippet: buildSnippet(

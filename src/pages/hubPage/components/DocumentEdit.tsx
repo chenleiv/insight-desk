@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import { Clock, Paperclip, ExternalLink, X, Plus } from "lucide-react";
 import type { DocumentInput, DocumentItem } from "../../../api/documentsClient";
 import { formatRelativeTime } from "../../../utils/relativeTime";
@@ -16,11 +16,17 @@ type Props = {
   onDeleteAttachment?: (attachmentId: string) => void;
 };
 
-function countWords(text: string): number {
-  const t = text.trim();
-  if (!t) return 0;
-  return t.split(/\s+/).length;
+function useAutoResize(value: string) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }, [value]);
+  return ref;
 }
+
 
 export const DocumentEdit: React.FC<Props> = ({
   form,
@@ -35,6 +41,9 @@ export const DocumentEdit: React.FC<Props> = ({
   onDeleteAttachment,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const titleRef = useAutoResize(form.title);
+  const summaryRef = useAutoResize(form.summary);
+  const contentRef = useAutoResize(form.content);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -47,18 +56,69 @@ export const DocumentEdit: React.FC<Props> = ({
     [isCreating, updatedAt],
   );
 
-  const words = countWords(form.content);
-
-  const showAttachments = canEdit && (isCreating || !!doc);
   const existingAttachments = doc?.attachments ?? [];
 
   return (
-    <div className="doc-pane-body doc-pane-body--edit">
-      {showAttachments && (
-        <div className="doc-pane-section">
-          <div className="doc-pane-label">Attachments</div>
+    <div className="notion-doc-body notion-doc-body--edit">
+      <textarea
+        ref={titleRef}
+        className="notion-title-input"
+        name="title"
+        value={form.title}
+        onChange={handleChange}
+        placeholder="Add title…"
+        rows={1}
+        autoFocus={isCreating}
+        aria-label="Document title"
+      />
 
-          {/* Existing saved attachments (edit mode) */}
+      <div className="notion-properties">
+        <input
+          className="notion-category-input"
+          name="category"
+          value={form.category}
+          onChange={handleChange}
+          placeholder="Add category…"
+          aria-label="Category"
+          autoComplete="off"
+        />
+        <span className="notion-date">
+          <Clock size={13} strokeWidth={2} aria-hidden />
+          {timeLabel}
+        </span>
+      </div>
+
+      <textarea
+        ref={summaryRef}
+        className="notion-summary-input"
+        name="summary"
+        value={form.summary}
+        onChange={handleChange}
+        placeholder="Add a brief summary…"
+        rows={2}
+        aria-label="Summary"
+      />
+
+      <hr className="notion-divider" />
+
+      <textarea
+        ref={contentRef}
+        className="notion-content-input"
+        name="content"
+        value={form.content}
+        onChange={handleChange}
+        placeholder="Start writing…"
+        rows={8}
+        aria-label="Content"
+      />
+
+      {canEdit && (
+        <div className="notion-attachments">
+          <div className="notion-attachments-header">
+            <Paperclip size={13} aria-hidden />
+            <span>Attachments</span>
+          </div>
+
           {existingAttachments.length > 0 && (
             <ul className="attachment-list">
               {existingAttachments.map((att) => (
@@ -87,7 +147,6 @@ export const DocumentEdit: React.FC<Props> = ({
             </ul>
           )}
 
-          {/* Pending files queued for upload on save (new doc) */}
           {pendingFiles.length > 0 && (
             <ul className="attachment-list">
               {pendingFiles.map((f) => (
@@ -106,10 +165,6 @@ export const DocumentEdit: React.FC<Props> = ({
                 </li>
               ))}
             </ul>
-          )}
-
-          {existingAttachments.length === 0 && pendingFiles.length === 0 && (
-            <p className="attachment-empty-text">No attachments yet</p>
           )}
 
           <button
@@ -134,75 +189,6 @@ export const DocumentEdit: React.FC<Props> = ({
           />
         </div>
       )}
-
-      <div
-        className="doc-pane-edit-meta"
-      >
-        <label className="doc-pane-category-pill-label">
-          <input
-            name="category"
-            className="doc-pane-category-pill"
-            value={form.category}
-            onChange={handleChange}
-            placeholder="Category"
-            autoComplete="off"
-            aria-label="Category"
-          />
-        </label>
-        <span className="doc-pane-edited-at">
-          <Clock size={14} strokeWidth={2} aria-hidden />
-          <span>{timeLabel}</span>
-        </span>
-      </div>
-
-      {isCreating && (
-        <label className="doc-pane-label doc-pane-label--title doc-pane-section">
-          Title*
-          <input
-            name="title"
-            className="doc-pane-title-input"
-            value={form.title}
-            onChange={handleChange}
-            placeholder="Untitled document"
-            autoFocus
-          />
-        </label>
-      )}
-
-      <div className="doc-pane-section">
-        <label className="doc-pane-label" htmlFor="doc-edit-summary">
-          Summary*
-        </label>
-        <textarea
-          id="doc-edit-summary"
-          name="summary"
-          rows={4}
-          value={form.summary}
-          onChange={handleChange}
-          placeholder="Brief summary"
-        />
-      </div>
-
-      <div className="doc-pane-section doc-pane-section--content">
-        <label className="doc-pane-label" htmlFor="doc-edit-content">
-          Content*
-        </label>
-        <textarea
-          id="doc-edit-content"
-          name="content"
-          className="doc-pane-content-editor"
-          rows={14}
-          value={form.content}
-          onChange={handleChange}
-          placeholder="Write your document…"
-        />
-      </div>
-
-      <div className="doc-pane-edit-footer">
-        <span className="doc-pane-wordcount">
-          {words} {words === 1 ? "word" : "words"}
-        </span>
-      </div>
     </div>
   );
 };

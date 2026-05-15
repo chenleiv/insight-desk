@@ -26,7 +26,7 @@ type Props = {
   query: string;
   onQueryChange: (q: string) => void;
   onNew: () => void;
-  recentDocs: { id: number; title: string }[];
+  recentDocs: { id: string; title: string }[];
   sidebarOpen: boolean;
   isCollapsed?: boolean;
   onMobileClose?: () => void;

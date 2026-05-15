@@ -12,7 +12,7 @@ import { AI_QUERY_COUNT_BASE_KEY } from "./AIAssistantView";
 type Props = {
   onViewAllDocuments?: () => void;
   onNewDocument?: () => void | Promise<void>;
-  onOpenDocument?: (id: number) => void;
+  onOpenDocument?: (id: string) => void;
   onExport?: () => void;
   onImport?: (mode: "append" | "replace", fileType: "json" | "text" | "excel" | "word") => void;
   isAdmin?: boolean;
@@ -171,7 +171,7 @@ export default function DashboardView({
                     key={String(doc.id)}
                     type="button"
                     className="recent-doc-item recent-doc-item-clickable"
-                    onClick={() => onOpenDocument?.(Number(doc.id))}
+                    onClick={() => onOpenDocument?.(doc.id)}
                     style={
                       vis
                         ? ({

@@ -111,8 +111,8 @@ export default function HubPage() {
     loadJson<boolean>("docDrawerFullscreen", false)
   );
   const [order, setOrder] = useState<number[]>([]);
-  const [activeDocId, setActiveDocId] = useState<number | null>(null);
-  const [selectedIds, setSelectedIds] = useState<number[]>(() =>
+  const [activeDocId, setActiveDocId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
     loadJson<number[]>(CONTEXT_KEY, [])
   );
   const [isCreating, setIsCreating] = useState(false);
@@ -220,7 +220,7 @@ export default function HubPage() {
     setActiveDocId(doc.id);
   }
 
-  function openDocument(id: number) {
+  function openDocument(id: string) {
     if (isPaneDirty) {
       void confirm({
         title: "Unsaved Changes",
@@ -235,7 +235,7 @@ export default function HubPage() {
     doOpen(id);
   }
 
-  function doOpen(id: number) {
+  function doOpen(id: string) {
     setIsPaneDirty(false);
     setIsCreating(false);
     setActiveDocId(id);

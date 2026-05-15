@@ -16,8 +16,8 @@ import {
 type Props = {
   docs: DocumentItem[];
   favorites?: Record<string | number, boolean>;
-  onOpen: (id: number) => void;
-  onToggleFavorite: (id: number) => void;
+  onOpen: (id: string) => void;
+  onToggleFavorite: (id: string) => void;
   viewMode: "grid" | "list";
   onViewModeChange: (mode: "grid" | "list") => void;
   searchQuery: string;

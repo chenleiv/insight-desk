@@ -1,7 +1,7 @@
 export type Role = "user" | "assistant";
 
 export type SourceRef = {
-  id: number;
+  id: string;
   title: string;
   snippet: string;
 };

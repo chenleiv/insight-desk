@@ -1,9 +1,9 @@
 import type { DocumentItem } from "../../../api/documentsClient";
 
 export function normalizeOrder(
-  currentOrder: number[],
+  currentOrder: string[],
   docs: DocumentItem[]
-): number[] {
+): string[] {
   const docIds = new Set(docs.map((d) => d.id));
   const orderSet = new Set(currentOrder);
   const kept = currentOrder.filter((id) => docIds.has(id));
@@ -13,7 +13,7 @@ export function normalizeOrder(
 
 export function applyOrder(
   docs: DocumentItem[],
-  order: number[]
+  order: string[]
 ): DocumentItem[] {
   if (!order.length) return docs;
 
@@ -32,7 +32,7 @@ export function applyOrder(
   return ordered;
 }
 
-export function sameArray(a: number[], b: number[]): boolean {
+export function sameArray(a: string[], b: string[]): boolean {
   if (a === b) return true;
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {

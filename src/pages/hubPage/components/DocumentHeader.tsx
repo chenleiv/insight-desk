@@ -192,10 +192,10 @@ export const DocumentHeader: React.FC<Props> = ({
               </div>
             ) : (
               <>
-                <p className="doc-pane-title" id="doc-drawer-title">{title}</p>
-                {category ? (
+                {title && <p className="doc-pane-title" id="doc-drawer-title">{title}</p>}
+                {category && (
                   <p className="doc-pane-title small doc-pane-category-tag">{category}</p>
-                ) : null}
+                )}
               </>
             )}
           </div>

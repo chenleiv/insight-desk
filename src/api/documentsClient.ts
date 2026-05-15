@@ -1,7 +1,7 @@
 import { apiFetch } from "./base";
 import { getApiBase } from "./config";
 
-export async function uploadAttachment(docId: number | string, file: File): Promise<Attachment> {
+export async function uploadAttachment(docId: string, file: File): Promise<Attachment> {
   const base = getApiBase();
   const formData = new FormData();
   formData.append("file", file);
@@ -17,7 +17,7 @@ export async function uploadAttachment(docId: number | string, file: File): Prom
   return res.json() as Promise<Attachment>;
 }
 
-export async function deleteAttachment(docId: number | string, attachmentId: string): Promise<void> {
+export async function deleteAttachment(docId: string, attachmentId: string): Promise<void> {
   await apiFetch<void>(`/api/documents/${docId}/attachments/${attachmentId}`, { method: "DELETE" });
 }
 
@@ -30,7 +30,7 @@ export type Attachment = {
 };
 
 export type DocumentItem = {
-  id: number;
+  id: string;
   title: string;
   category: string;
   summary: string;
@@ -46,7 +46,7 @@ export function listDocuments() {
   return apiFetch<DocumentItem[]>("/api/documents");
 }
 
-export function getDocument(id: number) {
+export function getDocument(id: string) {
   return apiFetch<DocumentItem>(`/api/documents/${id}`);
 }
 
@@ -59,7 +59,7 @@ export function createDocument(input: DocumentInput) {
 }
 
 // admin only
-export function updateDocument(id: number, input: DocumentInput) {
+export function updateDocument(id: string, input: DocumentInput) {
   return apiFetch<DocumentItem>(`/api/documents/${id}`, {
     method: "PUT",
     body: JSON.stringify(input),
@@ -67,7 +67,7 @@ export function updateDocument(id: number, input: DocumentInput) {
 }
 
 // admin only
-export async function deleteDocument(id: number) {
+export async function deleteDocument(id: string) {
   await apiFetch<void>(`/api/documents/${id}`, { method: "DELETE" });
   return { ok: true as const };
 }
@@ -91,7 +91,7 @@ export function importDocumentsBulk(payload: {
   );
 }
 
-export function toggleFavorite(id: string | number) {
+export function toggleFavorite(id: string) {
   return apiFetch<{ favorites: string[] }>(
     `/api/documents/${id}/toggle-favorite`,
     {

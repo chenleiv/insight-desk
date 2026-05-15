@@ -301,18 +301,7 @@ export default function DocumentPane({
     return <EmptyPane hasDocs={hasDocs} loading={loading} />;
   }
 
-  const paneTitle = isCreating ? "New document" : (doc?.title ?? "");
-  const paneCategory = isCreating ? "" : (doc?.category ?? "");
-
   const isEditingExisting = mode === "edit" && !isCreating;
-
-  const headerTitle =
-    mode === "edit"
-      ? isCreating
-        ? "New document"
-        : ""
-      : paneTitle;
-  const headerCategory = mode === "edit" ? undefined : paneCategory;
 
   const isDrawer = variant === "drawer";
 
@@ -322,24 +311,7 @@ export default function DocumentPane({
       action={saveAction}
     >
       <DocumentHeader
-        title={headerTitle}
-        titleSlot={
-          isEditingExisting ? (
-            <input
-              name="title"
-              className="doc-pane-header-title-input"
-              value={form.title}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, title: e.target.value }))
-              }
-              placeholder="Untitled document"
-              autoComplete="off"
-              aria-label="Document title"
-              autoFocus
-            />
-          ) : undefined
-        }
-        category={headerCategory}
+        title=""
         mode={mode}
         isCreating={isCreating}
         isEditingExisting={isEditingExisting}

@@ -3,7 +3,7 @@ import { type DocumentItem } from "./documentsClient";
 
 export interface ChatResponse {
   answer: string;
-  sources: { id: number; title: string }[];
+  sources: { id: string; title: string }[];
 }
 
 export async function chatWithAI(message: string, context: DocumentItem[]): Promise<ChatResponse> {

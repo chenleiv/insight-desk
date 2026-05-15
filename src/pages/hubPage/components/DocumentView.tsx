@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
-import { Paperclip, ExternalLink, X, Plus } from "lucide-react";
+import { Clock, Paperclip, ExternalLink, X, Plus } from "lucide-react";
 import type { DocumentItem } from "../../../api/documentsClient";
+import { formatRelativeTime } from "../../../utils/relativeTime";
 
 type Props = {
   doc: DocumentItem;
@@ -18,15 +19,41 @@ export const DocumentView = React.memo(function DocumentView({
   onDeleteAttachment,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const timeAgo = formatRelativeTime(doc.updatedAt ?? doc.createdAt);
+  const hasAttachments = doc.attachments && doc.attachments.length > 0;
 
   return (
-    <div className="doc-pane-body doc-pane-anim">
-      {(canEdit || (doc.attachments && doc.attachments.length > 0)) && (
-        <div className="doc-pane-section">
-          <div className="doc-pane-label">Attachments</div>
-          {doc.attachments && doc.attachments.length > 0 ? (
+    <div className="notion-doc-body doc-pane-anim">
+      <h1 className="notion-title">{doc.title || "Untitled"}</h1>
+
+      <div className="notion-properties">
+        {doc.category && (
+          <span className="notion-category-chip">{doc.category}</span>
+        )}
+        <span className="notion-date">
+          <Clock size={13} strokeWidth={2} aria-hidden />
+          {timeAgo}
+        </span>
+      </div>
+
+      {doc.summary && (
+        <p className="notion-summary">{doc.summary}</p>
+      )}
+
+      <hr className="notion-divider" />
+
+      <div className="notion-content">{doc.content}</div>
+
+      {(canEdit || hasAttachments) && (
+        <div className="notion-attachments">
+          <div className="notion-attachments-header">
+            <Paperclip size={13} aria-hidden />
+            <span>Attachments</span>
+          </div>
+
+          {hasAttachments && (
             <ul className="attachment-list">
-              {doc.attachments.map((att) => (
+              {doc.attachments!.map((att) => (
                 <li key={att._id} className="attachment-item">
                   <Paperclip size={13} className="attachment-icon" />
                   <span className="attachment-name">{att.fileName}</span>
@@ -52,9 +79,8 @@ export const DocumentView = React.memo(function DocumentView({
                 </li>
               ))}
             </ul>
-          ) : (
-            canEdit && <p className="attachment-empty-text">No attachments yet</p>
           )}
+
           {canEdit && (
             <>
               <button
@@ -82,16 +108,6 @@ export const DocumentView = React.memo(function DocumentView({
           )}
         </div>
       )}
-
-      <div className="doc-pane-section">
-        <div className="doc-pane-label">Summary</div>
-        <div className="doc-pane-text">{doc.summary}</div>
-      </div>
-
-      <div className="doc-pane-section">
-        <div className="doc-pane-label">Content</div>
-        <div className="doc-pane-text prewrap">{doc.content}</div>
-      </div>
     </div>
   );
 });
