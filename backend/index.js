@@ -6,6 +6,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,13 +17,15 @@ import { Document, User } from './models.js';
 import fs from 'fs';
 import multer from 'multer';
 import mammoth from 'mammoth';
-import pdfParse from 'pdf-parse';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { documentSchema, importBulkSchema } from './schemas.js';
+
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
 
 const app = express();
 app.use(compression());
