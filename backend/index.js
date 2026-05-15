@@ -16,7 +16,7 @@ import { Document, User } from './models.js';
 import fs from 'fs';
 import multer from 'multer';
 import mammoth from 'mammoth';
-import { PDFParse } from 'pdf-parse';
+import pdfParse from 'pdf-parse';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 
@@ -305,9 +305,7 @@ app.post('/api/documents/:id/attachments', requireAdmin, (req, res, next) => {
         let extractedText = '';
         try {
             if (file.mimetype === 'application/pdf') {
-                const parser = new PDFParse({ data: file.buffer });
-                await parser.load();
-                const data = await parser.getText();
+                const data = await pdfParse(file.buffer);
                 extractedText = (data.text || '').slice(0, 500000);
             } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
                 const result = await mammoth.extractRawText({ buffer: file.buffer });
