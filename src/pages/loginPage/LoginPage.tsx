@@ -32,8 +32,9 @@ export default function LoginPage() {
       try {
         if (mode === "register") {
           const confirmVal = formData.get("confirm") as string;
+          const displayNameVal = (formData.get("displayName") as string)?.trim();
           if (passVal !== confirmVal) return "Passwords do not match";
-          const res = await register(emailVal.trim(), passVal);
+          const res = await register(emailVal.trim(), passVal, displayNameVal || undefined);
           loginSuccess(res.user);
         } else {
           const res = await login(emailVal.trim(), passVal);
@@ -92,6 +93,20 @@ export default function LoginPage() {
             autoComplete={mode === "register" ? "email" : "username"}
           />
         </label>
+
+        {mode === "register" && (
+          <label className="login-field">
+            Name
+            <input
+              name="displayName"
+              className="login-input"
+              type="text"
+              placeholder="Your name"
+              autoComplete="name"
+              maxLength={80}
+            />
+          </label>
+        )}
 
         <label className="login-field">
           Password

@@ -112,14 +112,16 @@ export default function AppSidebar({
           aria-label="User menu"
         >
           <div className="user-avatar">
-            {user ? getInitials(user.email) : "CL"}
+            {user ? getInitials(user.displayName || user.email) : "?"}
           </div>
           {!isCollapsed && (
             <>
               <div className="user-info">
-                <span className="user-name">Chen Leiv</span>
+                <span className="user-name">
+                  {user?.displayName || user?.email?.split("@")[0] || "User"}
+                </span>
                 <span className="user-email">
-                  {user?.email || "chen@insightdesk.io"}
+                  {user?.jobTitle || user?.email || ""}
                 </span>
               </div>
               <LogOut

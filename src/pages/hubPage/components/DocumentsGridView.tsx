@@ -6,8 +6,7 @@ import { formatRelativeTime } from "../../../utils/relativeTime";
 import { Skeleton } from "../../../components/skeleton/Skeleton";
 import Menu from "../../../components/menu/Menu";
 import {
-  FILTER_ALL_ACTIVE_BG,
-  FILTER_ALL_ACTIVE_FG,
+
   getCategoryIconStyle,
   getCategoryTagStyle,
   getDocTags,
@@ -182,16 +181,11 @@ export default function DocumentsGridView({
             type="button"
             className={`filter-chip filter-chip-all ${!categoryFilter || categoryFilter === "all" ? "active" : ""}`}
             onClick={() => onCategoryFilterChange(null)}
-            style={{
-              background:
-                !categoryFilter || categoryFilter === "all" ? FILTER_ALL_ACTIVE_BG : "var(--panel)",
-              color:
-                !categoryFilter || categoryFilter === "all" ? FILTER_ALL_ACTIVE_FG : "var(--muted)",
-              border:
-                !categoryFilter || categoryFilter === "all"
-                  ? `1px solid ${FILTER_ALL_ACTIVE_BG}`
-                  : "1px solid var(--border)",
-            }}
+            style={
+              !categoryFilter || categoryFilter === "all"
+                ? { background: "var(--primary)", color: "var(--primary-text)", border: "1px solid var(--primary)" }
+                : { background: "var(--panel)", color: "var(--muted)", border: "1px solid var(--border)" }
+            }
           >
             All
           </button>
@@ -206,11 +200,12 @@ export default function DocumentsGridView({
                 className={`filter-chip filter-chip-category ${isActive ? "active" : ""}`}
                 onClick={() => onCategoryFilterChange(isActive ? null : name)}
                 style={{
-                  background: isActive ? tagStyle.color : "var(--panel)",
-                  color: isActive ? FILTER_ALL_ACTIVE_FG : tagStyle.color,
+                  background: isActive ? tagStyle.backgroundColor : "var(--panel)",
+                  color: tagStyle.color,
                   border: isActive
                     ? `1px solid ${tagStyle.color}`
                     : `1px solid ${vis.chipBorder}`,
+                  fontWeight: isActive ? 600 : undefined,
                 }}
               >
                 {name} <span className="filter-count">({count})</span>

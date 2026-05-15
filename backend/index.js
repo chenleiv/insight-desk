@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 import authRouter, { getCurrentUser, requireAdmin, seedUsersIfEmpty } from './auth.js';
 import aiRouter from './ai.js';
-import { Document } from './models.js';
+import { Document, User } from './models.js';
 import fs from 'fs';
 import multer from 'multer';
 import mammoth from 'mammoth';
@@ -112,7 +112,7 @@ app.use(cors({
         }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -369,6 +369,61 @@ app.delete('/api/documents/:id/attachments/:attachmentId', requireAdmin, async (
     } catch (err) {
         console.error('Delete attachment failed:', err);
         res.status(500).json({ detail: err.message || 'Delete failed' });
+    }
+});
+
+// --- Users management (admin only) ---
+
+app.get('/api/users', requireAdmin, async (req, res) => {
+    try {
+        const users = await User.find().select('-password_hash').sort({ createdAt: 1 });
+        res.json(users.map(u => ({
+            id: u._id,
+            email: u.email,
+            role: u.role,
+            status: u.status || 'active',
+            createdAt: u.createdAt,
+            displayName: u.displayName || '',
+            jobTitle: u.jobTitle || '',
+        })));
+    } catch (err) {
+        console.error('Error fetching users:', err);
+        res.status(500).json({ detail: 'Error fetching users' });
+    }
+});
+
+app.patch('/api/users/:id', requireAdmin, async (req, res) => {
+    try {
+        const { role, status } = req.body;
+        const update = {};
+        if (role && ['admin', 'viewer'].includes(role)) update.role = role;
+        if (status && ['active', 'inactive'].includes(status)) update.status = status;
+
+        if (Object.keys(update).length === 0) {
+            return res.status(400).json({ detail: 'No valid fields to update' });
+        }
+
+        const user = await User.findByIdAndUpdate(req.params.id, update, { new: true }).select('-password_hash');
+        if (!user) return res.status(404).json({ detail: 'User not found' });
+
+        res.json({ id: user._id, email: user.email, role: user.role, status: user.status || 'active' });
+    } catch (err) {
+        console.error('Error updating user:', err);
+        res.status(500).json({ detail: 'Error updating user' });
+    }
+});
+
+app.delete('/api/users/:id', requireAdmin, async (req, res) => {
+    try {
+        if (req.user._id.toString() === req.params.id) {
+            return res.status(400).json({ detail: 'Cannot delete your own account' });
+        }
+        const deleted = await User.findByIdAndDelete(req.params.id);
+        if (!deleted) return res.status(404).json({ detail: 'User not found' });
+        res.status(204).send();
+    } catch (err) {
+        console.error('Error deleting user:', err);
+        res.status(500).json({ detail: 'Error deleting user' });
     }
 });
 

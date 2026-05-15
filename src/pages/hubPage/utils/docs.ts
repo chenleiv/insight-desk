@@ -25,47 +25,29 @@ export type CategoryVisual = {
   chipBorder: string;
 };
 
+function catVars(key: string): CategoryVisual {
+  const p = `--cat-${key}`;
+  return {
+    iconBg: `var(${p}-icon-bg)`,
+    iconFg: `var(${p}-icon-fg)`,
+    tagBg: `var(${p}-tag-bg)`,
+    tagFg: `var(${p}-tag-fg)`,
+    chipBorder: `var(${p}-chip-border)`,
+  };
+}
+
 const CATEGORY_PALETTE: Record<string, CategoryVisual> = {
-  research: {
-    iconBg: "rgba(37, 99, 235, 0.28)",
-    iconFg: "#93c5fd",
-    tagBg: "rgba(37, 99, 235, 0.22)",
-    tagFg: "#60a5fa",
-    chipBorder: "rgba(59, 130, 246, 0.45)",
-  },
-  notes: {
-    iconBg: "rgba(180, 83, 9, 0.3)",
-    iconFg: "#fcd34d",
-    tagBg: "rgba(234, 179, 8, 0.2)",
-    tagFg: "#fbbf24",
-    chipBorder: "rgba(234, 179, 8, 0.45)",
-  },
-  "ai prompt": {
-    iconBg: "rgba(109, 40, 217, 0.32)",
-    iconFg: "#d8b4fe",
-    tagBg: "rgba(168, 85, 247, 0.22)",
-    tagFg: "#c084fc",
-    chipBorder: "rgba(168, 85, 247, 0.45)",
-  },
-  report: {
-    iconBg: "rgba(21, 128, 61, 0.3)",
-    iconFg: "#86efac",
-    tagBg: "rgba(34, 197, 94, 0.2)",
-    tagFg: "#4ade80",
-    chipBorder: "rgba(34, 197, 94, 0.45)",
-  },
-  guide: {
-    iconBg: "rgba(127, 29, 29, 0.35)",
-    iconFg: "#fca5a5",
-    tagBg: "rgba(185, 28, 28, 0.25)",
-    tagFg: "#f87171",
-    chipBorder: "rgba(220, 38, 38, 0.5)",
-  },
+  research: catVars("research"),
+  notes: catVars("notes"),
+  "ai prompt": catVars("ai"),
+  report: catVars("report"),
+  guide: catVars("guide"),
+  security: catVars("security"),
+  backend: catVars("backend"),
+  frontend: catVars("frontend"),
+  devops: catVars("devops"),
 };
 
-/** Teal accent for the “All” filter (matches active nav). */
-export const FILTER_ALL_ACTIVE_BG = "#14b8a6";
-export const FILTER_ALL_ACTIVE_FG = "#0a0a0a";
 
 export function getCategoryVisual(category: string): CategoryVisual | null {
   let key = normalizeCategoryKey(category);
@@ -83,6 +65,17 @@ function hashCategoryKey(s: string): number {
 export function getFallbackCategoryVisual(category: string): CategoryVisual {
   const key = normalizeCategoryKey(category);
   const hue = hashCategoryKey(key) % 360;
+  const isLight = typeof document !== "undefined" &&
+    document.documentElement.dataset.theme === "light";
+  if (isLight) {
+    return {
+      iconBg: `hsla(${hue} 60% 45% / 0.12)`,
+      iconFg: `hsl(${hue} 65% 30%)`,
+      tagBg: `hsla(${hue} 60% 45% / 0.1)`,
+      tagFg: `hsl(${hue} 65% 30%)`,
+      chipBorder: `hsla(${hue} 50% 45% / 0.35)`,
+    };
+  }
   return {
     iconBg: `hsla(${hue} 42% 42% / 0.35)`,
     iconFg: `hsl(${hue} 72% 74%)`,

@@ -95,6 +95,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(u);
           saveUserToStorage(u);
         },
+        updateUser: (patch) => {
+          setUser((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, ...patch };
+            saveUserToStorage(next);
+            return next;
+          });
+        },
         logout: doLogout,
         toggleFavorite,
       }}

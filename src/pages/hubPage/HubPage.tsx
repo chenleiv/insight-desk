@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Menu as MenuIcon, BrainCircuit, ChevronLeft, ChevronRight } from "lucide-react";
+import { useMobile } from "../../hooks/useMobile";
 
 import AppSidebar from "./components/AppSidebar";
 import DocumentsGridView from "./components/DocumentsGridView";
@@ -28,6 +29,7 @@ import { parseImportFiles } from "./utils/parseImportFile";
 import "./hubPage.scss";
 
 import DashboardView from "./components/DashboardView";
+import SettingsView from "./components/SettingsView";
 import ImportPreviewDialog from "./components/ImportPreviewDialog";
 import type { View } from "./components/AppSidebar";
 
@@ -49,6 +51,7 @@ export default function HubPage() {
   const { user, toggleFavorite: globalToggleFavorite, favoritesMap: favorites } = useAuth();
   const status = useStatus();
   const confirm = useConfirm();
+  const isMobile = useMobile(1024);
 
   const isAdmin = user?.role === "admin";
   const orderKey = scopedKey("documentsOrder", user?.email);
@@ -395,28 +398,30 @@ export default function HubPage() {
           isCollapsed={isSidebarCollapsed}
           onMobileClose={() => setIsMobileSidebarOpen(false)}
         />
-        <button
-          type="button"
-          className="sidebar-toggle-btn"
-          onClick={() => setIsSidebarCollapsed(prev => {
-            const next = !prev;
-            saveJson("sidebarCollapsed", next);
-            return next;
-          })}
-          aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
+        {!isMobile && (
+          <button
+            type="button"
+            className="sidebar-toggle-btn"
+            onClick={() => setIsSidebarCollapsed(prev => {
+              const next = !prev;
+              saveJson("sidebarCollapsed", next);
+              return next;
+            })}
+            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+        )}
       </aside>
 
       <header className="mobile-top-bar">
+        <button className="mobile-hamburger" onClick={() => setIsMobileSidebarOpen(true)} aria-label="Open menu">
+          <MenuIcon size={22} />
+        </button>
         <div className="mobile-logo">
           <BrainCircuit size={18} />
           <span>InsightDesk</span>
         </div>
-        <button className="mobile-hamburger" onClick={() => setIsMobileSidebarOpen(true)} aria-label="Open menu">
-          <MenuIcon size={22} />
-        </button>
       </header>
 
       <main className={`hub-main ${docDrawerOpen ? "hub-main--drawer-open" : ""}`}>
@@ -481,6 +486,10 @@ export default function HubPage() {
               />
             )}
 
+            {view === "settings" && (
+              <SettingsView isAdmin={isAdmin} />
+            )}
+
           </div>
         </div>
 
@@ -513,7 +522,7 @@ export default function HubPage() {
               onDelete={onDelete}
               onDirtyChange={setIsPaneDirty}
               isMaximized={docDrawerFullscreen}
-              onToggleMaximize={toggleDocDrawerFullscreen}
+              onToggleMaximize={isMobile ? undefined : toggleDocDrawerFullscreen}
             />
           </aside>
         )}

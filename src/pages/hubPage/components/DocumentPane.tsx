@@ -1,5 +1,5 @@
 import { useActionState, useState, useEffect, useMemo } from "react";
-import type { DocumentItem, DocumentInput } from "../../../api/documentsClient";
+import type { DocumentItem, DocumentInput, Attachment } from "../../../api/documentsClient";
 import { createDocument, updateDocument, uploadAttachment, deleteAttachment } from "../../../api/documentsClient";
 import { useStatus } from "../../../components/statusBar/useStatus";
 import { EmptyPane } from "./EmptyPane";
@@ -66,6 +66,19 @@ export default function DocumentPane({
   const [isUploading, setIsUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
+  // Local attachment list so uploads/deletes appear instantly without waiting
+  // for the React Query cache → HubPage → prop chain to complete.
+  const [localAttachments, setLocalAttachments] = useState<Attachment[] | null>(null);
+  const docId = doc?.id;
+  useEffect(() => { setLocalAttachments(null); }, [docId]);
+
+  // Effective doc passed down to DocumentView / DocumentEdit
+  const effectiveDoc = useMemo<DocumentItem | null>(() => {
+    if (!doc) return null;
+    if (localAttachments === null) return doc;
+    return { ...doc, attachments: localAttachments };
+  }, [doc, localAttachments]);
+
   const [mode, setMode] = useState<"view" | "edit">(
     isCreating ? "edit" : "view",
   );
@@ -129,13 +142,17 @@ export default function DocumentPane({
           const created = await createDocument(cleaned);
           if (pendingFiles.length > 0) {
             setIsUploading(true);
+            const uploaded: Attachment[] = [];
             for (const file of pendingFiles) {
-              await uploadAttachment(created.id, file);
+              const att = await uploadAttachment(created.id, file);
+              uploaded.push(att);
             }
             setPendingFiles([]);
             setIsUploading(false);
+            onCreated({ ...created, attachments: uploaded });
+          } else {
+            onCreated(created);
           }
-          onCreated(created);
           status.show({ kind: "success", message: "Document created." });
           return null;
         }
@@ -168,10 +185,11 @@ export default function DocumentPane({
     if (!doc) return;
     setIsUploading(true);
     try {
-      await uploadAttachment(doc.id, file);
-      const { getDocument } = await import("../../../api/documentsClient");
-      const refreshed = await getDocument(doc.id);
-      onSaved(refreshed);
+      const attachment = await uploadAttachment(doc.id, file);
+      const current = localAttachments ?? doc.attachments ?? [];
+      const next = [...current, attachment];
+      setLocalAttachments(next);
+      onSaved({ ...doc, attachments: next });
       status.show({ kind: "success", message: "File attached." });
     } catch (e) {
       status.show({ kind: "error", title: "Upload failed", message: e instanceof Error ? e.message : "Upload failed." });
@@ -192,9 +210,10 @@ export default function DocumentPane({
     if (!ok) return;
     try {
       await deleteAttachment(doc.id, attachmentId);
-      const { getDocument } = await import("../../../api/documentsClient");
-      const refreshed = await getDocument(doc.id);
-      onSaved(refreshed);
+      const current = localAttachments ?? doc.attachments ?? [];
+      const next = current.filter((a) => a._id !== attachmentId);
+      setLocalAttachments(next);
+      onSaved({ ...doc, attachments: next });
       status.show({ kind: "success", message: "Attachment removed." });
     } catch (e) {
       status.show({ kind: "error", title: "Delete failed", message: e instanceof Error ? e.message : "Delete failed." });
@@ -354,13 +373,13 @@ export default function DocumentPane({
       />
 
       {mode === "view" ? (
-        loading || !doc ? (
+        loading || !effectiveDoc ? (
           <div className="doc-pane-loading">
             <DocumentDetailSkeleton />
           </div>
         ) : (
           <DocumentView
-            doc={doc}
+            doc={effectiveDoc}
             canEdit={canEdit}
             isUploading={isUploading}
             onUploadAttachment={handleUploadAttachment}
@@ -373,7 +392,7 @@ export default function DocumentPane({
           onChange={setForm}
           isCreating={isCreating}
           updatedAt={doc?.updatedAt}
-          doc={doc ?? undefined}
+          doc={effectiveDoc ?? undefined}
           canEdit={canEdit}
           isUploading={isUploading}
           pendingFiles={pendingFiles}

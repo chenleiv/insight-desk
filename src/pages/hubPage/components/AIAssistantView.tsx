@@ -4,9 +4,11 @@ import { BrainCircuit, Send, Bot, ChevronDown, Check, ScrollText, X } from "luci
 import { chatWithAI, getSystemPrompt, type PromptConfig } from "../../../api/aiClient";
 import type { DocumentItem } from "../../../api/documentsClient";
 import { buildSnippet, scoreDoc, uid } from "../utils/assistantUtils";
-import { loadJson, saveJson } from "../../../utils/storage";
+import { loadJson, saveJson, scopedKey } from "../../../utils/storage";
 import type { ChatMessage } from "../assistantTypes";
 import { CHAT_KEY } from "../utils/assistantUtils";
+
+export const AI_QUERY_COUNT_BASE_KEY = "aiQueryCount";
 import TypewriterText from "./TypewriterText";
 import { useAuth } from "../../../auth/useAuth";
 
@@ -115,6 +117,8 @@ export default function AIAssistantView({
           isTyped: false,
         },
       ]);
+      const key = scopedKey(AI_QUERY_COUNT_BASE_KEY, user?.email);
+      saveJson(key, loadJson<number>(key, 0) + 1);
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : "Sorry, I encountered an error.";
       setLastError(errMsg);

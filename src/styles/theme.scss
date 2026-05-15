@@ -32,6 +32,61 @@
     --danger-bg: rgba(239, 68, 68, 0.1);
     --danger-border: rgba(239, 68, 68, 0.2);
     --danger-text: #f87171;
+
+    /* Category palette — dark theme */
+    --cat-research-icon-bg: rgba(37, 99, 235, 0.28);
+    --cat-research-icon-fg: #93c5fd;
+    --cat-research-tag-bg: rgba(37, 99, 235, 0.22);
+    --cat-research-tag-fg: #60a5fa;
+    --cat-research-chip-border: rgba(59, 130, 246, 0.45);
+
+    --cat-notes-icon-bg: rgba(180, 83, 9, 0.3);
+    --cat-notes-icon-fg: #fcd34d;
+    --cat-notes-tag-bg: rgba(234, 179, 8, 0.2);
+    --cat-notes-tag-fg: #fbbf24;
+    --cat-notes-chip-border: rgba(234, 179, 8, 0.45);
+
+    --cat-ai-icon-bg: rgba(109, 40, 217, 0.32);
+    --cat-ai-icon-fg: #d8b4fe;
+    --cat-ai-tag-bg: rgba(168, 85, 247, 0.22);
+    --cat-ai-tag-fg: #c084fc;
+    --cat-ai-chip-border: rgba(168, 85, 247, 0.45);
+
+    --cat-report-icon-bg: rgba(21, 128, 61, 0.3);
+    --cat-report-icon-fg: #86efac;
+    --cat-report-tag-bg: rgba(34, 197, 94, 0.2);
+    --cat-report-tag-fg: #4ade80;
+    --cat-report-chip-border: rgba(34, 197, 94, 0.45);
+
+    --cat-guide-icon-bg: rgba(127, 29, 29, 0.35);
+    --cat-guide-icon-fg: #fca5a5;
+    --cat-guide-tag-bg: rgba(185, 28, 28, 0.25);
+    --cat-guide-tag-fg: #f87171;
+    --cat-guide-chip-border: rgba(220, 38, 38, 0.5);
+
+    --cat-security-icon-bg: rgba(5, 150, 105, 0.28);
+    --cat-security-icon-fg: #6ee7b7;
+    --cat-security-tag-bg: rgba(5, 150, 105, 0.2);
+    --cat-security-tag-fg: #34d399;
+    --cat-security-chip-border: rgba(16, 185, 129, 0.45);
+
+    --cat-backend-icon-bg: rgba(124, 58, 237, 0.28);
+    --cat-backend-icon-fg: #c4b5fd;
+    --cat-backend-tag-bg: rgba(124, 58, 237, 0.2);
+    --cat-backend-tag-fg: #a78bfa;
+    --cat-backend-chip-border: rgba(139, 92, 246, 0.45);
+
+    --cat-frontend-icon-bg: rgba(219, 39, 119, 0.25);
+    --cat-frontend-icon-fg: #f9a8d4;
+    --cat-frontend-tag-bg: rgba(236, 72, 153, 0.18);
+    --cat-frontend-tag-fg: #f472b6;
+    --cat-frontend-chip-border: rgba(236, 72, 153, 0.45);
+
+    --cat-devops-icon-bg: rgba(180, 83, 9, 0.28);
+    --cat-devops-icon-fg: #fde68a;
+    --cat-devops-tag-bg: rgba(245, 158, 11, 0.2);
+    --cat-devops-tag-fg: #fbbf24;
+    --cat-devops-chip-border: rgba(245, 158, 11, 0.45);
 }
 
 [data-theme="light"] {
@@ -67,4 +122,59 @@
     --danger-bg: rgba(239, 68, 68, 0.08);
     --danger-border: rgba(239, 68, 68, 0.18);
     --danger-text: #dc2626;
+
+    /* Category palette — light theme (dark fg for readability on white) */
+    --cat-research-icon-bg: rgba(37, 99, 235, 0.1);
+    --cat-research-icon-fg: #1d4ed8;
+    --cat-research-tag-bg: rgba(37, 99, 235, 0.08);
+    --cat-research-tag-fg: #1d4ed8;
+    --cat-research-chip-border: rgba(37, 99, 235, 0.3);
+
+    --cat-notes-icon-bg: rgba(180, 83, 9, 0.1);
+    --cat-notes-icon-fg: #92400e;
+    --cat-notes-tag-bg: rgba(180, 83, 9, 0.08);
+    --cat-notes-tag-fg: #92400e;
+    --cat-notes-chip-border: rgba(180, 83, 9, 0.3);
+
+    --cat-ai-icon-bg: rgba(109, 40, 217, 0.1);
+    --cat-ai-icon-fg: #6d28d9;
+    --cat-ai-tag-bg: rgba(109, 40, 217, 0.08);
+    --cat-ai-tag-fg: #6d28d9;
+    --cat-ai-chip-border: rgba(109, 40, 217, 0.3);
+
+    --cat-report-icon-bg: rgba(21, 128, 61, 0.1);
+    --cat-report-icon-fg: #15803d;
+    --cat-report-tag-bg: rgba(21, 128, 61, 0.08);
+    --cat-report-tag-fg: #15803d;
+    --cat-report-chip-border: rgba(21, 128, 61, 0.3);
+
+    --cat-guide-icon-bg: rgba(185, 28, 28, 0.1);
+    --cat-guide-icon-fg: #b91c1c;
+    --cat-guide-tag-bg: rgba(185, 28, 28, 0.08);
+    --cat-guide-tag-fg: #b91c1c;
+    --cat-guide-chip-border: rgba(185, 28, 28, 0.3);
+
+    --cat-security-icon-bg: rgba(5, 150, 105, 0.1);
+    --cat-security-icon-fg: #047857;
+    --cat-security-tag-bg: rgba(5, 150, 105, 0.08);
+    --cat-security-tag-fg: #047857;
+    --cat-security-chip-border: rgba(5, 150, 105, 0.3);
+
+    --cat-backend-icon-bg: rgba(124, 58, 237, 0.1);
+    --cat-backend-icon-fg: #7c3aed;
+    --cat-backend-tag-bg: rgba(124, 58, 237, 0.08);
+    --cat-backend-tag-fg: #7c3aed;
+    --cat-backend-chip-border: rgba(124, 58, 237, 0.3);
+
+    --cat-frontend-icon-bg: rgba(219, 39, 119, 0.1);
+    --cat-frontend-icon-fg: #be185d;
+    --cat-frontend-tag-bg: rgba(219, 39, 119, 0.08);
+    --cat-frontend-tag-fg: #be185d;
+    --cat-frontend-chip-border: rgba(219, 39, 119, 0.3);
+
+    --cat-devops-icon-bg: rgba(180, 83, 9, 0.1);
+    --cat-devops-icon-fg: #b45309;
+    --cat-devops-tag-bg: rgba(180, 83, 9, 0.08);
+    --cat-devops-tag-fg: #b45309;
+    --cat-devops-chip-border: rgba(180, 83, 9, 0.3);
 }

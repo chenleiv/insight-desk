@@ -6,6 +6,8 @@ import { formatRelativeTime } from "../../../utils/relativeTime";
 import type { DocumentItem } from "../../../api/documentsClient";
 import { getDocTags, getCategoryIconStyle, getCategoryTagStyle, resolveCategoryVisual } from "../utils/docs";
 import Menu from "../../../components/menu/Menu";
+import { loadJson, scopedKey } from "../../../utils/storage";
+import { AI_QUERY_COUNT_BASE_KEY } from "./AIAssistantView";
 
 type Props = {
   onViewAllDocuments?: () => void;
@@ -56,9 +58,10 @@ export default function DashboardView({
   const { user, favoritesMap, toggleFavorite } = useAuth();
 
   const displayName = useMemo(() => {
+    if (user?.displayName) return user.displayName.split(" ")[0];
     const local = (user?.email ?? "").split("@")[0] || "there";
-    return local.replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  }, [user?.email]);
+    return local.replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).split(" ")[0];
+  }, [user?.displayName, user?.email]);
 
   const recent = useMemo(() => {
     return [...docs].sort((a, b) => docTime(b) - docTime(a)).slice(0, 5);
@@ -69,6 +72,25 @@ export default function DashboardView({
     () => docs.filter((d) => favoritesMap[d.id]).length,
     [docs, favoritesMap]
   );
+
+  const aiQueryCount = useMemo(
+    () => loadJson<number>(scopedKey(AI_QUERY_COUNT_BASE_KEY, user?.email), 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user?.email]
+  );
+
+  const storageLabel = useMemo(() => {
+    const bytes = docs.reduce((sum, d) => {
+      return sum +
+        (d.title?.length ?? 0) +
+        (d.category?.length ?? 0) +
+        (d.summary?.length ?? 0) +
+        (d.content?.length ?? 0);
+    }, 0);
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }, [docs]);
 
   return (
     <div className="dashboard-view">
@@ -103,7 +125,7 @@ export default function DashboardView({
               <Sparkles size={18} />
             </span>
           </div>
-          <div className="stat-value">—</div>
+          <div className="stat-value">{aiQueryCount}</div>
           <div className="stat-label">AI Queries</div>
         </div>
         <div className="stat-card">
@@ -112,8 +134,8 @@ export default function DashboardView({
               <HardDrive size={18} />
             </span>
           </div>
-          <div className="stat-value">—</div>
-          <div className="stat-label">Storage Used</div>
+          <div className="stat-value">{storageLabel}</div>
+          <div className="stat-label">Content Size</div>
         </div>
       </div>
 

@@ -95,7 +95,7 @@ router.post('/login', async (req, res) => {
 
         const token = createAccessToken(user.email, user.role);
         setAuthCookie(res, token);
-        res.json({ user: { email: user.email, role: user.role, favorites: user.favorites || [] } });
+        res.json({ user: { email: user.email, role: user.role, favorites: user.favorites || [], displayName: user.displayName || '', jobTitle: user.jobTitle || '' } });
     } catch (err) {
         if (err.name === 'ZodError') {
             return res.status(400).json({ detail: 'Validation failed', errors: err.errors });
@@ -106,7 +106,7 @@ router.post('/login', async (req, res) => {
 
 router.post('/register', async (req, res) => {
     try {
-        const { email, password } = registerSchema.parse(req.body);
+        const { email, password, displayName } = registerSchema.parse(req.body);
 
         const existing = await User.findOne({ email });
         if (existing) {
@@ -114,11 +114,11 @@ router.post('/register', async (req, res) => {
         }
 
         const hash = await bcrypt.hash(password, 10);
-        const user = await User.create({ email, password_hash: hash, role: 'viewer' });
+        const user = await User.create({ email, password_hash: hash, role: 'viewer', displayName: displayName?.trim() || '' });
 
         const token = createAccessToken(user.email, user.role);
         setAuthCookie(res, token);
-        res.status(201).json({ user: { email: user.email, role: user.role, favorites: [] } });
+        res.status(201).json({ user: { email: user.email, role: user.role, favorites: [], displayName: user.displayName || '', jobTitle: '' } });
     } catch (err) {
         if (err.name === 'ZodError') {
             return res.status(400).json({ detail: 'Validation failed', errors: err.errors });
@@ -204,12 +204,59 @@ router.post('/logout', (req, res) => {
     res.json({ ok: true });
 });
 
+router.patch('/password', getCurrentUser, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ detail: 'currentPassword and newPassword are required' });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ detail: 'New password must be at least 6 characters' });
+        }
+
+        const user = req.user;
+        if (user.password_hash && !(await bcrypt.compare(currentPassword, user.password_hash))) {
+            return res.status(401).json({ detail: 'Current password is incorrect' });
+        }
+
+        user.password_hash = await bcrypt.hash(newPassword, 10);
+        await user.save();
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Change password failed:', err);
+        res.status(500).json({ detail: 'Internal server error' });
+    }
+});
+
 router.get('/me', getCurrentUser, (req, res) => {
     res.json({
         email: req.user.email,
         role: req.user.role,
-        favorites: req.user.favorites || []
+        favorites: req.user.favorites || [],
+        displayName: req.user.displayName || '',
+        jobTitle: req.user.jobTitle || '',
     });
+});
+
+router.patch('/profile', getCurrentUser, async (req, res) => {
+    try {
+        const { displayName, jobTitle } = req.body;
+        const update = {};
+        if (typeof displayName === 'string') update.displayName = displayName.trim().slice(0, 80);
+        if (typeof jobTitle === 'string') update.jobTitle = jobTitle.trim().slice(0, 80);
+
+        const user = await User.findByIdAndUpdate(req.user._id, update, { new: true });
+        res.json({
+            email: user.email,
+            role: user.role,
+            favorites: user.favorites || [],
+            displayName: user.displayName || '',
+            jobTitle: user.jobTitle || '',
+        });
+    } catch (err) {
+        console.error('Update profile failed:', err);
+        res.status(500).json({ detail: 'Internal server error' });
+    }
 });
 
 export default router;

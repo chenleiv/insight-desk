@@ -36,11 +36,12 @@ export async function apiFetch<T>(
   const text = await res.text();
 
   if (!res.ok) {
-    throw new ApiError(
-      `Request failed: ${res.status}`,
-      res.status,
-      text || undefined
-    );
+    let message = `Request failed: ${res.status}`;
+    try {
+      const body = JSON.parse(text);
+      if (body?.detail) message = body.detail;
+    } catch { /* non-JSON error body */ }
+    throw new ApiError(message, res.status, text || undefined);
   }
 
   return (text ? JSON.parse(text) : null) as T;

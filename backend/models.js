@@ -5,6 +5,9 @@ const userSchema = new mongoose.Schema({
     password_hash: { type: String, default: null },
     role: { type: String, enum: ['admin', 'viewer'], default: 'viewer' },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Document' }],
+    status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+    displayName: { type: String, default: '' },
+    jobTitle: { type: String, default: '' },
 }, { timestamps: true });
 
 const attachmentSchema = new mongoose.Schema({
