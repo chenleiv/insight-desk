@@ -1,7 +1,6 @@
-import React, { useMemo, useRef, useEffect, useState, useImperativeHandle, forwardRef } from "react";
+import React, { useMemo, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 import { Clock, Paperclip, ExternalLink, X } from "lucide-react";
 import type { DocumentInput, DocumentItem } from "../../../api/documentsClient";
-import { extractTextFromFile } from "../../../api/documentsClient";
 import { formatRelativeTime } from "../../../utils/relativeTime";
 
 type Props = {
@@ -15,12 +14,10 @@ type Props = {
   pendingFiles?: File[];
   onUploadAttachment?: (file: File) => void;
   onDeleteAttachment?: (attachmentId: string) => void;
-  onExtractingChange?: (val: boolean) => void;
 };
 
 export interface DocumentEditHandle {
   triggerAttach: () => void;
-  triggerImport: () => void;
 }
 
 function useAutoResize(value: string) {
@@ -45,22 +42,14 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
   pendingFiles = [],
   onUploadAttachment,
   onDeleteAttachment,
-  onExtractingChange,
 }, ref) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
-  const [isExtracting, setIsExtracting] = useState(false);
   const titleRef = useAutoResize(form.title);
   const summaryRef = useAutoResize(form.summary);
 
   useImperativeHandle(ref, () => ({
     triggerAttach: () => fileInputRef.current?.click(),
-    triggerImport: () => importInputRef.current?.click(),
   }));
-
-  useEffect(() => {
-    onExtractingChange?.(isExtracting);
-  }, [isExtracting, onExtractingChange]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onChange({ ...form, [e.target.name]: e.target.value });
@@ -178,26 +167,6 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
           const file = e.target.files?.[0];
           if (file) onUploadAttachment?.(file);
           e.target.value = "";
-        }}
-      />
-      <input
-        ref={importInputRef}
-        type="file"
-        hidden
-        accept=".pdf,.docx,.xlsx,.xls,.txt,.md,.rtf"
-        onChange={async (e) => {
-          const file = e.target.files?.[0];
-          e.target.value = "";
-          if (!file) return;
-          setIsExtracting(true);
-          try {
-            const text = await extractTextFromFile(file);
-            onChange({ ...form, content: form.content ? form.content + "\n\n" + text : text });
-          } catch (err) {
-            alert(err instanceof Error ? err.message : "Failed to extract text from file.");
-          } finally {
-            setIsExtracting(false);
-          }
         }}
       />
     </div>

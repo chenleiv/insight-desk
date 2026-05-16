@@ -1,5 +1,3 @@
-import * as XLSX from "xlsx";
-import mammoth from "mammoth";
 import type { DocumentInput } from "../../../api/documentsClient";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -99,25 +97,6 @@ export async function parseImportFile(
   if (ext === "rtf") {
     const text = await file.text();
     return [{ title: basename(file.name), content: parseRtf(text) }];
-  }
-
-  if (ext === "xlsx") {
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-    return rows.map((row) => sanitizeObject({
-      title: String(row.title ?? row.Title ?? ""),
-      category: String(row.category ?? row.Category ?? ""),
-      summary: String(row.summary ?? row.Summary ?? ""),
-      content: String(row.content ?? row.Content ?? ""),
-    })) as Partial<DocumentInput>[];
-  }
-
-  if (ext === "docx") {
-    const buffer = await file.arrayBuffer();
-    const result = await mammoth.extractRawText({ arrayBuffer: buffer });
-    return [{ title: basename(file.name), content: result.value.trim() }];
   }
 
   throw new Error(`Unsupported file type: .${ext}`);

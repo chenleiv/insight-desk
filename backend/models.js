@@ -14,7 +14,6 @@ const attachmentSchema = new mongoose.Schema({
     url: { type: String, required: true },
     fileName: { type: String, required: true },
     fileType: { type: String, required: true },
-    extractedText: { type: String, default: '' },
 });
 
 const documentSchema = new mongoose.Schema({

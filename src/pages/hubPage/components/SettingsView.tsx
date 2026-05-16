@@ -228,13 +228,12 @@ function UsersSection() {
       .then(setUsers)
       .catch((e) => status.show({ kind: "error", title: "Error", message: e.message }))
       .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [status]);
 
   function setUserPending(id: number, val: boolean) {
     setPending((prev) => {
       const next = new Set(prev);
-      val ? next.add(id) : next.delete(id);
+      if (val) next.add(id); else next.delete(id);
       return next;
     });
   }

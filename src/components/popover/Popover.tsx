@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useLayoutEffect, useState } from "react";
 import { X } from "lucide-react";
 import "./popover.scss";
 
@@ -27,10 +27,10 @@ export const Popover: React.FC<Props> = ({
   const [arrowStyle, setArrowStyle] = useState<{ [key: string]: string }>({});
   const [isVisible, setIsVisible] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) {
-      setIsVisible(false);
-      return;
+      const id = setTimeout(() => setIsVisible(false), 0);
+      return () => clearTimeout(id);
     }
 
     const updatePosition = () => {
@@ -40,7 +40,7 @@ export const Popover: React.FC<Props> = ({
       const rect = target.getBoundingClientRect();
       const newStyle: React.CSSProperties = {};
       let arrowLeft = "50%";
-      let arrowTop = "50%";
+      const arrowTop = "50%";
 
       // Basic positioning logic based on the requested side
       const POPOVER_WIDTH = 260;
@@ -52,8 +52,8 @@ export const Popover: React.FC<Props> = ({
         newStyle.transform = "translateY(-50%)";
       } else if (position === "top" || position === "bottom") {
         let leftBase = rect.left + rect.width / 2;
-        let originalLeftBase = leftBase;
-        let leftAdjusted = leftBase - POPOVER_WIDTH / 2;
+        const originalLeftBase = leftBase;
+        const leftAdjusted = leftBase - POPOVER_WIDTH / 2;
 
         // Horizontally clamp so the 260px wide popover fits on screen
         if (leftAdjusted < PADDING) {

@@ -14,7 +14,7 @@ type Props = {
   onNewDocument?: () => void | Promise<void>;
   onOpenDocument?: (id: string) => void;
   onExport?: () => void;
-  onImport?: (mode: "append" | "replace", fileType: "json" | "text" | "excel" | "word") => void;
+  onImport?: (mode: "append" | "replace", fileType: "json" | "text") => void;
   isAdmin?: boolean;
 };
 
@@ -42,26 +42,18 @@ export default function DashboardView({
       onClick: () => { onImport?.("append", "json"); setShowImportMenu(false); },
     },
     {
-      label: "TXT / MD / RTF",
+      label: "TXT / MD",
       onClick: () => { onImport?.("append", "text"); setShowImportMenu(false); },
-    },
-    {
-      label: "Excel (.xlsx)",
-      onClick: () => { onImport?.("append", "excel"); setShowImportMenu(false); },
-    },
-    {
-      label: "Word (.docx)",
-      onClick: () => { onImport?.("append", "word"); setShowImportMenu(false); },
     },
   ];
   const { docs } = useDocuments();
   const { user, favoritesMap, toggleFavorite } = useAuth();
 
-  const displayName = useMemo(() => {
+  const displayName = (() => {
     if (user?.displayName) return user.displayName.split(" ")[0];
     const local = (user?.email ?? "").split("@")[0] || "there";
     return local.replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).split(" ")[0];
-  }, [user?.displayName, user?.email]);
+  })();
 
   const recent = useMemo(() => {
     return [...docs].sort((a, b) => docTime(b) - docTime(a)).slice(0, 5);
@@ -75,7 +67,6 @@ export default function DashboardView({
 
   const aiQueryCount = useMemo(
     () => loadJson<number>(scopedKey(AI_QUERY_COUNT_BASE_KEY, user?.email), 0),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [user?.email]
   );
 

@@ -22,15 +22,7 @@ router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
         let contextBlock = '';
         if (context && context.length > 0) {
             const docTexts = context.map((doc, idx) => {
-                let text = `[Document ${idx + 1}: ${doc.title}]\n${doc.content}`;
-                if (doc.attachments?.length) {
-                    const attachedContent = doc.attachments
-                        .filter(a => a.extractedText)
-                        .map(a => `[Attachment: ${a.fileName}]\n${a.extractedText}`)
-                        .join('\n\n');
-                    if (attachedContent) text += '\n\n' + attachedContent;
-                }
-                return text;
+                return `[Document ${idx + 1}: ${doc.title}]\n${doc.content}`;
             });
             contextBlock = `Context from documents:\n${docTexts.join('\n\n---\n\n')}`;
         }

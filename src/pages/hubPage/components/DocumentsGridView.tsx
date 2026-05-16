@@ -24,7 +24,7 @@ type Props = {
   onSearchChange: (q: string) => void;
   onNew?: () => void;
   onExport?: () => void;
-  onImport?: (mode: "append" | "replace", fileType: "json" | "text" | "excel" | "word") => void;
+  onImport?: (mode: "append" | "replace", fileType: "json" | "text") => void;
   isAdmin?: boolean;
   loading?: boolean;
   splitView?: boolean;
@@ -77,16 +77,8 @@ export default function DocumentsGridView({
       onClick: () => { onImport?.("append", "json"); setShowImportMenu(false); },
     },
     {
-      label: "TXT / MD / RTF",
+      label: "TXT / MD",
       onClick: () => { onImport?.("append", "text"); setShowImportMenu(false); },
-    },
-    {
-      label: "Excel (.xlsx)",
-      onClick: () => { onImport?.("append", "excel"); setShowImportMenu(false); },
-    },
-    {
-      label: "Word (.docx)",
-      onClick: () => { onImport?.("append", "word"); setShowImportMenu(false); },
     },
   ];
 

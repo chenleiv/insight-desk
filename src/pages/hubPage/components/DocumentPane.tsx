@@ -17,7 +17,7 @@ import {
 } from "../utils/documentForm";
 import { DocumentDetailSkeleton } from "../../../components/skeleton/Skeleton";
 
-import { Maximize2, ArrowLeft, Save, Paperclip, FileInput } from "lucide-react";
+import { Maximize2, ArrowLeft, Save, Paperclip } from "lucide-react";
 
 type Props = {
   doc: DocumentItem | null;
@@ -66,7 +66,6 @@ export default function DocumentPane({
   const confirm = useConfirm();
   const editRef = useRef<DocumentEditHandle>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isExtracting, setIsExtracting] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // Local attachment list so uploads/deletes appear instantly without waiting
@@ -385,7 +384,6 @@ export default function DocumentPane({
           onDeleteAttachment={isCreating
             ? (name) => setPendingFiles((prev) => prev.filter((f) => f.name !== name))
             : handleDeleteAttachment}
-          onExtractingChange={setIsExtracting}
         />
       )}
 
@@ -402,16 +400,6 @@ export default function DocumentPane({
               >
                 <Paperclip size={14} />
                 {isUploading ? "Uploading…" : "Attach"}
-              </button>
-              <button
-                type="button"
-                className="footer-attach-btn"
-                disabled={isExtracting}
-                onClick={() => editRef.current?.triggerImport()}
-                title="Extract text from file and insert into content"
-              >
-                <FileInput size={14} />
-                {isExtracting ? "Extracting…" : "Import text"}
               </button>
             </div>
           )}

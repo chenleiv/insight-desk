@@ -295,14 +295,12 @@ export default function HubPage() {
     status.show({ kind: "success", message: `Imported ${result.inserted} documents.` });
   }
 
-  function handleImport(mode: "append" | "replace", fileType: "json" | "text" | "excel" | "word") {
+  function handleImport(mode: "append" | "replace", fileType: "json" | "text") {
     const input = document.createElement("input");
     input.type = "file";
     const acceptMap: Record<typeof fileType, string> = {
       json:  ".json",
-      text:  ".txt,.md,.rtf",
-      excel: ".xlsx",
-      word:  ".docx",
+      text:  ".txt,.md",
     };
     input.accept = acceptMap[fileType];
     input.multiple = fileType !== "json";
@@ -361,7 +359,7 @@ export default function HubPage() {
     (activeDocId !== null || isCreating);
 
   const closeDocumentRef = useRef(closeDocument);
-  closeDocumentRef.current = closeDocument;
+  useEffect(() => { closeDocumentRef.current = closeDocument; });
 
   useEffect(() => {
     if (!docDrawerOpen) return;
