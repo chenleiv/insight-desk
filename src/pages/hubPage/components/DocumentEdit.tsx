@@ -44,8 +44,13 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
   onDeleteAttachment,
 }, ref) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const titleRef = useAutoResize(form.title);
   const summaryRef = useAutoResize(form.summary);
+
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, []);
 
   useImperativeHandle(ref, () => ({
     triggerAttach: () => fileInputRef.current?.click(),
@@ -121,21 +126,10 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
             <span key={att._id} className="notion-att-chip">
               <Paperclip size={11} aria-hidden />
               <span className="notion-att-chip-name">{att.fileName}</span>
-              <a
-                href={att.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="notion-att-chip-action"
-                title="Open"
-              >
+              <a href={att.url} target="_blank" rel="noopener noreferrer" className="notion-att-chip-action" title="Open">
                 <ExternalLink size={11} />
               </a>
-              <button
-                type="button"
-                className="notion-att-chip-action"
-                title="Remove"
-                onClick={() => onDeleteAttachment?.(att._id)}
-              >
+              <button type="button" className="notion-att-chip-action" title="Remove" onClick={() => onDeleteAttachment?.(att._id)}>
                 <X size={11} />
               </button>
             </span>
@@ -145,12 +139,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
               <Paperclip size={11} aria-hidden />
               <span className="notion-att-chip-name">{f.name}</span>
               <span className="notion-att-chip-badge">on save</span>
-              <button
-                type="button"
-                className="notion-att-chip-action"
-                title="Remove"
-                onClick={() => onDeleteAttachment?.(f.name)}
-              >
+              <button type="button" className="notion-att-chip-action" title="Remove" onClick={() => onDeleteAttachment?.(f.name)}>
                 <X size={11} />
               </button>
             </span>

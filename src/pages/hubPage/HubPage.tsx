@@ -107,9 +107,6 @@ export default function HubPage() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [docViewMode, setDocViewMode] = useState<"grid" | "list">("grid");
-  const [docDrawerFullscreen, setDocDrawerFullscreen] = useState<boolean>(() =>
-    loadJson<boolean>("docDrawerFullscreen", false)
-  );
   const [order, setOrder] = useState<string[]>([]);
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>(() =>
@@ -244,13 +241,6 @@ export default function HubPage() {
     }
   }
 
-  function toggleDocDrawerFullscreen() {
-    setDocDrawerFullscreen((prev) => {
-      const next = !prev;
-      saveJson("docDrawerFullscreen", next);
-      return next;
-    });
-  }
 
   function closeDocument() {
     if (isPaneDirty) {
@@ -426,7 +416,7 @@ export default function HubPage() {
         <div className="hub-main-layout">
           <div
             ref={contentRef}
-            className="hub-content"
+            className={`hub-content${docDrawerOpen ? " hub-content--doc" : ""}`}
             tabIndex={-1}
             role="main"
             aria-label={view === "documents" ? "Documents" : view === "favorites" ? "Favorites" : view === "assistant" ? "AI Assistant" : view === "dashboard" ? "Dashboard" : "Content"}
@@ -442,24 +432,49 @@ export default function HubPage() {
               />
             )}
             {(view === "documents" || view === "favorites") && (
-              <DocumentsGridView
-                docs={filteredDocs}
-                favorites={favorites}
-                categories={categories}
-                categoryFilter={categoryFilter}
-                onCategoryFilterChange={setCategoryFilter}
-                onOpen={openDocument}
-                onToggleFavorite={globalToggleFavorite}
-                viewMode={docViewMode}
-                onViewModeChange={setDocViewMode}
-                searchQuery={docSearchQuery}
-                onSearchChange={setDocSearchQuery}
-                onNew={openCreate}
-                onExport={handleExport}
-                onImport={handleImport}
-                isAdmin={isAdmin}
-                loading={docsLoading}
-              />
+              docDrawerOpen ? (
+                <DocumentPane
+                  key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
+                  doc={activeDoc}
+                  canEdit={isAdmin}
+                  isCreating={isCreating}
+                  onBack={closeDocument}
+                  onCancelCreate={() => {
+                    setIsPaneDirty(false);
+                    setIsCreating(false);
+                    setActiveDocId(lastActiveDocIdRef.current);
+                  }}
+                  onCreated={handleCreated}
+                  hasDocs={docs.length > 0}
+                  loading={docsLoading}
+                  onSaved={(updated) =>
+                    setDocs((p) =>
+                      p.map((d) => (d.id === updated.id ? updated : d))
+                    )
+                  }
+                  onDelete={onDelete}
+                  onDirtyChange={setIsPaneDirty}
+                />
+              ) : (
+                <DocumentsGridView
+                  docs={filteredDocs}
+                  favorites={favorites}
+                  categories={categories}
+                  categoryFilter={categoryFilter}
+                  onCategoryFilterChange={setCategoryFilter}
+                  onOpen={openDocument}
+                  onToggleFavorite={globalToggleFavorite}
+                  viewMode={docViewMode}
+                  onViewModeChange={setDocViewMode}
+                  searchQuery={docSearchQuery}
+                  onSearchChange={setDocSearchQuery}
+                  onNew={openCreate}
+                  onExport={handleExport}
+                  onImport={handleImport}
+                  isAdmin={isAdmin}
+                  loading={docsLoading}
+                />
+              )
             )}
 
             {view === "assistant" && (
@@ -491,47 +506,6 @@ export default function HubPage() {
           </div>
         </div>
 
-        {docDrawerOpen && (
-          <>
-            <div
-              className="doc-modal-overlay"
-              onClick={closeDocument}
-              aria-hidden="true"
-            />
-            <div
-              className={`doc-modal ${docDrawerFullscreen ? "doc-modal--fullscreen" : ""}`}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="doc-drawer-title"
-            >
-              <DocumentPane
-                key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
-                doc={activeDoc}
-                canEdit={isAdmin}
-                isCreating={isCreating}
-                variant="drawer"
-                onClose={closeDocument}
-                onCancelCreate={() => {
-                  setIsPaneDirty(false);
-                  setIsCreating(false);
-                  setActiveDocId(lastActiveDocIdRef.current);
-                }}
-                onCreated={handleCreated}
-                hasDocs={docs.length > 0}
-                loading={docsLoading}
-                onSaved={(updated) =>
-                  setDocs((p) =>
-                    p.map((d) => (d.id === updated.id ? updated : d))
-                  )
-                }
-                onDelete={onDelete}
-                onDirtyChange={setIsPaneDirty}
-                isMaximized={docDrawerFullscreen}
-                {...(!isMobile && { onToggleMaximize: toggleDocDrawerFullscreen })}
-              />
-            </div>
-          </>
-        )}
       </main>
 
       {importPreview && (

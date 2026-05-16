@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { Clock, Paperclip, ExternalLink, X, Plus } from "lucide-react";
+import { Clock, Paperclip, ExternalLink, X, Plus, } from "lucide-react";
 import type { DocumentItem } from "../../../api/documentsClient";
 import { formatRelativeTime } from "../../../utils/relativeTime";
 
@@ -36,60 +36,42 @@ export const DocumentView = React.memo(function DocumentView({
         </span>
       </div>
 
-      {doc.summary && (
-        <p className="notion-summary">{doc.summary}</p>
-      )}
-
-      <hr className="notion-divider" />
-
-      <div className="notion-content">{doc.content}</div>
-
       {(canEdit || hasAttachments) && (
-        <div className="notion-attachments">
-          <div className="notion-attachments-header">
-            <Paperclip size={13} aria-hidden />
-            <span>Attachments</span>
-          </div>
-
-          {hasAttachments && (
-            <ul className="attachment-list">
-              {doc.attachments!.map((att) => (
-                <li key={att._id} className="attachment-item">
-                  <Paperclip size={13} className="attachment-icon" />
-                  <span className="attachment-name">{att.fileName}</span>
-                  <a
-                    href={att.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="attachment-open"
-                    title="Open file"
-                  >
-                    <ExternalLink size={13} />
-                  </a>
-                  {canEdit && (
-                    <button
-                      type="button"
-                      className="attachment-delete"
-                      title="Remove attachment"
-                      onClick={() => onDeleteAttachment?.(att._id)}
-                    >
-                      <X size={13} />
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-
+        <div className="notion-att-chips">
+          {doc.attachments?.map((att) => (
+            <span key={att._id} className="notion-att-chip">
+              <Paperclip size={11} aria-hidden />
+              <span className="notion-att-chip-name">{att.fileName}</span>
+              <a
+                href={att.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="notion-att-chip-action"
+                title="Open"
+              >
+                <ExternalLink size={11} />
+              </a>
+              {canEdit && (
+                <button
+                  type="button"
+                  className="notion-att-chip-action"
+                  title="Remove attachment"
+                  onClick={() => onDeleteAttachment?.(att._id)}
+                >
+                  <X size={11} />
+                </button>
+              )}
+            </span>
+          ))}
           {canEdit && (
             <>
               <button
                 type="button"
-                className="attachment-add-btn"
+                className="notion-att-chip notion-att-chip--add"
                 disabled={isUploading}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Plus size={14} />
+                <Plus size={11} />
                 {isUploading ? "Uploading…" : "Add file"}
               </button>
               <input
@@ -108,6 +90,14 @@ export const DocumentView = React.memo(function DocumentView({
           )}
         </div>
       )}
+
+      {doc.summary && (
+        <p className="notion-summary">{doc.summary}</p>
+      )}
+
+      <hr className="notion-divider" />
+
+      <div className="notion-content">{doc.content}</div>
     </div>
   );
 });
