@@ -1,6 +1,7 @@
-import React, { useMemo, useRef, useEffect } from "react";
-import { Clock, Paperclip, ExternalLink, X, Plus } from "lucide-react";
+import React, { useMemo, useRef, useEffect, useState, useImperativeHandle, forwardRef } from "react";
+import { Clock, Paperclip, ExternalLink, X } from "lucide-react";
 import type { DocumentInput, DocumentItem } from "../../../api/documentsClient";
+import { extractTextFromFile } from "../../../api/documentsClient";
 import { formatRelativeTime } from "../../../utils/relativeTime";
 
 type Props = {
@@ -14,7 +15,13 @@ type Props = {
   pendingFiles?: File[];
   onUploadAttachment?: (file: File) => void;
   onDeleteAttachment?: (attachmentId: string) => void;
+  onExtractingChange?: (val: boolean) => void;
 };
+
+export interface DocumentEditHandle {
+  triggerAttach: () => void;
+  triggerImport: () => void;
+}
 
 function useAutoResize(value: string) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -27,27 +34,35 @@ function useAutoResize(value: string) {
   return ref;
 }
 
-
-export const DocumentEdit: React.FC<Props> = ({
+export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
   form,
   onChange,
   isCreating,
   updatedAt,
   doc,
   canEdit,
-  isUploading,
+  isUploading: _isUploading,
   pendingFiles = [],
   onUploadAttachment,
   onDeleteAttachment,
-}) => {
+  onExtractingChange,
+}, ref) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
   const titleRef = useAutoResize(form.title);
   const summaryRef = useAutoResize(form.summary);
-  const contentRef = useAutoResize(form.content);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
+  useImperativeHandle(ref, () => ({
+    triggerAttach: () => fileInputRef.current?.click(),
+    triggerImport: () => importInputRef.current?.click(),
+  }));
+
+  useEffect(() => {
+    onExtractingChange?.(isExtracting);
+  }, [isExtracting, onExtractingChange]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onChange({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -95,14 +110,13 @@ export const DocumentEdit: React.FC<Props> = ({
         value={form.summary}
         onChange={handleChange}
         placeholder="Add a brief summary…"
-        rows={2}
+        rows={1}
         aria-label="Summary"
       />
 
       <hr className="notion-divider" />
 
       <textarea
-        ref={contentRef}
         className="notion-content-input"
         name="content"
         value={form.content}
@@ -112,83 +126,82 @@ export const DocumentEdit: React.FC<Props> = ({
         aria-label="Content"
       />
 
-      {canEdit && (
-        <div className="notion-attachments">
-          <div className="notion-attachments-header">
-            <Paperclip size={13} aria-hidden />
-            <span>Attachments</span>
-          </div>
-
-          {existingAttachments.length > 0 && (
-            <ul className="attachment-list">
-              {existingAttachments.map((att) => (
-                <li key={att._id} className="attachment-item">
-                  <Paperclip size={13} className="attachment-icon" />
-                  <span className="attachment-name">{att.fileName}</span>
-                  <a
-                    href={att.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="attachment-open"
-                    title="Open file"
-                  >
-                    <ExternalLink size={13} />
-                  </a>
-                  <button
-                    type="button"
-                    className="attachment-delete"
-                    title="Remove attachment"
-                    onClick={() => onDeleteAttachment?.(att._id)}
-                  >
-                    <X size={13} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {pendingFiles.length > 0 && (
-            <ul className="attachment-list">
-              {pendingFiles.map((f) => (
-                <li key={f.name} className="attachment-item">
-                  <Paperclip size={13} className="attachment-icon" />
-                  <span className="attachment-name">{f.name}</span>
-                  <span className="attachment-pending-badge">on save</span>
-                  <button
-                    type="button"
-                    className="attachment-delete"
-                    title="Remove"
-                    onClick={() => onDeleteAttachment?.(f.name)}
-                  >
-                    <X size={13} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <button
-            type="button"
-            className="attachment-add-btn"
-            disabled={isUploading}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Plus size={14} />
-            {isUploading ? "Uploading…" : "Add file"}
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            hidden
-            accept=".pdf,.docx,.txt,.md,.rtf"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onUploadAttachment?.(file);
-              e.target.value = "";
-            }}
-          />
+      {canEdit && (existingAttachments.length > 0 || pendingFiles.length > 0) && (
+        <div className="notion-att-chips">
+          {existingAttachments.map((att) => (
+            <span key={att._id} className="notion-att-chip">
+              <Paperclip size={11} aria-hidden />
+              <span className="notion-att-chip-name">{att.fileName}</span>
+              <a
+                href={att.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="notion-att-chip-action"
+                title="Open"
+              >
+                <ExternalLink size={11} />
+              </a>
+              <button
+                type="button"
+                className="notion-att-chip-action"
+                title="Remove"
+                onClick={() => onDeleteAttachment?.(att._id)}
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+          {pendingFiles.map((f) => (
+            <span key={f.name} className="notion-att-chip notion-att-chip--pending">
+              <Paperclip size={11} aria-hidden />
+              <span className="notion-att-chip-name">{f.name}</span>
+              <span className="notion-att-chip-badge">on save</span>
+              <button
+                type="button"
+                className="notion-att-chip-action"
+                title="Remove"
+                onClick={() => onDeleteAttachment?.(f.name)}
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
         </div>
       )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        hidden
+        accept=".pdf,.docx,.txt,.md,.rtf"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onUploadAttachment?.(file);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={importInputRef}
+        type="file"
+        hidden
+        accept=".pdf,.docx,.xlsx,.xls,.txt,.md,.rtf"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (!file) return;
+          setIsExtracting(true);
+          try {
+            const text = await extractTextFromFile(file);
+            onChange({ ...form, content: form.content ? form.content + "\n\n" + text : text });
+          } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to extract text from file.");
+          } finally {
+            setIsExtracting(false);
+          }
+        }}
+      />
     </div>
   );
-};
+});
+
+DocumentEdit.displayName = "DocumentEdit";

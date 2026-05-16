@@ -91,6 +91,25 @@ export function importDocumentsBulk(payload: {
   );
 }
 
+export async function extractTextFromFile(file: File): Promise<string> {
+  const base = getApiBase();
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${base}/api/extract-text`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+  const body = await res.text();
+  if (!res.ok) {
+    let message = `Extraction failed: ${res.status}`;
+    try { const j = JSON.parse(body); if (j?.detail) message = j.detail; } catch { /* */ }
+    throw new Error(message);
+  }
+  const data = JSON.parse(body) as { text: string };
+  return data.text;
+}
+
 export function toggleFavorite(id: string) {
   return apiFetch<{ favorites: string[] }>(
     `/api/documents/${id}/toggle-favorite`,

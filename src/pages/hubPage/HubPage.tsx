@@ -424,7 +424,7 @@ export default function HubPage() {
         </div>
       </header>
 
-      <main className={`hub-main ${docDrawerOpen ? "hub-main--drawer-open" : ""}`}>
+      <main className="hub-main">
         <div className="hub-main-layout">
           <div
             ref={contentRef}
@@ -494,37 +494,45 @@ export default function HubPage() {
         </div>
 
         {docDrawerOpen && (
-          <aside
-            className={`doc-drawer ${docDrawerFullscreen ? "doc-drawer--fullscreen" : ""}`}
-            role="dialog"
-            aria-modal="true"
-          >
-            <DocumentPane
-              key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
-              doc={activeDoc}
-              canEdit={isAdmin}
-              isCreating={isCreating}
-              variant="drawer"
-              onClose={closeDocument}
-              onCancelCreate={() => {
-                setIsPaneDirty(false);
-                setIsCreating(false);
-                setActiveDocId(lastActiveDocIdRef.current);
-              }}
-              onCreated={handleCreated}
-              hasDocs={docs.length > 0}
-              loading={docsLoading}
-              onSaved={(updated) =>
-                setDocs((p) =>
-                  p.map((d) => (d.id === updated.id ? updated : d))
-                )
-              }
-              onDelete={onDelete}
-              onDirtyChange={setIsPaneDirty}
-              isMaximized={docDrawerFullscreen}
-              onToggleMaximize={isMobile ? undefined : toggleDocDrawerFullscreen}
+          <>
+            <div
+              className="doc-modal-overlay"
+              onClick={closeDocument}
+              aria-hidden="true"
             />
-          </aside>
+            <div
+              className={`doc-modal ${docDrawerFullscreen ? "doc-modal--fullscreen" : ""}`}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="doc-drawer-title"
+            >
+              <DocumentPane
+                key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
+                doc={activeDoc}
+                canEdit={isAdmin}
+                isCreating={isCreating}
+                variant="drawer"
+                onClose={closeDocument}
+                onCancelCreate={() => {
+                  setIsPaneDirty(false);
+                  setIsCreating(false);
+                  setActiveDocId(lastActiveDocIdRef.current);
+                }}
+                onCreated={handleCreated}
+                hasDocs={docs.length > 0}
+                loading={docsLoading}
+                onSaved={(updated) =>
+                  setDocs((p) =>
+                    p.map((d) => (d.id === updated.id ? updated : d))
+                  )
+                }
+                onDelete={onDelete}
+                onDirtyChange={setIsPaneDirty}
+                isMaximized={docDrawerFullscreen}
+                onToggleMaximize={isMobile ? undefined : toggleDocDrawerFullscreen}
+              />
+            </div>
+          </>
         )}
       </main>
 

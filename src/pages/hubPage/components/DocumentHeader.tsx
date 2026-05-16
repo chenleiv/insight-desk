@@ -140,23 +140,9 @@ export const DocumentHeader: React.FC<Props> = ({
   );
 
   const editActionsDrawer = (
-    <div className="doc-pane-edit-drawer-toolbar">
-      <div className="doc-pane-edit-drawer-toolbar-content">
-        {isPending && <div className="doc-pane-pending"><Loader size={22} /></div>}
-        {isEditingExisting && <span className="doc-pane-editing-badge">Editing</span>}
-        <SaveBtn isPending={isPending} canSave={canSave} isDrawer />
-        <button
-          type="button"
-          className="doc-pane-cancel-btn"
-          onClick={onCancel}
-          disabled={isPending}
-        >
-          Cancel
-        </button>
-      </div>
-      {onToggleMaximize && (
-        <MaximizeBtn className="doc-pane-grid-btn" isMaximized={isMaximized} onClick={onToggleMaximize} />
-      )}
+    <div className="doc-pane-actions-grid" role="toolbar" aria-label="Document actions">
+      {onToggleMaximize ? <MaximizeBtn className="doc-pane-grid-btn" isMaximized={isMaximized} onClick={onToggleMaximize} /> : <Placeholder />}
+      <CloseBtn className="doc-pane-grid-btn" onClick={onCancel} />
     </div>
   );
 

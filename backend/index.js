@@ -26,6 +26,7 @@ import { documentSchema, importBulkSchema } from './schemas.js';
 
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
+const XLSX = require('xlsx');
 
 const app = express();
 app.use(compression());
@@ -143,7 +144,7 @@ if (!process.env.MONGODB_URI) {
         });
 }
 
-app.use(express.json({ limit: '10kb' })); // Limit body size
+app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
 // Auth routes
@@ -283,6 +284,80 @@ app.post('/api/documents/:id/toggle-favorite', getCurrentUser, async (req, res) 
 });
 
 
+
+// --- Extract text from file (for import-as-content) ---
+
+const extractUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+        const allowed = new Set([
+            'application/pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel',
+            'text/plain',
+            'text/markdown',
+            'application/rtf',
+            'text/rtf',
+        ]);
+        if (allowed.has(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(Object.assign(new Error(`File type "${file.mimetype}" is not supported`), { status: 400 }));
+        }
+    },
+});
+
+app.post('/api/extract-text', getCurrentUser, (req, res, next) => {
+    extractUpload.single('file')(req, res, (err) => {
+        if (err) {
+            const status = err.status || (err.code === 'LIMIT_FILE_SIZE' ? 413 : 400);
+            return res.status(status).json({ detail: err.message });
+        }
+        next();
+    });
+}, async (req, res) => {
+    const file = req.file;
+    if (!file) return res.status(400).json({ detail: 'No file uploaded' });
+
+    try {
+        let text = '';
+
+        if (file.mimetype === 'application/pdf') {
+            const data = await pdfParse(file.buffer);
+            text = (data.text || '').trim();
+
+        } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+            const result = await mammoth.extractRawText({ buffer: file.buffer });
+            text = result.value.trim();
+
+        } else if (
+            file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+            file.mimetype === 'application/vnd.ms-excel'
+        ) {
+            const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+            const parts = workbook.SheetNames.map((name) => {
+                const sheet = workbook.Sheets[name];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                const tableText = rows
+                    .filter(row => row.some(cell => String(cell).trim()))
+                    .map(row => row.map(cell => String(cell)).join('\t'))
+                    .join('\n');
+                return workbook.SheetNames.length > 1 ? `[${name}]\n${tableText}` : tableText;
+            });
+            text = parts.join('\n\n').trim();
+
+        } else if (file.mimetype.startsWith('text/')) {
+            text = file.buffer.toString('utf-8').trim();
+        }
+
+        res.json({ text: text.slice(0, 500000) });
+    } catch (err) {
+        console.error('Text extraction failed:', err);
+        res.status(500).json({ detail: 'Failed to extract text from file' });
+    }
+});
 
 // --- Attachment upload ---
 

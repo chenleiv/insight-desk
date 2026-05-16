@@ -1,4 +1,4 @@
-import { useActionState, useState, useEffect, useMemo } from "react";
+import { useActionState, useState, useEffect, useMemo, useRef } from "react";
 import type { DocumentItem, DocumentInput, Attachment } from "../../../api/documentsClient";
 import { createDocument, updateDocument, uploadAttachment, deleteAttachment } from "../../../api/documentsClient";
 import { useStatus } from "../../../components/statusBar/useStatus";
@@ -6,6 +6,7 @@ import { EmptyPane } from "./EmptyPane";
 import { DocumentHeader } from "./DocumentHeader";
 import { DocumentView } from "./DocumentView";
 import { DocumentEdit } from "./DocumentEdit";
+import type { DocumentEditHandle } from "./DocumentEdit";
 import useConfirm from "../../../hooks/useConfirm";
 import {
   DOCUMENT_FIELDS,
@@ -16,7 +17,7 @@ import {
 } from "../utils/documentForm";
 import { DocumentDetailSkeleton } from "../../../components/skeleton/Skeleton";
 
-import { Maximize2, ArrowLeft } from "lucide-react";
+import { Maximize2, ArrowLeft, Save, Paperclip, FileInput } from "lucide-react";
 
 type Props = {
   doc: DocumentItem | null;
@@ -63,7 +64,9 @@ export default function DocumentPane({
 }: Props) {
   const status = useStatus();
   const confirm = useConfirm();
+  const editRef = useRef<DocumentEditHandle>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // Local attachment list so uploads/deletes appear instantly without waiting
@@ -94,6 +97,13 @@ export default function DocumentPane({
     if (doc) return toInput(doc);
     return emptyInput();
   }, [isCreating, doc]);
+
+  // Sync form when a different document is opened (doc.id changes)
+  useEffect(() => {
+    if (!isCreating && doc) {
+      setForm(toInput(doc));
+    }
+  }, [doc?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isDirty = !isSameInput(form, baseline);
   const isValid = isInputValid(form);
@@ -360,6 +370,7 @@ export default function DocumentPane({
         )
       ) : (
         <DocumentEdit
+          ref={editRef}
           form={form}
           onChange={setForm}
           isCreating={isCreating}
@@ -374,7 +385,55 @@ export default function DocumentPane({
           onDeleteAttachment={isCreating
             ? (name) => setPendingFiles((prev) => prev.filter((f) => f.name !== name))
             : handleDeleteAttachment}
+          onExtractingChange={setIsExtracting}
         />
+      )}
+
+      {mode === "edit" && isDrawer && (
+        <div className="doc-pane-modal-footer">
+          {canEdit && (
+            <div className="doc-pane-footer-attach">
+              <button
+                type="button"
+                className="footer-attach-btn"
+                disabled={isUploading}
+                onClick={() => editRef.current?.triggerAttach()}
+                title="Attach a file"
+              >
+                <Paperclip size={14} />
+                {isUploading ? "Uploading…" : "Attach"}
+              </button>
+              <button
+                type="button"
+                className="footer-attach-btn"
+                disabled={isExtracting}
+                onClick={() => editRef.current?.triggerImport()}
+                title="Extract text from file and insert into content"
+              >
+                <FileInput size={14} />
+                {isExtracting ? "Extracting…" : "Import text"}
+              </button>
+            </div>
+          )}
+          <div className="doc-pane-modal-footer-actions">
+            <button
+              type="button"
+              className="doc-pane-cancel-btn"
+              onClick={handleCancel}
+              disabled={isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="primary-btn doc-pane-save-btn--drawer"
+              disabled={!canSave || isPending}
+            >
+              <Save size={15} strokeWidth={2} aria-hidden />
+              {isPending ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
       )}
     </form>
   );

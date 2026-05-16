@@ -293,6 +293,87 @@
     }
 }
 
+/* ===== Document Modal (Notion-style centered overlay) ===== */
+
+.doc-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.42);
+    animation: modal-overlay-in 0.18s ease;
+    cursor: default;
+}
+
+.doc-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 201;
+    width: min(860px, 92vw);
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28), 0 4px 16px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    animation: modal-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+
+    .doc-pane {
+        flex: 1;
+        min-height: 0;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        max-height: 88vh;
+    }
+
+    &.doc-modal--fullscreen {
+        top: 0;
+        left: 0;
+        transform: none;
+        width: 100vw;
+        max-height: 100vh;
+        border-radius: 0;
+
+        .doc-pane {
+            max-height: 100vh;
+        }
+    }
+}
+
+@media (max-width: 767px) {
+    .doc-modal {
+        top: 0;
+        left: 0;
+        transform: none;
+        width: 100vw;
+        max-height: 100dvh;
+        border-radius: 0;
+
+        .doc-pane {
+            max-height: 100dvh;
+        }
+    }
+}
+
+@keyframes modal-overlay-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modal-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, calc(-50% + 20px)) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
 /* App Sidebar */
 /* App Sidebar */
 .app-sidebar {
@@ -1095,6 +1176,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow: hidden;
     border: none;
     border-radius: 0;
     padding: 0;
@@ -1167,7 +1249,7 @@
         background: var(--bg);
 
         &.doc-pane-top-wrapper--drawer {
-            padding: 20px 22px 0;
+            padding: 10px 14px 0;
             background: transparent;
         }
     }
@@ -1180,18 +1262,20 @@
         border-bottom: 1px solid var(--border);
 
         &.doc-pane-top--drawer {
-            flex-direction: column-reverse;
-            align-items: stretch;
-            gap: 14px;
-            padding-bottom: 18px;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 10px;
 
             .doc-pane-title-container {
-                width: 100%;
+                flex: 1;
+                min-width: 0;
             }
 
-            // .doc-pane-actions {
-            //     display: flex;
-            // }
+            .doc-pane-actions {
+                flex-shrink: 0;
+                margin-left: auto;
+            }
         }
 
         .doc-pane-title-container {
@@ -1389,21 +1473,21 @@
             align-items: center;
             justify-content: center;
             height: 36px;
-            padding: 0 14px;
+            padding: 0 16px;
             font-size: 13px;
             font-weight: 600;
             font-family: inherit;
             border-radius: 8px;
             border: 1px solid var(--border);
-            background: transparent;
+            background: var(--soft);
             color: var(--text);
             cursor: pointer;
             white-space: nowrap;
             transition: background 0.15s, border-color 0.15s;
 
             &:hover:not(:disabled) {
-                background: var(--soft);
-                border-color: var(--muted);
+                background: var(--soft-2);
+                border-color: color-mix(in srgb, var(--muted) 60%, var(--border));
             }
 
             &:disabled {
@@ -1702,6 +1786,74 @@
     }
 }
 
+/* Standalone cancel button — works in any context (footer, toolbar) */
+.doc-pane-cancel-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--soft);
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:hover:not(:disabled) {
+        background: var(--soft-2);
+        border-color: color-mix(in srgb, var(--muted) 60%, var(--border));
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+/* ===== Modal footer (Save / Cancel bar at bottom) ===== */
+.doc-pane-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--panel);
+
+    .doc-pane-modal-footer-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+    }
+}
+
+/* Hard reset: prevent global input/textarea styles from bleeding into notion fields */
+.notion-title-input,
+.notion-summary-input,
+.notion-content-input {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    outline: none !important;
+
+    &:focus,
+    &:focus-visible,
+    &:hover,
+    &:hover:not(:focus) {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        outline: none !important;
+    }
+}
+
 /* ===== Notion-style Document Body ===== */
 .notion-doc-body {
     @include mixins.scrollbar-stable;
@@ -1714,7 +1866,7 @@
     overflow-y: auto;
 
     &.notion-doc-body--edit {
-        padding-top: 28px;
+        padding-top: 20px;
     }
 }
 
@@ -1741,21 +1893,22 @@
     box-shadow: none;
     outline: none;
     resize: none;
-    padding: 0;
+    padding: 3px 0 0;
     margin: 0 0 16px;
     font-family: inherit;
     overflow: hidden;
 
     &::placeholder {
-        color: var(--muted);
-        opacity: 0.5;
+        color: var(--secondery-text);
+        opacity: 0.75;
     }
 
     &:focus,
     &:hover:not(:focus) {
-        border: none;
-        background: transparent;
-        box-shadow: none;
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
     }
 }
 
@@ -1837,7 +1990,7 @@
 .notion-summary-input {
     width: 100%;
     font-size: 13px;
-    line-height: 1.6;
+    line-height: 1.5;
     color: color-mix(in srgb, var(--text) 70%, var(--muted));
     background: transparent;
     border: none;
@@ -1846,20 +1999,21 @@
     outline: none;
     resize: none;
     padding: 0;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
     font-family: inherit;
     overflow: hidden;
 
     &::placeholder {
-        color: var(--muted);
+        color: var(--secondery-text);
         opacity: 0.6;
     }
 
     &:focus,
     &:hover:not(:focus) {
-        border: none;
-        background: transparent;
-        box-shadow: none;
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
     }
 }
 
@@ -1892,20 +2046,22 @@
     resize: none;
     padding: 0;
     font-family: inherit;
-    overflow: hidden;
+    overflow-y: auto;
     flex: 1;
-    min-height: 200px;
+    min-height: 300px;
+    padding-bottom: 48px;
 
     &::placeholder {
-        color: var(--muted);
-        opacity: 0.5;
+        color: var(--secondery-text);
+        opacity: 0.6;
     }
 
     &:focus,
     &:hover:not(:focus) {
-        border: none;
-        background: transparent;
-        box-shadow: none;
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
     }
 }
 
@@ -1916,25 +2072,96 @@
     margin-top: 8px;
 }
 
-.notion-attachments {
-    margin-top: 32px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
+/* Compact attachment file chips (shown in doc body below content) */
+.notion-att-chips {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
 }
 
-.notion-attachments-header {
+.notion-att-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
+    padding: 0 8px 0 7px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--soft);
+    font-size: 12px;
+    color: var(--secondery-text);
+    max-width: 220px;
+
+    &.notion-att-chip--pending {
+        border-style: dashed;
+        opacity: 0.75;
+    }
+
+    .notion-att-chip-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 140px;
+    }
+
+    .notion-att-chip-badge {
+        font-size: 10px;
+        color: var(--muted);
+        white-space: nowrap;
+    }
+
+    .notion-att-chip-action {
+        display: inline-flex;
+        align-items: center;
+        padding: 0;
+        background: transparent;
+        border: none;
+        color: var(--muted);
+        cursor: pointer;
+        line-height: 1;
+        flex-shrink: 0;
+
+        &:hover {
+            color: var(--text);
+        }
+    }
+}
+
+/* Footer attach/import ghost buttons (left side of modal footer) */
+.doc-pane-footer-attach {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    gap: 4px;
+}
+
+.footer-attach-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
     color: var(--muted);
-    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+
+    &:hover:not(:disabled) {
+        background: var(--soft);
+        color: var(--text);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
 }
 
 /* Compact header when no title is shown (Notion mode) */
