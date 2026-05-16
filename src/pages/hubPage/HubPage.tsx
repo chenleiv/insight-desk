@@ -110,10 +110,10 @@ export default function HubPage() {
   const [docDrawerFullscreen, setDocDrawerFullscreen] = useState<boolean>(() =>
     loadJson<boolean>("docDrawerFullscreen", false)
   );
-  const [order, setOrder] = useState<number[]>([]);
+  const [order, setOrder] = useState<string[]>([]);
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>(() =>
-    loadJson<number[]>(CONTEXT_KEY, [])
+    loadJson<string[]>(CONTEXT_KEY, [])
   );
   const [isCreating, setIsCreating] = useState(false);
   const [isPaneDirty, setIsPaneDirty] = useState(false);
@@ -122,7 +122,7 @@ export default function HubPage() {
   );
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [importPreview, setImportPreview] = useState<{ mode: "append" | "replace"; docs: Partial<DocumentInput>[] } | null>(null);
-  const lastActiveDocIdRef = useRef<number | null>(null);
+  const lastActiveDocIdRef = useRef<string | null>(null);
 
   const activeDoc = useMemo(() => {
     if (activeDocId == null) return null;
@@ -529,7 +529,7 @@ export default function HubPage() {
                 onDelete={onDelete}
                 onDirtyChange={setIsPaneDirty}
                 isMaximized={docDrawerFullscreen}
-                onToggleMaximize={isMobile ? undefined : toggleDocDrawerFullscreen}
+                {...(!isMobile && { onToggleMaximize: toggleDocDrawerFullscreen })}
               />
             </div>
           </>
