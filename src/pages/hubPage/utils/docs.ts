@@ -48,7 +48,6 @@ const CATEGORY_PALETTE: Record<string, CategoryVisual> = {
   devops: catVars("devops"),
 };
 
-
 export function getCategoryVisual(category: string): CategoryVisual | null {
   let key = normalizeCategoryKey(category);
   key = CATEGORY_ALIASES[key] ?? key;
@@ -57,7 +56,8 @@ export function getCategoryVisual(category: string): CategoryVisual | null {
 
 function hashCategoryKey(s: string): number {
   let h = 0;
-  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  for (let i = 0; i < s.length; i++)
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
 
@@ -65,7 +65,8 @@ function hashCategoryKey(s: string): number {
 export function getFallbackCategoryVisual(category: string): CategoryVisual {
   const key = normalizeCategoryKey(category);
   const hue = hashCategoryKey(key) % 360;
-  const isLight = typeof document !== "undefined" &&
+  const isLight =
+    typeof document !== "undefined" &&
     document.documentElement.dataset.theme === "light";
   if (isLight) {
     return {
@@ -90,22 +91,33 @@ export function resolveCategoryVisual(category: string): CategoryVisual {
   return getCategoryVisual(category) ?? getFallbackCategoryVisual(category);
 }
 
-export function getCategoryIconStyle(category: string): { backgroundColor: string; color: string } {
+export function getCategoryIconStyle(category: string): {
+  backgroundColor: string;
+  color: string;
+} {
   const v = resolveCategoryVisual(category);
   return { backgroundColor: v.iconBg, color: v.iconFg };
 }
 
-export function getCategoryTagStyle(category: string): { backgroundColor: string; color: string } {
+export function getCategoryTagStyle(category: string): {
+  backgroundColor: string;
+  color: string;
+} {
   const v = resolveCategoryVisual(category);
-  return { backgroundColor: v.tagBg, color: v.tagFg };
+  return { backgroundColor: "transparent", color: v.tagFg };
 }
 
 export function getDocTags(doc: DocumentItem | null | undefined): string[] {
   if (!doc?.category || typeof doc.category !== "string") return [];
-  return doc.category.split(/[,;]/).map((t) => t.trim()).filter(Boolean);
+  return doc.category
+    .split(/[,;]/)
+    .map((t) => t.trim())
+    .filter(Boolean);
 }
 
-export function getUniqueCategories(docs: DocumentItem[]): { name: string; count: number }[] {
+export function getUniqueCategories(
+  docs: DocumentItem[],
+): { name: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const doc of docs) {
     for (const tag of getDocTags(doc)) {
@@ -117,7 +129,10 @@ export function getUniqueCategories(docs: DocumentItem[]): { name: string; count
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function matchesCategory(doc: DocumentItem, category: string | null): boolean {
+export function matchesCategory(
+  doc: DocumentItem,
+  category: string | null,
+): boolean {
   if (!category || category === "all") return true;
   return getDocTags(doc).includes(category);
 }

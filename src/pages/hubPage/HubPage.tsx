@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Menu as MenuIcon, BrainCircuit, ChevronLeft, ChevronRight } from "lucide-react";
+import { Menu as MenuIcon, BrainCircuit, ChevronLeft } from "lucide-react";
 import { useMobile } from "../../hooks/useMobile";
 
 import AppSidebar from "./components/AppSidebar";
-import DocumentsGridView from "./components/DocumentsGridView";
 import AIAssistantView from "./components/AIAssistantView";
 import DocumentPane from "./components/DocumentPane";
+import DocPanel from "./components/DocPanel";
 
 import { useDocuments, useSetDocs, DOCUMENTS_QUERY_KEY } from "../../context/DocumentsContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,24 +22,18 @@ import {
   type DocumentItem,
   type DocumentInput,
 } from "../../api/documentsClient";
-import { matchesQuery, matchesCategory, getUniqueCategories } from "./utils/docs";
 import { CONTEXT_KEY } from "./utils/assistantUtils";
 import { parseImportFiles } from "./utils/parseImportFile";
 
 import "./hubPage.scss";
+import "./components/docPanel.scss";
 
 import DashboardView from "./components/DashboardView";
 import SettingsView from "./components/SettingsView";
 import ImportPreviewDialog from "./components/ImportPreviewDialog";
 import type { View } from "./components/AppSidebar";
 
-const HUB_VIEWS: readonly View[] = [
-  "dashboard",
-  "documents",
-  "favorites",
-  "assistant",
-  "settings",
-];
+const HUB_VIEWS: readonly View[] = ["dashboard", "assistant", "settings"];
 
 function normalizeHubView(raw: unknown): View {
   return typeof raw === "string" && (HUB_VIEWS as readonly string[]).includes(raw)
@@ -48,7 +42,7 @@ function normalizeHubView(raw: unknown): View {
 }
 
 export default function HubPage() {
-  const { user, toggleFavorite: globalToggleFavorite, favoritesMap: favorites } = useAuth();
+  const { user, toggleFavorite, favoritesMap: favorites } = useAuth();
   const status = useStatus();
   const confirm = useConfirm();
   const isMobile = useMobile(1024);
@@ -89,24 +83,18 @@ export default function HubPage() {
           setIsPaneDirty(false);
           setIsCreating(false);
           setActiveDocId(null);
-          if (newView === "favorites") setCategoryFilter(null);
           setHubView(newView);
         }
       });
       return;
     }
-
     setIsCreating(false);
     setActiveDocId(null);
     setIsPaneDirty(false);
-    if (newView === "favorites") setCategoryFilter(null);
     setHubView(newView);
   }
 
-  const [docSearchQuery, setDocSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [docViewMode, setDocViewMode] = useState<"grid" | "list">("grid");
   const [order, setOrder] = useState<string[]>([]);
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>(() =>
@@ -118,6 +106,10 @@ export default function HubPage() {
     loadJson<boolean>("sidebarCollapsed", false)
   );
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isDocPanelCollapsed, setIsDocPanelCollapsed] = useState<boolean>(() =>
+    loadJson<boolean>("docPanelCollapsed", true)
+  );
+  const [mobileDocPickerOpen, setMobileDocPickerOpen] = useState(false);
   const [importPreview, setImportPreview] = useState<{ mode: "append" | "replace"; docs: Partial<DocumentInput>[] } | null>(null);
   const lastActiveDocIdRef = useRef<string | null>(null);
 
@@ -150,7 +142,6 @@ export default function HubPage() {
     contentRef.current?.focus({ preventScroll: true });
   }, [view]);
 
-
   useEffect(() => {
     if (docs.length > 0) {
       const ids = new Set(docs.map((d) => d.id));
@@ -163,27 +154,19 @@ export default function HubPage() {
   }, [docs]);
 
   const orderedDocs = useMemo(() => applyOrder(docs, order), [docs, order]);
-  const filteredDocs = useMemo(() => {
-    return orderedDocs.filter((d) => {
-      const isFavMatch = view === "favorites" ? !!favorites[d.id] : true;
-      return isFavMatch && matchesQuery(d, docSearchQuery) && matchesCategory(d, categoryFilter);
+
+  const handleToggleSelected = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      saveJson(CONTEXT_KEY, next);
+      return next;
     });
-  }, [orderedDocs, docSearchQuery, categoryFilter, view, favorites]);
+  }, []);
 
-  const favoritedDocs = useMemo(
-    () => orderedDocs.filter((d) => favorites[d.id]),
-    [orderedDocs, favorites],
-  );
-
-  const categories = useMemo(() => {
-    const source = view === "favorites" ? favoritedDocs : orderedDocs;
-    return getUniqueCategories(source);
-  }, [view, orderedDocs, favoritedDocs]);
-
-  const recentDocs = useMemo(
-    () => orderedDocs.slice(0, 5).map((d) => ({ id: d.id, title: d.title })),
-    [orderedDocs]
-  );
+  const handleClearSelection = useCallback(() => {
+    setSelectedIds([]);
+    saveJson(CONTEXT_KEY, []);
+  }, []);
 
   async function openCreate() {
     if (isPaneDirty) {
@@ -196,13 +179,9 @@ export default function HubPage() {
       if (!ok) return;
       setIsPaneDirty(false);
     }
-    setDocSearchQuery("");
     lastActiveDocIdRef.current = activeDocId;
     setIsCreating(true);
     setActiveDocId(null);
-    if (view !== "favorites") {
-      setHubView("documents");
-    }
   }
 
   function handleCreated(doc: DocumentItem) {
@@ -236,11 +215,8 @@ export default function HubPage() {
     setIsPaneDirty(false);
     setIsCreating(false);
     setActiveDocId(id);
-    if (view !== "favorites") {
-      setHubView("documents");
-    }
+    setMobileDocPickerOpen(false);
   }
-
 
   function closeDocument() {
     if (isPaneDirty) {
@@ -289,8 +265,8 @@ export default function HubPage() {
     const input = document.createElement("input");
     input.type = "file";
     const acceptMap: Record<typeof fileType, string> = {
-      json:  ".json",
-      text:  ".txt,.md",
+      json: ".json",
+      text: ".txt,.md",
     };
     input.accept = acceptMap[fileType];
     input.multiple = fileType !== "json";
@@ -331,9 +307,7 @@ export default function HubPage() {
         saveJson(orderKey, next);
         return next;
       });
-      if (wasActive) {
-        setActiveDocId(null);
-      }
+      if (wasActive) setActiveDocId(null);
       status.show({ kind: "success", message: "Document deleted." });
     } catch (e) {
       status.show({
@@ -344,15 +318,13 @@ export default function HubPage() {
     }
   }
 
-  const docDrawerOpen =
-    (view === "documents" || view === "favorites") &&
-    (activeDocId !== null || isCreating);
+  const docOpen = activeDocId !== null || isCreating;
 
   const closeDocumentRef = useRef(closeDocument);
   useEffect(() => { closeDocumentRef.current = closeDocument; });
 
   useEffect(() => {
-    if (!docDrawerOpen) return;
+    if (!docOpen) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -361,7 +333,20 @@ export default function HubPage() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [docDrawerOpen]);
+  }, [docOpen]);
+
+  const docPanelProps = {
+    docs: orderedDocs,
+    favorites,
+    selectedIds,
+    activeDocId,
+    onOpenDocument: openDocument,
+    onNew: openCreate,
+    onToggleFavorite: toggleFavorite,
+    onToggleSelected: handleToggleSelected,
+    onClearSelection: handleClearSelection,
+    loading: docsLoading,
+  };
 
   return (
     <div className={`hub-layout hub-layout-refactored ${isMobileSidebarOpen ? "mobile-sidebar-open" : ""}`}>
@@ -378,28 +363,14 @@ export default function HubPage() {
         <AppSidebar
           view={view}
           onViewChange={handleViewChange}
-          query={docSearchQuery}
-          onQueryChange={setDocSearchQuery}
-          onNew={openCreate}
-          recentDocs={recentDocs}
-          sidebarOpen={true}
           isCollapsed={isSidebarCollapsed}
           onMobileClose={() => setIsMobileSidebarOpen(false)}
+          onToggleCollapsed={!isMobile ? () => setIsSidebarCollapsed(prev => {
+            const next = !prev;
+            saveJson("sidebarCollapsed", next);
+            return next;
+          }) : undefined}
         />
-        {!isMobile && (
-          <button
-            type="button"
-            className="sidebar-toggle-btn"
-            onClick={() => setIsSidebarCollapsed(prev => {
-              const next = !prev;
-              saveJson("sidebarCollapsed", next);
-              return next;
-            })}
-            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-          </button>
-        )}
       </aside>
 
       <header className="mobile-top-bar">
@@ -410,103 +381,109 @@ export default function HubPage() {
           <BrainCircuit size={18} />
           <span>InsightDesk</span>
         </div>
+        <button
+          className="mobile-docs-btn"
+          onClick={() => setMobileDocPickerOpen(true)}
+          aria-label="Browse documents"
+        >
+          <MenuIcon size={20} />
+        </button>
       </header>
 
       <main className="hub-main">
         <div className="hub-main-layout">
+          {!isMobile && (
+            <div className={`doc-panel-wrapper${isDocPanelCollapsed ? " collapsed" : ""}`}>
+              <DocPanel
+                {...docPanelProps}
+                isCollapsed={isDocPanelCollapsed}
+                onToggleCollapsed={() => setIsDocPanelCollapsed(prev => {
+                  const next = !prev;
+                  saveJson("docPanelCollapsed", next);
+                  return next;
+                })}
+              />
+              {!isDocPanelCollapsed && (
+                <div
+                  className="doc-panel-edge-strip"
+                  onClick={() => setIsDocPanelCollapsed(prev => { const next = !prev; saveJson("docPanelCollapsed", next); return next; })}
+                  role="button"
+                  aria-label="Collapse documents"
+                  data-tooltip="Collapse documents"
+                  data-tooltip-pos="right"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setIsDocPanelCollapsed(prev => { const next = !prev; saveJson("docPanelCollapsed", next); return next; }); }}
+                >
+                  <ChevronLeft size={13} className="doc-panel-collapsed-arrow" />
+                  <span className="doc-panel-collapsed-label">Documents</span>
+                </div>
+              )}
+            </div>
+          )}
           <div
             ref={contentRef}
-            className={`hub-content${docDrawerOpen ? " hub-content--doc" : ""}`}
+            className={`hub-content${docOpen ? " hub-content--doc" : ""}`}
             tabIndex={-1}
             role="main"
-            aria-label={view === "documents" ? "Documents" : view === "favorites" ? "Favorites" : view === "assistant" ? "AI Assistant" : view === "dashboard" ? "Dashboard" : "Content"}
+            aria-label={docOpen ? "Document" : view}
           >
-            {view === "dashboard" && (
-              <DashboardView
-                onViewAllDocuments={() => setHubView("documents")}
-                onNewDocument={openCreate}
-                onOpenDocument={(id) => openDocument(id)}
-                onExport={handleExport}
-                onImport={handleImport}
-                isAdmin={isAdmin}
-              />
-            )}
-            {(view === "documents" || view === "favorites") && (
-              docDrawerOpen ? (
-                <DocumentPane
-                  key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
-                  doc={activeDoc}
-                  canEdit={isAdmin}
-                  isCreating={isCreating}
-                  onBack={closeDocument}
-                  onCancelCreate={() => {
-                    setIsPaneDirty(false);
-                    setIsCreating(false);
-                    setActiveDocId(lastActiveDocIdRef.current);
-                  }}
-                  onCreated={handleCreated}
-                  hasDocs={docs.length > 0}
-                  loading={docsLoading}
-                  onSaved={(updated) =>
-                    setDocs((p) =>
-                      p.map((d) => (d.id === updated.id ? updated : d))
-                    )
-                  }
-                  onDelete={onDelete}
-                  onDirtyChange={setIsPaneDirty}
-                />
-              ) : (
-                <DocumentsGridView
-                  docs={filteredDocs}
-                  favorites={favorites}
-                  categories={categories}
-                  categoryFilter={categoryFilter}
-                  onCategoryFilterChange={setCategoryFilter}
-                  onOpen={openDocument}
-                  onToggleFavorite={globalToggleFavorite}
-                  viewMode={docViewMode}
-                  onViewModeChange={setDocViewMode}
-                  searchQuery={docSearchQuery}
-                  onSearchChange={setDocSearchQuery}
-                  onNew={openCreate}
-                  onExport={handleExport}
-                  onImport={handleImport}
-                  isAdmin={isAdmin}
-                  loading={docsLoading}
-                />
-              )
-            )}
-
-            {view === "assistant" && (
-              <AIAssistantView
-                docs={docs}
-                selectedIds={selectedIds}
-                onSelectDocuments={() => setHubView("documents")}
-                onNew={openCreate}
-                onToggleSelected={(id) => {
-                  setSelectedIds((prev) => {
-                    const next = prev.includes(id)
-                      ? prev.filter((x) => x !== id)
-                      : [...prev, id];
-                    saveJson(CONTEXT_KEY, next);
-                    return next;
-                  });
+            {docOpen ? (
+              <DocumentPane
+                key={isCreating ? "creating" : (activeDoc?.id ?? "empty")}
+                doc={activeDoc}
+                canEdit={isAdmin}
+                isCreating={isCreating}
+                onBack={closeDocument}
+                onCancelCreate={() => {
+                  setIsPaneDirty(false);
+                  setIsCreating(false);
+                  setActiveDocId(lastActiveDocIdRef.current);
                 }}
-                onClearSelection={() => {
-                  setSelectedIds([]);
-                  saveJson(CONTEXT_KEY, []);
-                }}
+                onCreated={handleCreated}
+                hasDocs={docs.length > 0}
+                loading={docsLoading}
+                onSaved={(updated) =>
+                  setDocs((p) => p.map((d) => (d.id === updated.id ? updated : d)))
+                }
+                onDelete={onDelete}
+                onDirtyChange={setIsPaneDirty}
               />
+            ) : (
+              <>
+                {view === "dashboard" && (
+                  <DashboardView
+                    onViewAllDocuments={openCreate}
+                    onNewDocument={openCreate}
+                    onOpenDocument={openDocument}
+                    onExport={handleExport}
+                    onImport={handleImport}
+                    isAdmin={isAdmin}
+                  />
+                )}
+                {view === "assistant" && (
+                  <AIAssistantView
+                    docs={docs}
+                    selectedIds={selectedIds}
+                    {...(isMobile ? { onOpenMobilePicker: () => setMobileDocPickerOpen(true) } : {})}
+                  />
+                )}
+                {view === "settings" && (
+                  <SettingsView isAdmin={isAdmin} />
+                )}
+              </>
             )}
-
-            {view === "settings" && (
-              <SettingsView isAdmin={isAdmin} />
-            )}
-
           </div>
         </div>
-
       </main>
+
+      {mobileDocPickerOpen && isMobile && (
+        <div className="mobile-doc-picker-overlay" onClick={() => setMobileDocPickerOpen(false)}>
+          <div className="mobile-doc-picker-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-doc-picker-handle" />
+            <DocPanel {...docPanelProps} />
+          </div>
+        </div>
+      )}
 
       {importPreview && (
         <ImportPreviewDialog

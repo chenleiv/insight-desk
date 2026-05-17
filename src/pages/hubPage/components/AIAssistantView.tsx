@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import "./aiAssistant.scss";
-import { BrainCircuit, Send, Bot, ChevronDown, Check, ScrollText, X } from "lucide-react";
+import { BrainCircuit, Send, Bot, ScrollText, X } from "lucide-react";
 import { chatWithAI, getSystemPrompt, type PromptConfig } from "../../../api/aiClient";
 import type { DocumentItem } from "../../../api/documentsClient";
 import { buildSnippet, scoreDoc, uid } from "../utils/assistantUtils";
@@ -22,19 +22,10 @@ const PROMPT_SUGGESTIONS = [
 type Props = {
   docs: DocumentItem[];
   selectedIds: string[];
-  onSelectDocuments?: () => void;
-  onNew?: () => void;
-  onToggleSelected?: (id: string) => void;
-  onClearSelection?: () => void;
+  onOpenMobilePicker?: () => void;
 };
 
-export default function AIAssistantView({
-  docs,
-  selectedIds,
-  onToggleSelected,
-  onClearSelection,
-  onSelectDocuments,
-}: Props) {
+export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker }: Props) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
@@ -57,19 +48,6 @@ export default function AIAssistantView({
   const [lastError, setLastError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
-
-  useEffect(() => {
-    if (!pickerOpen) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-        setPickerOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [pickerOpen]);
 
   const selectedDocs = selectedIds.length === 0
     ? []
@@ -151,7 +129,8 @@ export default function AIAssistantView({
   }
 
   function handleSuggestionClick(suggestion: string) {
-    sendMessage(suggestion);
+    setInput(suggestion);
+    inputRef.current?.focus();
   }
 
   function clearChat() {
@@ -179,7 +158,6 @@ export default function AIAssistantView({
         const config = await getSystemPrompt();
         setPromptConfig(config);
       } catch {
-        // not admin or unavailable
         return;
       }
     }
@@ -242,11 +220,6 @@ export default function AIAssistantView({
           </>
         ) : (
           <div className="ai-messages" aria-live="polite">
-            <div className="ai-messages-topbar">
-              <button type="button" className="ai-clear-chat-link" onClick={clearChat}>
-                Clear chat
-              </button>
-            </div>
             {messages.map((m) => {
               if (m.isGreeting) return null;
               const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -348,69 +321,24 @@ export default function AIAssistantView({
                 ? "Using all documents for context"
                 : `${selectedIds.length} document${selectedIds.length === 1 ? "" : "s"} in context`}
             </p>
-            <div className="ai-context-picker" ref={pickerRef}>
+            {onOpenMobilePicker && (
               <button
                 type="button"
-                className="ai-context-picker-trigger"
-                onClick={() => setPickerOpen((o) => !o)}
-                aria-expanded={pickerOpen}
-                aria-haspopup="listbox"
-                disabled={docs.length === 0}
+                className="ai-mobile-context-btn"
+                onClick={onOpenMobilePicker}
               >
-                Choose documents
-                <ChevronDown size={14} className={pickerOpen ? "open" : ""} />
+                {selectedIds.length > 0 ? `Context (${selectedIds.length})` : "Context"}
               </button>
-              {pickerOpen && docs.length > 0 && (
-                <div className="ai-context-picker-panel" role="listbox">
-                  {onClearSelection && (
-                    <button
-                      type="button"
-                      role="option"
-                      className={`ai-context-picker-row ${selectedIds.length === 0 ? "selected" : ""}`}
-                      onClick={() => {
-                        onClearSelection();
-                      }}
-                    >
-                      <span className="ai-context-picker-title">All documents</span>
-                      {selectedIds.length === 0 && (
-                        <Check size={14} className="ai-context-picker-check" />
-                      )}
-                    </button>
-                  )}
-                  {docs.map((d) => {
-                    const isOn = selectedIds.includes(d.id);
-                    return (
-                      <button
-                        key={d.id}
-                        type="button"
-                        role="option"
-                        aria-selected={isOn}
-                        className={`ai-context-picker-row ${isOn ? "selected" : ""}`}
-                        onClick={() => onToggleSelected?.(d.id)}
-                      >
-                        <span className="ai-context-picker-title">
-                          {d.title.slice(0, 48)}
-                          {d.title.length > 48 ? "…" : ""}
-                        </span>
-                        {isOn && <Check size={14} className="ai-context-picker-check" />}
-                      </button>
-                    );
-                  })}
-                  {onSelectDocuments && (
-                    <button
-                      type="button"
-                      className="ai-context-picker-browse"
-                      onClick={() => {
-                        setPickerOpen(false);
-                        onSelectDocuments();
-                      }}
-                    >
-                      Open document library…
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+            )}
+            {hasStartedChat && (
+              <button
+                type="button"
+                className="ai-clear-chat-btn"
+                onClick={clearChat}
+              >
+                Clear chat
+              </button>
+            )}
           </div>
         </div>
       </div>

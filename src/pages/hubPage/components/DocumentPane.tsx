@@ -332,21 +332,6 @@ export default function DocumentPane({
         onEdit={() => setMode("edit")}
         onCancel={handleCancel}
         {...(isDrawer && onClose ? { onClose } : {})}
-        leftAction={
-          !isDrawer &&
-          onBack && (
-            <button
-              type="button"
-              className="icon-btn doc-pane-back"
-              onClick={onBack}
-              aria-label="Back to list"
-              data-tooltip="Back to list"
-              data-tooltip-pos="bottom"
-            >
-              <ArrowLeft size={20} />
-            </button>
-          )
-        }
         {...(doc && onDelete && { onDelete: () => onDelete(doc) })}
         {...(isMaximized !== undefined && { isMaximized })}
         {...(onToggleMaximize !== undefined && { onToggleMaximize })}

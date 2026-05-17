@@ -6,6 +6,7 @@ interface SkeletonProps {
   width?: string | number;
   height?: string | number;
   circle?: boolean;
+  style?: React.CSSProperties;
 }
 
 export const Skeleton: React.FC<SkeletonProps> = ({
@@ -13,11 +14,13 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   width,
   height,
   circle,
+  style: extraStyle,
 }) => {
   const style: React.CSSProperties = {
     width,
     height,
     borderRadius: circle ? "50%" : "4px",
+    ...extraStyle,
   };
 
   return <div className={`skeleton-pulse ${className}`} style={style} />;

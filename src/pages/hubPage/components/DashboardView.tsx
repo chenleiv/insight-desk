@@ -89,6 +89,38 @@ export default function DashboardView({
         <div className="dashboard-welcome">
           <h1>Welcome back, {displayName}</h1>
         </div>
+        <div className="dashboard-top-actions">
+          <button
+            type="button"
+            className="action-btn primary"
+            onClick={() => void onNewDocument?.()}
+          >
+            + New Document
+          </button>
+          {isAdmin && onExport && (
+            <button type="button" className="action-btn secondary" onClick={onExport}>
+              <Download size={15} /> Export
+            </button>
+          )}
+          {isAdmin && onImport && (
+            <>
+              <button
+                type="button"
+                className="action-btn secondary"
+                ref={importBtnRef}
+                onClick={() => setShowImportMenu(true)}
+              >
+                <Upload size={15} /> Import
+              </button>
+              <Menu
+                open={showImportMenu}
+                onClose={() => setShowImportMenu(false)}
+                items={importMenuOptions}
+                anchorRef={importBtnRef}
+              />
+            </>
+          )}
+        </div>
       </div>
 
       <div className="dashboard-stats-grid">
@@ -203,43 +235,6 @@ export default function DashboardView({
           </div>
         </div>
 
-        <div className="ai-activity-panel">
-          <div className="quick-actions-panel">
-            <h3>Quick Actions</h3>
-            <div className="actions-grid">
-              <button
-                type="button"
-                className="action-btn primary"
-                onClick={() => void onNewDocument?.()}
-              >
-                + New Document
-              </button>
-              {isAdmin && onExport && (
-                <button type="button" className="action-btn secondary" onClick={onExport}>
-                  <Download size={16} /> Export JSON
-                </button>
-              )}
-              {isAdmin && onImport && (
-                <>
-                  <button
-                    type="button"
-                    className="action-btn secondary"
-                    ref={importBtnRef}
-                    onClick={() => setShowImportMenu(true)}
-                  >
-                    <Upload size={16} /> Import
-                  </button>
-                  <Menu
-                    open={showImportMenu}
-                    onClose={() => setShowImportMenu(false)}
-                    items={importMenuOptions}
-                    anchorRef={importBtnRef}
-                  />
-                </>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

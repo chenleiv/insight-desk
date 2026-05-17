@@ -26,7 +26,6 @@ type Props = {
   onCancel: () => void;
   onClose?: () => void;
   onDelete?: () => void;
-  leftAction?: React.ReactNode;
   isMaximized?: boolean;
   onToggleMaximize?: () => void;
   onMinimize?: () => void;
@@ -113,7 +112,6 @@ export const DocumentHeader: React.FC<Props> = ({
   onCancel,
   onClose,
   onDelete,
-  leftAction,
   isMaximized,
   onToggleMaximize,
   onMinimize,
@@ -162,7 +160,6 @@ export const DocumentHeader: React.FC<Props> = ({
     <div className={`doc-pane-top-wrapper ${isDrawer ? "doc-pane-top-wrapper--drawer" : ""}`}>
       <div className={`doc-pane-top ${isDrawer ? "doc-pane-top--drawer" : ""}`}>
         <div className="doc-pane-title-container">
-          {leftAction && <div className="doc-pane-left-action">{leftAction}</div>}
           <div className="doc-pane-title-stack demo-welcome-target">
             {titleSlot ? (
               <div className="doc-pane-title-slot" id="doc-drawer-title">
