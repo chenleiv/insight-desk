@@ -457,6 +457,8 @@
 
     .sidebar-footer-actions {
         display: flex;
+        flex-direction: row-reverse;
+        justify-content: space-between;
         gap: 4px;
         margin-bottom: 8px;
         padding: 0 2px;
@@ -471,7 +473,7 @@
         color: color-mix(in srgb, var(--text) 55%, transparent);
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-end;
         cursor: pointer;
         transition: background 0.2s ease, color 0.2s ease;
 

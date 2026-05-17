@@ -175,6 +175,30 @@ export default function LoginPage() {
         </button>
 
       </form>
+
+      {mode === "login" && (
+        <div className="login-demo-section">
+          <div className="login-demo-divider">
+            <span>or</span>
+          </div>
+          <button
+            type="button"
+            className="login-demo-btn"
+            disabled={isPending}
+            onClick={async () => {
+              try {
+                const res = await login("admin@demo.com", "admin123");
+                loginSuccess(res.user);
+                nav(redirectTo, { replace: true });
+              } catch {
+                status.show({ kind: "error", title: "Demo unavailable", message: "Could not connect to demo account." });
+              }
+            }}
+          >
+            Try Demo
+          </button>
+        </div>
+      )}
     </div>
   );
 }

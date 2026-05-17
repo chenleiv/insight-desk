@@ -166,4 +166,51 @@
         }
 
     }
+
+    .login-demo-section {
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .login-demo-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 13px;
+
+        &::before,
+        &::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+    }
+
+    .login-demo-btn {
+        width: 100%;
+        padding: 13px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text);
+        font-size: 15px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: background 0.18s, border-color 0.18s;
+
+        &:hover {
+            background: var(--hover, rgba(0, 0, 0, 0.04));
+            border-color: var(--primary);
+        }
+
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    }
 }
