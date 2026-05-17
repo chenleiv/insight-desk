@@ -17,7 +17,7 @@ import {
 } from "../utils/documentForm";
 import { DocumentDetailSkeleton } from "../../../components/skeleton/Skeleton";
 
-import { Maximize2, ArrowLeft, Save, Paperclip } from "lucide-react";
+import { Maximize2, Save, Paperclip } from "lucide-react";
 
 type Props = {
   doc: DocumentItem | null;
@@ -30,7 +30,6 @@ type Props = {
   onSaved: (doc: DocumentItem) => void;
   onDelete?: (doc: DocumentItem) => void;
   hasDocs: boolean;
-  onBack?: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
   onModeChange?: (mode: "view" | "edit") => void;
   loading?: boolean;
@@ -52,7 +51,6 @@ export default function DocumentPane({
   onSaved,
   onDelete,
   hasDocs,
-  onBack,
   onDirtyChange,
   onModeChange,
   loading,

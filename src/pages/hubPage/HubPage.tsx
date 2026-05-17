@@ -433,7 +433,6 @@ export default function HubPage() {
                 doc={activeDoc}
                 canEdit={isAdmin}
                 isCreating={isCreating}
-                onBack={closeDocument}
                 onCancelCreate={() => {
                   setIsPaneDirty(false);
                   setIsCreating(false);
