@@ -45,7 +45,7 @@ export default function HubPage() {
   const { user, toggleFavorite, favoritesMap: favorites } = useAuth();
   const status = useStatus();
   const confirm = useConfirm();
-  const isMobile = useMobile(1024);
+  const isMobile = useMobile(768);
 
   const isAdmin = user?.role === "admin";
   const orderKey = scopedKey("documentsOrder", user?.email);
@@ -381,13 +381,6 @@ export default function HubPage() {
           <BrainCircuit size={18} />
           <span>InsightDesk</span>
         </div>
-        <button
-          className="mobile-docs-btn"
-          onClick={() => setMobileDocPickerOpen(true)}
-          aria-label="Browse documents"
-        >
-          <MenuIcon size={20} />
-        </button>
       </header>
 
       <main className="hub-main">
@@ -403,21 +396,19 @@ export default function HubPage() {
                   return next;
                 })}
               />
-              {!isDocPanelCollapsed && (
-                <div
-                  className="doc-panel-edge-strip"
-                  onClick={() => setIsDocPanelCollapsed(prev => { const next = !prev; saveJson("docPanelCollapsed", next); return next; })}
-                  role="button"
-                  aria-label="Collapse documents"
-                  data-tooltip="Collapse documents"
-                  data-tooltip-pos="right"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setIsDocPanelCollapsed(prev => { const next = !prev; saveJson("docPanelCollapsed", next); return next; }); }}
-                >
-                  <ChevronLeft size={13} className="doc-panel-collapsed-arrow" />
-                  <span className="doc-panel-collapsed-label">Documents</span>
-                </div>
-              )}
+              <div
+                className={`doc-panel-edge-strip${isDocPanelCollapsed ? " doc-panel-edge-strip--hidden" : ""}`}
+                onClick={() => setIsDocPanelCollapsed(prev => { const next = !prev; saveJson("docPanelCollapsed", next); return next; })}
+                role="button"
+                aria-label="Collapse documents"
+                data-tooltip="Collapse documents"
+                data-tooltip-pos="right"
+                tabIndex={isDocPanelCollapsed ? -1 : 0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setIsDocPanelCollapsed(prev => { const next = !prev; saveJson("docPanelCollapsed", next); return next; }); }}
+              >
+                <ChevronLeft size={13} className="doc-panel-collapsed-arrow" />
+                <span className="doc-panel-collapsed-label">Documents</span>
+              </div>
             </div>
           )}
           <div

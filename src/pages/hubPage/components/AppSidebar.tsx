@@ -48,7 +48,7 @@ export default function AppSidebar({
           <div className="logo-icon">
             <BrainCircuit size={18} />
           </div>
-          {!isCollapsed && <span className="logo-text">InsightDesk</span>}
+          <span className="logo-text">InsightDesk</span>
         </div>
       </div>
 
@@ -58,12 +58,12 @@ export default function AppSidebar({
             {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
               <li key={id}>
                 <button
-                  className={`nav-item ${view === id ? "active" : ""}`}
+                  className={`nav-item${view === id ? " active" : ""}${id === "assistant" ? " nav-item--ai" : ""}`}
                   onClick={() => { onViewChange(id); onMobileClose?.(); }}
                   {...(isCollapsed ? { "data-tooltip": label, "data-tooltip-pos": "right" } : {})}
                 >
                   <Icon size={18} />
-                  {!isCollapsed && <span>{label}</span>}
+                  <span>{label}</span>
                 </button>
               </li>
             ))}
@@ -105,23 +105,19 @@ export default function AppSidebar({
           <div className="user-avatar">
             {user ? getInitials(user.displayName || user.email) : "?"}
           </div>
-          {!isCollapsed && (
-            <>
-              <div className="user-info">
-                <span className="user-name">
-                  {user?.displayName || user?.email?.split("@")[0] || "User"}
-                </span>
-                <span className="user-email">
-                  {user?.jobTitle || user?.email || ""}
-                </span>
-              </div>
-              <LogOut
-                size={16}
-                className="user-logout-icon"
-                onClick={() => logout()}
-              />
-            </>
-          )}
+          <div className="user-info">
+            <span className="user-name">
+              {user?.displayName || user?.email?.split("@")[0] || "User"}
+            </span>
+            <span className="user-email">
+              {user?.jobTitle || user?.email || ""}
+            </span>
+          </div>
+          <LogOut
+            size={16}
+            className="user-logout-icon"
+            onClick={() => logout()}
+          />
         </button>
       </div>
     </aside>

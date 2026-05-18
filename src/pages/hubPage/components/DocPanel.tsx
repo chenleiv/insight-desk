@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Search, X, Paperclip, BrainCircuit, Star, Plus, ChevronRight } from "lucide-react";
 import type { DocumentItem } from "../../../api/documentsClient";
 import { getCategoryTagStyle } from "../utils/docs";
@@ -48,26 +48,25 @@ export default function DocPanel({
     });
   }, [docs, favorites, panelSearch, showFavoritesOnly]);
 
-  if (isCollapsed) {
-    return (
-      <div
-        className="doc-panel doc-panel--collapsed"
-        onClick={onToggleCollapsed}
-        role="button"
-        aria-label="Expand documents panel"
-        data-tooltip="Open documents"
-        data-tooltip-pos="right"
-        tabIndex={0}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onToggleCollapsed?.(); }}
-      >
-        <ChevronRight size={13} className="doc-panel-collapsed-arrow" />
+  return (
+    <div
+      className={`doc-panel${isCollapsed ? " doc-panel--collapsed" : ""}`}
+      {...(isCollapsed ? {
+        onClick: onToggleCollapsed,
+        role: "button" as const,
+        tabIndex: 0,
+        "data-tooltip": "Open documents",
+        "data-tooltip-pos": "right",
+        onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") onToggleCollapsed?.(); },
+        "aria-label": "Expand documents panel",
+      } : {})}
+    >
+      <div className="doc-panel-collapsed-tab" aria-hidden={!isCollapsed}>
+        <ChevronRight size={13} />
         <span className="doc-panel-collapsed-label">Documents</span>
       </div>
-    );
-  }
 
-  return (
-    <div className="doc-panel">
+      <div className="doc-panel-expanded">
       <div className="doc-panel-header">
         <span className="doc-panel-title">Documents</span>
         <div className="doc-panel-header-actions">
@@ -190,6 +189,7 @@ export default function DocPanel({
           </div>
         )}
       </ul>
+      </div>
     </div>
   );
 }

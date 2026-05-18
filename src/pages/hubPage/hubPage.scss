@@ -10,8 +10,8 @@
     min-height: 100vh;
 
     .hub-sidebar.app-sidebar-wrapper {
-        width: 220px;
-        min-width: 220px;
+        width: 200px;
+        min-width: 80px;
         flex-shrink: 0;
         min-height: 0;
         background: var(--panel);
@@ -177,7 +177,7 @@
 }
 
 /* Tablet + Mobile (≤1024px): overlay sidebar pattern */
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
     .hub-layout.hub-layout-refactored {
         flex-direction: column;
         position: relative;
@@ -488,6 +488,7 @@
         align-items: center;
         gap: 10px;
         min-width: 0;
+        transition: padding 0.3s ease;
     }
 
     .logo-icon {
@@ -505,6 +506,11 @@
         font-size: 18px;
         font-weight: 700;
         color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        max-width: 200px;
+        opacity: 1;
+        transition: max-width 0.3s ease, opacity 0.2s;
     }
 
     .sidebar-nav {
@@ -537,6 +543,14 @@
         text-align: left;
         position: relative;
 
+        span {
+            white-space: nowrap;
+            overflow: hidden;
+            max-width: 200px;
+            opacity: 1;
+            transition: max-width 0.3s ease, opacity 0.2s;
+        }
+
         &:hover {
             color: var(--text);
             background: var(--soft);
@@ -545,6 +559,10 @@
         &.active {
             color: var(--text);
             background: var(--soft);
+        }
+
+        &.nav-item--ai svg {
+            color: var(--primary);
         }
     }
 
@@ -598,6 +616,10 @@
             min-width: 0;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
+            max-width: 200px;
+            opacity: 1;
+            transition: max-width 0.3s ease, opacity 0.2s;
         }
 
         .user-name {
@@ -619,7 +641,11 @@
 
         .user-logout-icon {
             color: var(--muted);
-            transition: color 0.2s;
+            overflow: hidden;
+            max-width: 40px;
+            opacity: 1;
+            transition: color 0.2s, max-width 0.3s ease, opacity 0.2s;
+            flex-shrink: 0;
 
             &:hover {
                 color: var(--danger-text);
@@ -631,19 +657,22 @@
     &.collapsed {
         padding: 20px 8px;
 
-        .sidebar-header {
-            justify-content: center;
-            margin-bottom: 24px;
+        .logo-text {
+            max-width: 0;
+            opacity: 0;
+        }
 
-            .sidebar-logo {
-                justify-content: center;
-            }
+        .sidebar-logo {
+            padding-left: 14px;
         }
 
         .nav-item {
-            justify-content: center;
-            padding: 10px;
-            gap: 0;
+            padding: 10px 10px 10px 23px;
+
+            span {
+                max-width: 0;
+                opacity: 0;
+            }
         }
 
         .sidebar-footer {
@@ -655,13 +684,22 @@
         }
 
         .sidebar-user-profile {
-            justify-content: center;
-            padding: 6px 0;
+            padding: 6px 13px;
         }
 
         .user-avatar {
             width: 38px;
             height: 38px;
+        }
+
+        .user-info {
+            max-width: 0;
+            opacity: 0;
+        }
+
+        .user-logout-icon {
+            max-width: 0;
+            opacity: 0;
         }
     }
 }
@@ -2000,7 +2038,7 @@
     font-size: 15px;
     line-height: 1.65;
     color: color-mix(in srgb, var(--text) 70%, var(--muted));
-    margin: 0 0 24px;
+    margin: 0 0 18px;
     white-space: pre-wrap;
 }
 
@@ -2037,7 +2075,7 @@
 .notion-divider {
     border: none;
     border-top: 1px solid var(--border);
-    margin: 0 0 24px;
+    margin: 0 0 18px;
     opacity: 0.6;
 }
 
@@ -2094,7 +2132,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-top: 8px;
+    margin-bottom: 10px;
 }
 
 .notion-att-chip {
@@ -2439,7 +2477,7 @@
         grid-template-columns: repeat(4, 1fr);
         gap: 16px;
 
-        @media (max-width: 1024px) {
+        @media (max-width: 768px) {
             grid-template-columns: repeat(2, 1fr);
         }
 
