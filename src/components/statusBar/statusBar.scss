@@ -1,0 +1,136 @@
+.statusbar {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: min(92vw, 460px);
+    background: color-mix(in srgb, var(--panel) 90%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-elevated);
+
+    animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.statusbar-inner {
+    display: flex;
+    padding: 12px;
+
+    .statusbar-icon {
+        padding-right: 12px;
+    }
+}
+
+
+.statusbar::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 12px 0 0 12px;
+}
+
+/* ===== kinds ===== */
+
+.statusbar-success {
+    border-color: var(--success-border);
+    background: linear-gradient(to right,
+            var(--success-bg),
+            transparent 40%);
+
+    &::before {
+        background: var(--success-border);
+    }
+
+    .statusbar-title {
+        color: var(--success-text);
+    }
+}
+
+.statusbar-error {
+    border-color: var(--danger-border);
+    background: linear-gradient(to right,
+            var(--danger-bg),
+            transparent 40%);
+
+    &::before {
+        background: var(--danger-border);
+    }
+
+    .statusbar-title {
+        color: var(--danger-text);
+    }
+}
+
+.statusbar-info {
+    border-color: var(--info-border);
+    background: linear-gradient(to right,
+            var(--info-bg),
+            transparent 40%);
+
+    &::before {
+        background: var(--info-border);
+    }
+
+    .statusbar-title {
+        color: var(--info-text);
+    }
+}
+
+/* ===== text ===== */
+
+.statusbar-text {
+    flex: 1;
+}
+
+.statusbar-title {
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.statusbar-message {
+    color: var(--secondery-text);
+    line-height: 1.4;
+}
+
+/* ===== actions ===== */
+
+.statusbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.statusbar-action {
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.statusbar-close {
+    background: var(--soft);
+    border: none;
+    border-radius: 8px;
+    padding: 4px 8px;
+    cursor: pointer;
+    color: var(--muted);
+}
+
+/* ===== animation ===== */
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}

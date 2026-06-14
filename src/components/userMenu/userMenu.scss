@@ -1,0 +1,125 @@
+.user-menu {
+    position: relative;
+    display: inline-flex;
+}
+
+.user-menu__trigger {
+    border: 1px solid transparent;
+    background: var(--soft);
+    border-radius: 8px;
+    padding: 0;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+        background: var(--soft-2);
+        transform: scale(1.05);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px var(--focus);
+    }
+
+    &[aria-expanded="true"] {
+        background: var(--soft-2);
+        box-shadow: 0 0 0 2px var(--focus);
+    }
+}
+
+.user-menu__avatar {
+    width: 40px;
+    height: 32px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    font-weight: 600;
+    font-size: 14px;
+    background: var(--primary);
+    color: var(--primary-text);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px var(--primary-bg);
+    }
+}
+
+.user-menu__panel {
+    width: 100%;
+}
+
+.user-menu__header {
+    padding: 16px;
+    background: var(--soft);
+    border-bottom: 1px solid var(--border);
+}
+
+.user-menu__email {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-menu__role {
+    display: inline-flex;
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: var(--soft-2);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+
+    &.admin {
+        background: var(--primary);
+        color: var(--primary-text);
+    }
+}
+
+.user-menu__items {
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.user-menu__item {
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+
+    &:hover {
+        background: var(--soft);
+        color: var(--primary);
+    }
+
+    &:active {
+        transform: scale(0.98);
+    }
+
+    &.danger {
+        color: var(--danger-text);
+
+        &:hover {
+            background: var(--danger-bg);
+        }
+    }
+}

@@ -1,0 +1,64 @@
+.skeleton-pulse {
+    background: var(--soft, #f1f5f974);
+    background-image: linear-gradient(90deg,
+            var(--soft, #f1f5f9) 0%,
+            var(--soft-2, #e2e8f0) 50%,
+            var(--soft, #f1f5f9) 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite ease-in-out;
+    border-radius: 4px;
+}
+
+@keyframes skeleton-shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.doc-row-skeleton {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    width: 100%;
+
+    &-main {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+.doc-detail-skeleton {
+    padding: 2.5rem;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+
+    &-header {
+        margin-bottom: 3rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    &-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
+
+.mt-2 {
+    margin-top: 0.5rem;
+}
+
+.mb-2 {
+    margin-bottom: 0.5rem;
+}
+
+.mb-4 {
+    margin-bottom: 1rem;
+}

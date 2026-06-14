@@ -1,0 +1,504 @@
+.doc-panel {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  position: relative;
+
+  .doc-panel-collapsed-tab {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 32px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-top: 10px;
+    gap: 0;
+    opacity: 0;
+    pointer-events: none;
+    color: var(--text-muted);
+    transition: opacity 0.15s;
+    z-index: 1;
+
+    .doc-panel-collapsed-label {
+      writing-mode: sideways-lr;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      user-select: none;
+      padding: 12px 0;
+    }
+  }
+
+  .doc-panel-expanded {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    opacity: 1;
+    transition: opacity 0.1s;
+  }
+
+  &.doc-panel--collapsed {
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+
+    &:hover {
+      background: var(--soft);
+    }
+
+    .doc-panel-collapsed-tab {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .doc-panel-expanded {
+      opacity: 0;
+    }
+  }
+}
+
+/* ── Edge strip (collapse handle on right side of expanded panel) ── */
+.doc-panel-edge-strip {
+  width: 22px;
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 10px;
+  gap: 0;
+  cursor: pointer;
+  color: var(--text-muted);
+  background: var(--panel);
+  opacity: 0;
+  transition: color 0.15s, background 0.15s, opacity 0.2s, width 0.2s ease;
+
+  .doc-panel-collapsed-arrow {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .doc-panel-collapsed-label {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    writing-mode: sideways-lr;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    user-select: none;
+  }
+
+  &:hover {
+    opacity: 1;
+    color: var(--text);
+    background: var(--soft);
+  }
+
+  &.doc-panel-edge-strip--hidden {
+    width: 0;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+}
+
+.doc-panel-wrapper:hover .doc-panel-edge-strip:not(.doc-panel-edge-strip--hidden) {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .doc-panel-edge-strip {
+    opacity: 1;
+  }
+}
+
+/* ── Grip Handle (drag-to-resize, replaces edge-strip) ── */
+.doc-panel-grip-handle {
+  width: 10px;
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  background: var(--panel);
+  opacity: 0;
+  position: relative;
+  transition: opacity 0.2s, background 0.15s, width 0.2s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--border);
+    transition: background 0.15s;
+  }
+
+  &:hover {
+    opacity: 1;
+    background: var(--soft);
+
+    &::before {
+      background: var(--primary, #6366f1);
+    }
+
+    .doc-panel-grip-dot {
+      background: var(--primary, #6366f1);
+    }
+  }
+
+  /* Grip handle when the panel is in collapsed state — always show, use expand cursor */
+  &.doc-panel-grip-handle--collapsed-state {
+    cursor: e-resize;
+    opacity: 1;
+    background: var(--panel);
+
+    &::before {
+      background: var(--border);
+    }
+
+    .doc-panel-grip-dot {
+      background: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    &:hover {
+      background: var(--soft);
+
+      &::before {
+        background: var(--primary, #6366f1);
+      }
+
+      .doc-panel-grip-dot {
+        background: var(--primary, #6366f1);
+        opacity: 1;
+      }
+    }
+  }
+}
+
+.doc-panel-grip-dots {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.doc-panel-grip-dot {
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: background 0.15s;
+}
+
+.doc-panel-wrapper:hover .doc-panel-grip-handle:not(.doc-panel-grip-handle--hidden) {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .doc-panel-grip-handle {
+    opacity: 1;
+  }
+}
+
+/* ── Header ── */
+.doc-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 10px 8px 18px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.doc-panel-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  flex: 1;
+}
+
+.doc-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.doc-panel-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 7px;
+  border-radius: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    color: var(--primary);
+    background: var(--soft);
+  }
+}
+
+
+.doc-panel-star-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+
+  &:hover {
+    color: var(--gold);
+    background: var(--soft);
+  }
+
+  &.active {
+    color: var(--gold);
+  }
+}
+
+/* ── New document button ── */
+.doc-panel-new-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 90px);
+  margin: 4px 18px 6px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--primary, #6366f1);
+  background: var(--primary-bg, rgba(99, 102, 241, 0.08));
+  border: 1px solid var(--primary-border, rgba(99, 102, 241, 0.2));
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--primary-bg-hover, rgba(99, 102, 241, 0.15));
+    border-color: var(--primary, #6366f1);
+  }
+}
+
+/* ── Search ── */
+.doc-panel-search {
+  display: flex;
+  align-items: center;
+  margin: 6px 16px 6px;
+  background: var(--input-bg, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 8px;
+  flex-shrink: 0;
+
+  &:focus-within {
+    border-color: var(--primary);
+  }
+}
+
+.doc-panel-search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.doc-panel-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--text);
+  padding: 5px 6px;
+  outline: none;
+  min-width: 0;
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+}
+
+.doc-panel-search-clear {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+/* ── List ── */
+.doc-panel-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 8px;
+}
+
+.doc-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px 10px 14px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background 0.1s;
+  user-select: none;
+
+  &:hover {
+    background: var(--soft);
+  }
+
+  &:focus {
+    outline: none;
+    background: var(--hover, rgba(0, 0, 0, 0.06));
+  }
+
+  &.doc-panel-row--active {
+    background: var(--soft, rgba(0, 0, 0, 0.06));
+    border-left-color: var(--text-muted);
+  }
+}
+
+.doc-panel-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.doc-panel-row-title {
+  font-size: 12.5px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.doc-panel-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.doc-panel-row-chip {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-panel-row-attachments {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.doc-panel-row-icons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.doc-panel-row-star-btn,
+.doc-panel-row-ctx-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: color 0.15s, background 0.15s;
+
+  &:hover {
+    background: var(--hover, rgba(0, 0, 0, 0.06));
+  }
+}
+
+.doc-panel-row-star-btn.active {
+  opacity: 1;
+  color: var(--gold);
+}
+
+.doc-panel-row-ctx-btn {
+  &:hover {
+    color: var(--primary, #6366f1);
+  }
+
+  &.active {
+    opacity: 1;
+    color: var(--primary, #6366f1);
+    background: color-mix(in srgb, var(--primary, #6366f1) 15%, transparent);
+  }
+}
+
+@media (hover: none) {
+  .doc-panel-row-ctx-btn:not(.active) {
+    opacity: 0.45;
+
+    &:hover {
+      color: var(--text-muted);
+      background: none;
+    }
+  }
+}
+
+.doc-panel-empty {
+  padding: 24px 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
