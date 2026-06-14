@@ -76,6 +76,37 @@ export default function HubPage() {
     savedPanelWidth, PANEL_COLLAPSE_THRESHOLD, 500, false
   );
 
+  const [prevDocs, setPrevDocs] = useState<DocumentItem[]>(docs);
+  const [prevDocPanelWidth, setPrevDocPanelWidth] = useState(docPanelWidth);
+
+  // Adjust active view and selection when docs change (avoids setState in useEffect)
+  if (docs !== prevDocs) {
+    setPrevDocs(docs);
+    if (docs.length > 0) {
+      if (activeView.kind === "doc" && !docs.some((d) => d.id === activeView.id)) {
+        setActiveView({ kind: "ai" });
+      }
+      const ids = new Set(docs.map((d) => d.id));
+      const nextIds = selectedIds.filter((id) => ids.has(id));
+      if (!sameArray(nextIds, selectedIds)) {
+        setSelectedIds(nextIds);
+        saveJson(CONTEXT_KEY, nextIds);
+      }
+    }
+  }
+
+  // Sync collapse state with panel width during render (avoids setState in useEffect)
+  if (docPanelWidth !== prevDocPanelWidth) {
+    setPrevDocPanelWidth(docPanelWidth);
+    if (!isDocPanelCollapsed && docPanelWidth <= PANEL_COLLAPSE_THRESHOLD) {
+      setIsDocPanelCollapsed(true);
+      saveJson("docPanelCollapsed", true);
+    } else if (isDocPanelCollapsed && docPanelWidth > PANEL_COLLAPSE_THRESHOLD) {
+      setIsDocPanelCollapsed(false);
+      saveJson("docPanelCollapsed", false);
+    }
+  }
+
   const activeDocId = activeView.kind === "doc" ? activeView.id : null;
 
   const activeDoc = useMemo(
@@ -84,30 +115,8 @@ export default function HubPage() {
   );
 
   useEffect(() => {
-    if (docs.length > 0) {
-      setActiveView((prev) => {
-        if (prev.kind === "doc" && !docs.some((d) => d.id === prev.id)) {
-          return { kind: "ai" };
-        }
-        return prev;
-      });
-    }
-  }, [docs]);
-
-  useEffect(() => {
     if (docsError) status.show({ kind: "error", message: docsError });
   }, [docsError, status]);
-
-  useEffect(() => {
-    if (docs.length > 0) {
-      const ids = new Set(docs.map((d) => d.id));
-      setSelectedIds((prev) => {
-        const next = prev.filter((id) => ids.has(id));
-        if (!sameArray(next, prev)) saveJson(CONTEXT_KEY, next);
-        return next;
-      });
-    }
-  }, [docs]);
 
   const handleToggleSelected = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -133,22 +142,6 @@ export default function HubPage() {
       setDocPanelWidth(PANEL_DEFAULT_WIDTH);
     }
   }, [isDocPanelCollapsed, docPanelWidth, setDocPanelWidth, PANEL_COLLAPSE_THRESHOLD, PANEL_DEFAULT_WIDTH]);
-
-  // Auto-collapse when dragged to minimum width
-  useEffect(() => {
-    if (!isDocPanelCollapsed && docPanelWidth <= PANEL_COLLAPSE_THRESHOLD) {
-      setIsDocPanelCollapsed(true);
-      saveJson("docPanelCollapsed", true);
-    }
-  }, [docPanelWidth, isDocPanelCollapsed, PANEL_COLLAPSE_THRESHOLD]);
-
-  // Auto-expand when dragging grip from collapsed state
-  useEffect(() => {
-    if (isDocPanelCollapsed && docPanelWidth > PANEL_COLLAPSE_THRESHOLD) {
-      setIsDocPanelCollapsed(false);
-      saveJson("docPanelCollapsed", false);
-    }
-  }, [docPanelWidth, isDocPanelCollapsed, PANEL_COLLAPSE_THRESHOLD]);
 
   // Persist panel width to localStorage
   useEffect(() => {

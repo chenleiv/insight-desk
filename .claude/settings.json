@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/chenleiv/insight-desk/.claude/hooks/build-check.sh",
+            "timeout": 120,
+            "statusMessage": "Validating build..."
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff)",
+      "Bash(git diff --staged)",
+      "Bash(git log --oneline*)",
+      "Bash(git log -n *)",
+      "Bash(git log --format*)",
+      "Bash(git blame src/*)",
+      "Bash(git blame backend/*)",
+      "Bash(npm run lint)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run build)",
+      "Bash(npm run test)",
+      "Bash(npm test)",
+      "Bash(npm audit)",
+      "Bash(npx tsc --noEmit*)",
+      "Bash(ls)",
+      "Bash(ls src*)",
+      "Bash(ls backend*)"
+    ],
+    "deny": [
+      "Bash(git show *:*)"
+    ]
+  }
+}

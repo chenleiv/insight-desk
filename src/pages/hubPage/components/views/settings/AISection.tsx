@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getSystemPrompt,
   updateSystemPrompt,
@@ -18,10 +18,12 @@ export function AISection() {
   const [questionsSaving, setQuestionsSaving] = useState(false);
   const [questionsLoaded, setQuestionsLoaded] = useState(false);
 
+  const statusRef = useRef(status);
+
   useEffect(() => {
     getSystemPrompt()
       .then((r) => { setPromptDraft(r.prompt); setPromptLoaded(true); })
-      .catch((e) => status.show({ kind: "error", title: "Error", message: e.message }));
+      .catch((e) => statusRef.current.show({ kind: "error", title: "Error", message: e.message }));
     getSuggestions()
       .then((r) => {
         const padded = [...r.questions];
@@ -29,8 +31,7 @@ export function AISection() {
         setQuestions(padded.slice(0, 4));
         setQuestionsLoaded(true);
       })
-      .catch((e) => status.show({ kind: "error", title: "Error", message: e.message }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch((e) => statusRef.current.show({ kind: "error", title: "Error", message: e.message }));
   }, []);
 
   async function savePrompt() {

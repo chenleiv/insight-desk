@@ -1,5 +1,5 @@
 import "./docPane.scss";
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { DocumentItem, DocumentInput } from "../../../../api/documentsClient";
 import { createDocument, uploadAttachment } from "../../../../api/documentsClient";
 import { useStatus } from "../../../../components/statusBar/useStatus";
@@ -73,9 +73,12 @@ export default function DocumentPane({
     return emptyInput();
   }, [isCreating, doc]);
 
-  useEffect(() => {
+  // Reset form when navigating to a different document (avoids setState in useEffect)
+  const [prevDocId, setPrevDocId] = useState(doc?.id);
+  if (doc?.id !== prevDocId) {
+    setPrevDocId(doc?.id);
     if (!isCreating && doc) setForm(toInput(doc));
-  }, [doc?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   const isDirty = !isSameInput(form, baseline);
   const isValid = isInputValid(form);
@@ -194,7 +197,7 @@ export default function DocumentPane({
     setForm(baseline);
   };
 
-  cancelRef.current = handleCancel;
+  useLayoutEffect(() => { cancelRef.current = handleCancel; });
 
   function handleExport() {
     if (!doc) return;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2, Search } from "lucide-react";
 import { useAuth } from "../../../../../auth/useAuth";
 import {
@@ -20,12 +20,13 @@ export function UsersSection() {
   const [search, setSearch] = useState("");
   const [pending, setPending] = useState<Set<number>>(new Set());
 
+  const statusRef = useRef(status);
+
   useEffect(() => {
     getUsers()
       .then(setUsers)
-      .catch((e) => status.show({ kind: "error", title: "Error", message: e.message }))
+      .catch((e) => statusRef.current.show({ kind: "error", title: "Error", message: e.message }))
       .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function setUserPending(id: number, val: boolean) {
