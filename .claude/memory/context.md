@@ -66,7 +66,7 @@ Express
 JWT (HttpOnly cookies)
 helmet, cors, express-rate-limit
 Groq SDK (AI)
-Supabase (PostgreSQL)
+MongoDB GridFS (file storage)
 Mongoose (MongoDB)
 Zod (validation)
 multer (file uploads)

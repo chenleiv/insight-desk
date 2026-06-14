@@ -15,7 +15,6 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.4",
     "@tanstack/react-query": "^5.100.9",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",

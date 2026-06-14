@@ -15,6 +15,7 @@ const attachmentSchema = new mongoose.Schema({
     fileName: { type: String, required: true },
     fileType: { type: String, required: true },
     extractedText: { type: String, default: '' },
+    gridfsId: { type: mongoose.Schema.Types.ObjectId, default: null },
 });
 
 const documentSchema = new mongoose.Schema({

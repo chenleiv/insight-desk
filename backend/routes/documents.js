@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { logger } from '../logger.js';
-import { createClient } from '@supabase/supabase-js';
+import mongoose from 'mongoose';
+import { GridFSBucket } from 'mongodb';
 import multer from 'multer';
 import { randomUUID } from 'crypto';
 import { Document } from '../models.js';
@@ -10,9 +11,11 @@ import { documentSchema, importBulkSchema } from '../schemas.js';
 
 const router = Router();
 
-const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY
-    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
-    : null;
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+
+function getBucket() {
+    return new GridFSBucket(mongoose.connection.db, { bucketName: 'attachments' });
+}
 
 const ALLOWED_ATTACHMENT_MIMES = new Set([
     'application/pdf',
@@ -137,6 +140,15 @@ router.delete('/:id', requireAdmin, async (req, res) => {
         if (!deleted) {
             return res.status(404).json({ detail: 'Not found' });
         }
+        // Delete all GridFS files for this document's attachments
+        if (deleted.attachments?.length) {
+            const bucket = getBucket();
+            await Promise.all(
+                deleted.attachments
+                    .filter(a => a.gridfsId)
+                    .map(a => bucket.delete(a.gridfsId).catch(() => {}))
+            );
+        }
         res.status(204).send();
     } catch (err) {
         logger.error('Deleting document', { message: err.message });
@@ -165,6 +177,29 @@ router.post('/:id/toggle-favorite', getCurrentUser, async (req, res) => {
     }
 });
 
+// Stream attachment file
+router.get('/:id/attachments/:attachmentId/file', getCurrentUser, async (req, res) => {
+    try {
+        const doc = await Document.findById(req.params.id);
+        if (!doc) return res.status(404).json({ detail: 'Not found' });
+
+        const attachment = doc.attachments.id(req.params.attachmentId);
+        if (!attachment || !attachment.gridfsId) return res.status(404).json({ detail: 'Attachment not found' });
+
+        const bucket = getBucket();
+        const downloadStream = bucket.openDownloadStream(attachment.gridfsId);
+
+        res.set('Content-Type', attachment.fileType);
+        res.set('Content-Disposition', `inline; filename="${encodeURIComponent(attachment.fileName)}"`);
+
+        downloadStream.on('error', () => res.status(404).end());
+        downloadStream.pipe(res);
+    } catch (err) {
+        logger.error('Stream attachment failed', { message: err.message });
+        res.status(500).json({ detail: 'Error streaming file' });
+    }
+});
+
 // Upload attachment
 router.post('/:id/attachments', requireAdmin, (req, res, next) => {
     upload.single('file')(req, res, (err) => {
@@ -176,8 +211,6 @@ router.post('/:id/attachments', requireAdmin, (req, res, next) => {
     });
 }, async (req, res) => {
     try {
-        if (!supabase) return res.status(503).json({ detail: 'Storage not configured' });
-
         const doc = await Document.findById(req.params.id);
         if (!doc) return res.status(404).json({ detail: 'Not found' });
 
@@ -185,20 +218,31 @@ router.post('/:id/attachments', requireAdmin, (req, res, next) => {
         if (!file) return res.status(400).json({ detail: 'No file uploaded' });
 
         const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const storagePath = `${req.params.id}/${randomUUID()}-${safeName}`;
+        const attachmentId = new mongoose.Types.ObjectId();
 
-        const { error: uploadError } = await supabase.storage
-            .from('document-attachments')
-            .upload(storagePath, file.buffer, { contentType: 'application/octet-stream', upsert: false });
+        // Upload to GridFS
+        const bucket = getBucket();
+        const uploadStream = bucket.openUploadStream(`${randomUUID()}-${safeName}`, {
+            contentType: file.mimetype,
+            metadata: { docId: req.params.id, attachmentId: attachmentId.toString() },
+        });
+        uploadStream.end(file.buffer);
+        await new Promise((resolve, reject) => {
+            uploadStream.on('finish', resolve);
+            uploadStream.on('error', reject);
+        });
 
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-            .from('document-attachments')
-            .getPublicUrl(storagePath);
-
+        const fileUrl = `${BACKEND_URL}/api/documents/${req.params.id}/attachments/${attachmentId}/file`;
         const extractedText = await extractTextFromBuffer(file.buffer, file.mimetype);
-        doc.attachments.push({ url: publicUrl, fileName: file.originalname, fileType: file.mimetype, extractedText });
+
+        doc.attachments.push({
+            _id: attachmentId,
+            url: fileUrl,
+            fileName: file.originalname,
+            fileType: file.mimetype,
+            extractedText,
+            gridfsId: uploadStream.id,
+        });
         await doc.save();
 
         res.json(doc.attachments[doc.attachments.length - 1]);
@@ -211,19 +255,15 @@ router.post('/:id/attachments', requireAdmin, (req, res, next) => {
 // Delete attachment
 router.delete('/:id/attachments/:attachmentId', requireAdmin, async (req, res) => {
     try {
-        if (!supabase) return res.status(503).json({ detail: 'Storage not configured' });
-
         const doc = await Document.findById(req.params.id);
         if (!doc) return res.status(404).json({ detail: 'Not found' });
 
         const attachment = doc.attachments.id(req.params.attachmentId);
         if (!attachment) return res.status(404).json({ detail: 'Attachment not found' });
 
-        const marker = '/document-attachments/';
-        const idx = attachment.url.indexOf(marker);
-        if (idx !== -1) {
-            const storagePath = attachment.url.slice(idx + marker.length);
-            await supabase.storage.from('document-attachments').remove([storagePath]);
+        if (attachment.gridfsId) {
+            const bucket = getBucket();
+            await bucket.delete(attachment.gridfsId).catch(() => {});
         }
 
         doc.attachments.pull({ _id: req.params.attachmentId });
