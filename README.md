@@ -1,6 +1,6 @@
 # InsightDesk
 
-A full-stack knowledge management app for teams — organize documents, attach files, and query your knowledge base with an AI assistant powered by Groq.
+An AI-powered document workspace for teams. Upload PDF, DOCX, and Excel files — Insight Desk extracts the text, organizes your knowledge base, and lets you chat with an AI assistant (powered by Groq) that can read and reason over your documents.
 
 ---
 
@@ -58,7 +58,7 @@ A full-stack knowledge management app for teams — organize documents, attach f
 | **Node.js + Express** | — | API server |
 | **MongoDB + Mongoose** | 9.x | Data persistence |
 | **Groq SDK** | — | AI inference (`llama-3.1-8b-instant`) |
-| **Supabase** | — | File storage for attachments |
+| **MongoDB GridFS** | — | File storage for attachments |
 | **multer** | — | File upload handling |
 | **pdf-parse** | — | PDF text extraction |
 | **mammoth** | — | DOCX text extraction |
@@ -137,7 +137,6 @@ ai-workspace/
 - Node.js 20+
 - MongoDB instance (local or Atlas)
 - Groq API key
-- Supabase project (for file storage)
 
 ### Quick Start
 
@@ -152,8 +151,6 @@ ai-workspace/
    MONGODB_URI=mongodb+srv://...
    JWT_SECRET=your-secret
    GROQ_API_KEY=gsk_...
-   SUPABASE_URL=https://...
-   SUPABASE_SERVICE_ROLE_KEY=...
    FRONTEND_URL=http://localhost:5173
    PORT=8000
    ```
