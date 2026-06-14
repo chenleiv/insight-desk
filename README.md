@@ -119,7 +119,14 @@ ai-workspace/
 │       ├── documents.js            # CRUD + attachment upload/delete
 │       └── users.js                # Admin user management
 │
-└── Procfile                        # Heroku-style start command
+├── Procfile                        # Heroku-style start command
+└── .claude/                        # Claude Code project configuration
+    ├── CLAUDE.md                   # Project context for Claude
+    ├── memory/context.md           # Stack, architecture, rules
+    ├── agents/                     # Specialized review agents
+    ├── commands/                   # Slash commands (feature, debug, ship, review, cleanup)
+    ├── hooks/build-check.sh        # Auto-runs build + tests on Stop
+    └── skills/                     # React, Express, security, testing review rules
 ```
 
 ---
@@ -191,6 +198,22 @@ ai-workspace/
 
 ---
 
+## 🧑‍💻 Development Workflow
+
+This project uses [Claude Code](https://claude.ai/code) with project-level slash commands:
+
+| Command | Description |
+|---------|-------------|
+| `/feature <description>` | Plan then build — always shows a plan before editing |
+| `/debug [issue]` | Root cause analysis before any fix |
+| `/review` | Code review of current changes |
+| `/ship` | Full validation (build, lint, tests, security) before committing |
+| `/cleanup` | Remove debug leftovers in changed files only |
+
+A build + test hook runs automatically after each Claude session.
+
+---
+
 ## 🗺️ Roadmap
 
 - [x] React 19 + React Compiler
@@ -202,5 +225,6 @@ ai-workspace/
 - [x] Mobile-first responsive layout
 - [x] Customizable AI system prompt + example questions
 - [x] Vitest unit tests
+- [x] React Compiler lint compliance (`react-hooks/set-state-in-effect`, `react-hooks/refs`)
 - [ ] Vector embeddings & semantic search (RAG)
 - [ ] Real-time collaboration
