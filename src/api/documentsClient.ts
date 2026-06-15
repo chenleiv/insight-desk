@@ -79,6 +79,15 @@ export function importDocumentsBulk(payload: {
 }
 
 
+export function extractTextFromFile(file: File): Promise<{ text: string; fileName: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<{ text: string; fileName: string }>("/api/documents/extract-text", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 export function toggleFavorite(id: string) {
   return apiFetch<{ favorites: string[] }>(
     `/api/documents/${id}/toggle-favorite`,

@@ -40,6 +40,27 @@ const upload = multer({
     },
 });
 
+// Extract text from a file without creating any document (admin)
+router.post('/extract-text', requireAdmin, (req, res, next) => {
+    upload.single('file')(req, res, (err) => {
+        if (err) {
+            const status = err.status || (err.code === 'LIMIT_FILE_SIZE' ? 413 : 400);
+            return res.status(status).json({ detail: err.message });
+        }
+        next();
+    });
+}, async (req, res) => {
+    try {
+        const file = req.file;
+        if (!file) return res.status(400).json({ detail: 'No file uploaded' });
+        const text = await extractTextFromBuffer(file.buffer, file.mimetype);
+        res.json({ text, fileName: file.originalname });
+    } catch (err) {
+        logger.error('Text extraction failed', { message: err.message });
+        res.status(500).json({ detail: 'Extraction failed' });
+    }
+});
+
 // Export all documents (admin)
 router.get('/export', requireAdmin, async (req, res) => {
     try {

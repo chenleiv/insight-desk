@@ -31,6 +31,7 @@ import MobileDrawer from "./components/layout/MobileDrawer";
 import { useDocumentOrdering } from "./hooks/useDocumentOrdering";
 import { useImportExport } from "./hooks/useImportExport";
 import { WelcomeModal } from "./components/dialogs/WelcomeModal";
+import { TourOverlay, HUB_TOUR_STEPS } from "./components/dialogs/TourOverlay";
 
 type ActiveView =
   | { kind: "ai" }
@@ -69,6 +70,7 @@ export default function HubPage() {
   const [mobileDocPickerOpen, setMobileDocPickerOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem("insight-desk:welcomed"));
+  const [showTour, setShowTour] = useState(false);
 
   const savedPanelWidth = Math.max(
     PANEL_COLLAPSE_THRESHOLD + 1,
@@ -433,11 +435,25 @@ export default function HubPage() {
 
       {/* Welcome modal — shown on first visit */}
       {showWelcome && (
-        <WelcomeModal onClose={() => {
-          localStorage.setItem("insight-desk:welcomed", "1");
-          setShowWelcome(false);
-        }} />
+        <WelcomeModal
+          onClose={() => {
+            localStorage.setItem("insight-desk:welcomed", "1");
+            setShowWelcome(false);
+          }}
+          onStartTour={() => {
+            localStorage.setItem("insight-desk:welcomed", "1");
+            setShowWelcome(false);
+            if (isDocPanelCollapsed) {
+              handleToggleDocPanel();
+              setTimeout(() => setShowTour(true), 320);
+            } else {
+              setShowTour(true);
+            }
+          }}
+        />
       )}
+
+      {showTour && <TourOverlay steps={HUB_TOUR_STEPS} onDone={() => setShowTour(false)} />}
 
       {/* Import preview dialog */}
       {importPreview && (

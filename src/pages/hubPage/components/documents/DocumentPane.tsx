@@ -1,10 +1,11 @@
 import "./docPane.scss";
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { DocumentItem, DocumentInput } from "../../../../api/documentsClient";
-import { createDocument, uploadAttachment } from "../../../../api/documentsClient";
+import { createDocument, uploadAttachment, extractTextFromFile } from "../../../../api/documentsClient";
 import { useStatus } from "../../../../components/statusBar/useStatus";
 import { parseImportFile } from "../../utils/parseImportFile";
 import { EmptyPane } from "../dialogs/EmptyPane";
+import { TourOverlay, DOC_TOUR_STEPS, NEW_DOC_TOUR_STEPS } from "../dialogs/TourOverlay";
 import { DocumentHeader } from "./DocumentHeader";
 import { DocumentEdit } from "./DocumentEdit";
 import type { DocumentEditHandle } from "./DocumentEdit";
@@ -57,6 +58,12 @@ export default function DocumentPane({
 }: Props) {
   const status = useStatus();
   const confirm = useConfirm();
+  const [showDocTour, setShowDocTour] = useState(() =>
+    !isCreating && !!doc && !localStorage.getItem("insight-desk:doc-toured")
+  );
+  const [showNewDocTour, setShowNewDocTour] = useState(() =>
+    isCreating && !localStorage.getItem("insight-desk:new-doc-toured")
+  );
   const editRef = useRef<DocumentEditHandle>(null);
   const cancelRef = useRef<() => Promise<void>>(async () => {});
   const importFileRef = useRef<HTMLInputElement>(null);
@@ -147,20 +154,39 @@ export default function DocumentPane({
 
   const isCreationPending = saveStatus === "saving" && isCreating;
 
+  const CLIENT_SIDE_EXTS = new Set(["json", "txt", "md", "rtf"]);
+
   const handleImportContent = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
     try {
-      const results = await parseImportFile(file);
-      const first = results[0];
-      if (!first) return;
-      setForm((prev) => ({
-        ...prev,
-        ...(first.title ? { title: first.title } : {}),
-        ...(first.content ? { content: first.content } : {}),
-        ...(first.category ? { category: first.category } : {}),
-      }));
+      if (CLIENT_SIDE_EXTS.has(ext)) {
+        const results = await parseImportFile(file);
+        const first = results[0];
+        if (!first) return;
+        setForm((prev) => ({
+          ...prev,
+          ...(first.title ? { title: first.title } : {}),
+          ...(first.content ? { content: first.content } : {}),
+          ...(first.category ? { category: first.category } : {}),
+        }));
+      } else {
+        status.show({ kind: "info", message: "Extracting text…" });
+        const { text, fileName } = await extractTextFromFile(file);
+        if (!text) {
+          status.show({ kind: "error", title: "No text found", message: "Could not extract text from this file." });
+          return;
+        }
+        const stem = fileName.replace(/\.[^.]+$/, "");
+        setForm((prev) => ({
+          ...prev,
+          ...(prev.title ? {} : { title: stem }),
+          content: text,
+        }));
+        status.show({ kind: "success", message: "Text imported." });
+      }
     } catch (err) {
       status.show({ kind: "error", title: "Import failed", message: err instanceof Error ? err.message : "Import failed." });
     }
@@ -249,6 +275,7 @@ export default function DocumentPane({
   const isDrawer = variant === "drawer";
 
   return (
+    <>
     <form
       className={`doc-pane doc-pane--editing ${isDrawer ? "doc-pane--drawer" : ""}`}
       onSubmit={isCreating ? handleCreateSubmit : (e) => e.preventDefault()}
@@ -274,7 +301,7 @@ export default function DocumentPane({
           ref={importFileRef}
           type="file"
           hidden
-          accept=".json,.txt,.md,.rtf,.csv"
+          accept=".json,.txt,.md,.rtf,.pdf,.docx,.xlsx,.xls"
           onChange={handleImportContent}
         />
       )}
@@ -296,6 +323,9 @@ export default function DocumentPane({
         onDeleteAttachment={isCreating
           ? (name) => setPendingFiles((prev) => prev.filter((f) => f.name !== name))
           : handleDeleteAttachment}
+        onUseAttachmentText={canEdit
+          ? (text) => setForm((prev) => ({ ...prev, content: text }))
+          : undefined}
         initialScrollTop={0}
       />
 
@@ -341,5 +371,25 @@ export default function DocumentPane({
         </div>
       )}
     </form>
+
+    {showDocTour && (
+      <TourOverlay
+        steps={DOC_TOUR_STEPS}
+        onDone={() => {
+          localStorage.setItem("insight-desk:doc-toured", "1");
+          setShowDocTour(false);
+        }}
+      />
+    )}
+    {showNewDocTour && (
+      <TourOverlay
+        steps={NEW_DOC_TOUR_STEPS}
+        onDone={() => {
+          localStorage.setItem("insight-desk:new-doc-toured", "1");
+          setShowNewDocTour(false);
+        }}
+      />
+    )}
+  </>
   );
 }

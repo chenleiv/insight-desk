@@ -1,0 +1,129 @@
+/* ── Backdrop ── */
+.tour-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  cursor: pointer;
+}
+
+/* ── Spotlight (cuts a transparent hole via box-shadow) ── */
+.tour-spotlight {
+  position: fixed;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.58);
+  outline: 2px solid rgba(255, 255, 255, 0.15);
+  z-index: 9001;
+  pointer-events: none;
+  transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Callout bubble ── */
+.tour-callout {
+  position: fixed;
+  z-index: 9002;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  width: 250px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  cursor: default;
+  animation: tour-callout-in 0.2s ease;
+}
+
+.tour-step-counter {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--primary);
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tour-callout-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 8px;
+  line-height: 1.3;
+}
+
+.tour-callout-desc {
+  font-size: 13px;
+  color: var(--secondery-text);
+  margin: 0 0 14px;
+  line-height: 1.55;
+}
+
+.tour-callout-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.tour-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+
+  &--primary {
+    background: var(--primary);
+    color: var(--primary-text);
+    border: none;
+
+    &:hover {
+      background: var(--primary-hover);
+    }
+  }
+
+  &--back {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+
+    &:hover {
+      color: var(--text);
+      background: var(--soft);
+    }
+  }
+}
+
+/* ── Skip button ── */
+.tour-skip {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9002;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 400;
+  padding: 6px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, background 0.15s;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+@keyframes tour-callout-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
