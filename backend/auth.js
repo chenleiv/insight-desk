@@ -45,19 +45,27 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:8000';
 const FRONTEND_URL = process.env.FRONTEND_URL || APP_BASE_URL;
 
-// Seed initial users if none exist
+// Seed initial users — always ensures demo accounts exist
 export async function seedUsersIfEmpty() {
     const count = await User.countDocuments();
     if (count === 0) {
         logger.info('Seeding initial users');
         const adminHash = await bcrypt.hash('admin123', 10);
         const viewerHash = await bcrypt.hash('viewer123', 10);
-
         await User.create([
             { email: 'admin@demo.com', password_hash: adminHash, role: 'admin' },
             { email: 'viewer@demo.com', password_hash: viewerHash, role: 'viewer' }
         ]);
         logger.info('Users seeded successfully');
+        return;
+    }
+
+    // Ensure demo user always exists even when other users are present
+    const demoExists = await User.exists({ email: 'admin@demo.com' });
+    if (!demoExists) {
+        const adminHash = await bcrypt.hash('admin123', 10);
+        await User.create({ email: 'admin@demo.com', password_hash: adminHash, role: 'admin' });
+        logger.info('Demo user created');
     }
 }
 
@@ -102,26 +110,6 @@ function setAuthCookie(res, token) {
         maxAge: ACCESS_TOKEN_MINUTES * 60 * 1000,
     });
 }
-
-router.post('/demo', async (req, res) => {
-    try {
-        const DEMO_EMAIL = 'admin@demo.com';
-        const DEMO_PASSWORD = 'admin123';
-
-        let user = await User.findOne({ email: DEMO_EMAIL });
-        if (!user) {
-            const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
-            user = await User.create({ email: DEMO_EMAIL, password_hash: hash, role: 'admin', displayName: 'Demo Admin' });
-        }
-
-        const token = createAccessToken(user.email, user.role);
-        setAuthCookie(res, token);
-        res.json({ user: formatUser(user) });
-    } catch (err) {
-        logger.error('Demo login failed', { message: err.message });
-        res.status(500).json({ detail: 'Internal server error' });
-    }
-});
 
 router.post('/login', async (req, res) => {
     try {

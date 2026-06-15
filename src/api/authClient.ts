@@ -12,10 +12,6 @@ export async function login(email: string, password: string) {
   });
 }
 
-export async function demoLogin() {
-  return apiFetch<LoginResponse>("/api/auth/demo", { method: "POST" });
-}
-
 export async function register(email: string, password: string, displayName?: string) {
   return apiFetch<LoginResponse>("/api/auth/register", {
     method: "POST",
