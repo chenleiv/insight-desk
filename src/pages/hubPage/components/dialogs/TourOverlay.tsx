@@ -37,10 +37,9 @@ export const HUB_TOUR_STEPS: TourStep[] = [
 
 export const DOC_TOUR_STEPS: TourStep[] = [
   {
-    selector: ".notion-doc-body",
-    title: "✏️ Document editor",
-    description:
-      "Write notes, paste content, or import text from a file. Changes are saved automatically.",
+    selector: ".notion-content-input",
+    title: "✏️ Auto-saved",
+    description: "Everything you write here is saved automatically.",
     placement: "left",
   },
   {
@@ -56,8 +55,7 @@ export const NEW_DOC_TOUR_STEPS: TourStep[] = [
   {
     selector: ".notion-content-input",
     title: "✏️ Start writing",
-    description:
-      "Type your content here. Once the document is created, any changes you make are saved automatically - no need to press Save.",
+    description: "Type your content here.",
     placement: "left",
   },
   {
