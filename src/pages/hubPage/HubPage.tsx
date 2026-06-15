@@ -30,6 +30,7 @@ import ImportPreviewDialog from "./components/dialogs/ImportPreviewDialog";
 import MobileDrawer from "./components/layout/MobileDrawer";
 import { useDocumentOrdering } from "./hooks/useDocumentOrdering";
 import { useImportExport } from "./hooks/useImportExport";
+import { WelcomeModal } from "./components/dialogs/WelcomeModal";
 
 type ActiveView =
   | { kind: "ai" }
@@ -67,6 +68,7 @@ export default function HubPage() {
   const [activeView, setActiveView] = useState<ActiveView>({ kind: "ai" });
   const [mobileDocPickerOpen, setMobileDocPickerOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem("insight-desk:welcomed"));
 
   const savedPanelWidth = Math.max(
     PANEL_COLLAPSE_THRESHOLD + 1,
@@ -427,6 +429,14 @@ export default function HubPage() {
             />
           </div>
         </div>
+      )}
+
+      {/* Welcome modal — shown on first visit */}
+      {showWelcome && (
+        <WelcomeModal onClose={() => {
+          localStorage.setItem("insight-desk:welcomed", "1");
+          setShowWelcome(false);
+        }} />
       )}
 
       {/* Import preview dialog */}
