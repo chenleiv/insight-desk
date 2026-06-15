@@ -54,10 +54,6 @@
     }
 }
 
-@mixin btn-outline {
-    @include btn-secondary;
-}
-
 @mixin btn-danger {
     @include btn-base;
     background: var(--danger-bg);

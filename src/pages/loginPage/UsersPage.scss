@@ -1,349 +1,41 @@
 @use "../../styles/mixins";
 
 .users-page {
-    padding: 24px;
-    max-width: 1200px;
-    margin: 0 auto;
-    animation: fadeIn 0.5s ease-out;
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
 
-    .page-top-nav {
-        margin-bottom: 24px;
+  .page-top-nav {
+    margin-bottom: 24px;
 
-        .btn-back-prominent {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px 8px 12px;
-            background: transparent;
-            // border: 1px solid var(--border);
-            border-radius: 50px;
-            color: var(--muted);
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    .btn-back-prominent {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px 8px 12px;
+      background: transparent;
+      border-radius: 50px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
-            &:hover {
-                color: var(--text);
-                background: var(--soft);
-                border-color: var(--muted);
-                transform: translateX(-2px);
-            }
-        }
+      &:hover {
+        color: var(--text);
+        background: var(--soft);
+        transform: translateX(-2px);
+      }
     }
+  }
 
-    .header-section {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 32px;
-        z-index: 0;
-
-        h1 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 600;
-            color: var(--text);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            letter-spacing: -0.01em;
-
-            span {
-                font-size: 14px;
-                font-weight: 500;
-                background: var(--soft-2);
-                color: var(--muted);
-                padding: 4px 12px;
-                border-radius: 8px;
-                border: 1px solid var(--border);
-            }
-        }
-
-        .actions {
-            display: flex;
-            gap: 12px;
-        }
-    }
-
-    .search-section {
-        margin-bottom: 24px;
-
-        input {
-            width: 100%;
-            max-width: 400px;
-        }
-    }
-
-    .users-table-container {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 4px 12px var(--shadow);
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-
-            th {
-                background: var(--soft);
-                padding: 16px 20px;
-                font-size: 13px;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                color: var(--muted);
-                border-bottom: 1px solid var(--border);
-            }
-
-            td {
-                padding: 16px 20px;
-                border-bottom: 1px solid var(--border);
-                color: var(--text);
-                font-size: 14px;
-                vertical-align: middle;
-                background: var(--panel);
-                transition: background 0.2s ease;
-
-                &:last-child {
-                    text-align: right;
-                }
-
-                .user-info {
-                    display: flex;
-                    flex-direction: column;
-
-                    .email {
-                        font-weight: 500;
-                    }
-
-                    .role-badge {
-                        font-size: 11px;
-                        text-transform: uppercase;
-                        font-weight: 700;
-                        letter-spacing: 0.5px;
-                        margin-top: 4px;
-
-                        &.admin {
-                            color: var(--primary);
-                        }
-
-                        &.viewer {
-                            color: var(--muted);
-                        }
-                    }
-                }
-
-                .status-badge {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 6px;
-                    padding: 4px 10px;
-                    border-radius: 12px;
-                    font-size: 12px;
-                    font-weight: 500;
-
-                    &::before {
-                        content: '';
-                        width: 6px;
-                        height: 6px;
-                        border-radius: 50%;
-                    }
-
-                    &.active {
-                        background: var(--success-bg);
-                        color: var(--success-text);
-                        border-color: var(--success-border);
-
-                        &::before {
-                            background: var(--success-text);
-                        }
-                    }
-
-                    &.inactive {
-                        background: var(--danger-bg);
-                        color: var(--danger-text);
-                        border-color: var(--danger-border);
-
-                        &::before {
-                            background: var(--danger-text);
-                        }
-                    }
-                }
-
-                .user-password {
-                    position: relative;
-                    display: flex;
-                    align-items: center;
-                    width: 180px;
-
-                    input {
-                        width: 100%;
-                        padding-right: 40px;
-                        background: var(--bg);
-                        border: 1px solid var(--border);
-                        color: var(--text);
-                        border-radius: 6px;
-                        font-family: monospace;
-                        font-size: 14px;
-                    }
-
-                    .toggle-visibility {
-                        position: absolute;
-                        right: 8px;
-                        background: none;
-                        border: none;
-                        color: var(--muted);
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        padding: 4px;
-                        border-radius: 4px;
-                        transition: all 0.2s ease;
-
-                        &:hover {
-                            color: var(--text);
-                            background: var(--soft-2);
-                        }
-                    }
-                }
-
-                .joined-date {
-                    color: var(--muted);
-                    font-size: 13px;
-                }
-
-                .user-actions {
-                    display: flex;
-                    gap: 8px;
-                    justify-content: flex-end;
-                }
-            }
-
-            tr {
-                transition: background 0.2s ease;
-
-                &:last-child td {
-                    border-bottom: none;
-                }
-
-                &:hover td {
-                    background: var(--soft);
-                }
-
-                &.empty-row td {
-                    text-align: center;
-                    padding: 40px;
-                    color: var(--muted);
-                }
-            }
-        }
-    }
-
+  .users-page-content {
+    max-width: 800px;
+  }
 }
 
-
 @include mixins.mobile {
-    .users-page {
-        padding: 16px;
-
-        .header-section {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 16px;
-
-            .actions {
-                width: 100%;
-
-                .btn {
-                    flex: 1;
-                    justify-content: center;
-                }
-            }
-        }
-
-        .search-section {
-            input {
-                max-width: 100%;
-            }
-        }
-
-        .users-table-container {
-            border: none;
-            background: transparent;
-            box-shadow: none;
-
-            table {
-                display: block;
-
-                thead {
-                    display: none; // Hide headers on mobile
-                }
-
-                tbody {
-                    display: block;
-                }
-
-                tr {
-                    display: block;
-                    background: var(--panel);
-                    border: 1px solid var(--border);
-                    border-radius: 12px;
-                    margin-bottom: 16px;
-                    padding: 16px;
-                    box-shadow: 0 4px 12px var(--shadow);
-
-                    &:hover {
-                        background: var(--panel); // Disable hover effect on mobile cards
-                    }
-                }
-
-                td {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 12px 0;
-                    border-bottom: 1px solid var(--border);
-                    width: 100%;
-                    text-align: right;
-                    background: transparent;
-
-                    &:last-child {
-                        border-bottom: none;
-                        text-align: right;
-                    }
-
-                    &::before {
-                        content: attr(data-label);
-                        font-weight: 600;
-                        color: var(--muted);
-                        text-transform: uppercase;
-                        font-size: 11px;
-                        letter-spacing: 0.05em;
-                        text-align: left;
-                    }
-
-                    .user-info {
-                        align-items: flex-end;
-                    }
-
-                    .user-password {
-                        width: auto;
-                        max-width: 160px;
-
-                        input {
-                            font-size: 12px;
-                        }
-                    }
-
-                    .status-badge {
-                        margin-left: auto;
-                    }
-                }
-            }
-        }
-    }
+  .users-page {
+    padding: 16px;
+  }
 }

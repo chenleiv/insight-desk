@@ -2,7 +2,7 @@ import { DocumentDetailSkeleton } from "../../../../components/skeleton/Skeleton
 
 type Props = {
   hasDocs: boolean;
-  loading?: boolean;
+  loading?: boolean | undefined;
 };
 
 export function EmptyPane({ hasDocs, loading }: Props) {

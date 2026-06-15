@@ -21,6 +21,24 @@ const ACCESS_TOKEN_MINUTES = parseInt(process.env.ACCESS_TOKEN_MINUTES || '60');
 const ENV = process.env.ENV || 'dev';
 const COOKIE_NAME = 'access_token';
 
+function formatUser(user) {
+    return {
+        email: user.email,
+        role: user.role,
+        favorites: user.favorites || [],
+        displayName: user.displayName || '',
+        jobTitle: user.jobTitle || '',
+    };
+}
+
+function handleZodError(err, res) {
+    if (err.name === 'ZodError') {
+        res.status(400).json({ detail: 'Validation failed', errors: err.errors });
+        return true;
+    }
+    return false;
+}
+
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 // In production this is the same as the app URL. In dev set FRONTEND_URL=http://localhost:5173
@@ -96,11 +114,9 @@ router.post('/login', async (req, res) => {
 
         const token = createAccessToken(user.email, user.role);
         setAuthCookie(res, token);
-        res.json({ user: { email: user.email, role: user.role, favorites: user.favorites || [], displayName: user.displayName || '', jobTitle: user.jobTitle || '' } });
+        res.json({ user: formatUser(user) });
     } catch (err) {
-        if (err.name === 'ZodError') {
-            return res.status(400).json({ detail: 'Validation failed', errors: err.errors });
-        }
+        if (handleZodError(err, res)) return;
         res.status(500).json({ detail: 'Internal server error' });
     }
 });
@@ -119,11 +135,9 @@ router.post('/register', async (req, res) => {
 
         const token = createAccessToken(user.email, user.role);
         setAuthCookie(res, token);
-        res.status(201).json({ user: { email: user.email, role: user.role, favorites: [], displayName: user.displayName || '', jobTitle: '' } });
+        res.status(201).json({ user: formatUser(user) });
     } catch (err) {
-        if (err.name === 'ZodError') {
-            return res.status(400).json({ detail: 'Validation failed', errors: err.errors });
-        }
+        if (handleZodError(err, res)) return;
         res.status(500).json({ detail: 'Internal server error' });
     }
 });
@@ -230,13 +244,7 @@ router.patch('/password', getCurrentUser, async (req, res) => {
 });
 
 router.get('/me', getCurrentUser, (req, res) => {
-    res.json({
-        email: req.user.email,
-        role: req.user.role,
-        favorites: req.user.favorites || [],
-        displayName: req.user.displayName || '',
-        jobTitle: req.user.jobTitle || '',
-    });
+    res.json(formatUser(req.user));
 });
 
 router.patch('/profile', getCurrentUser, async (req, res) => {
@@ -247,13 +255,7 @@ router.patch('/profile', getCurrentUser, async (req, res) => {
         if (typeof jobTitle === 'string') update.jobTitle = jobTitle.trim().slice(0, 80);
 
         const user = await User.findByIdAndUpdate(req.user._id, update, { new: true });
-        res.json({
-            email: user.email,
-            role: user.role,
-            favorites: user.favorites || [],
-            displayName: user.displayName || '',
-            jobTitle: user.jobTitle || '',
-        });
+        res.json(formatUser(user));
     } catch (err) {
         logger.error('Update profile failed', { message: err.message });
         res.status(500).json({ detail: 'Internal server error' });

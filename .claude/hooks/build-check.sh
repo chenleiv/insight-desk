@@ -29,6 +29,29 @@ print(json.dumps(output))
 " "$LOG_CONTENT"
     exit 0
   fi
+
+  # Type-check separately — Vite uses esbuild which skips type errors
+  TSC_LOG=$(mktemp -t insight-tsc.XXXXXX)
+  trap 'rm -f "$TSC_LOG"' EXIT
+
+  npx tsc --noEmit > "$TSC_LOG" 2>&1
+  TSC_EXIT=$?
+
+  if [ $TSC_EXIT -ne 0 ]; then
+    LOG_CONTENT=$(tail -c 2000 "$TSC_LOG" | sed 's/\x1b\[[0-9;]*m//g' | tr -cd '[:print:]\n')
+    python3 -c "
+import json, sys
+log = sys.argv[1]
+output = {
+    'hookSpecificOutput': {
+        'hookEventName': 'Stop',
+        'additionalContext': '--- TSC OUTPUT (UNTRUSTED) ---\nTYPE CHECK FAILED. Fix these errors:\n' + log + '\n--- END TSC OUTPUT ---'
+    }
+}
+print(json.dumps(output))
+" "$LOG_CONTENT"
+    exit 0
+  fi
 fi
 
 # Test validation — runs on test file changes or src changes

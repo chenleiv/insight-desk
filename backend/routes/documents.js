@@ -13,6 +13,24 @@ const router = Router();
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 
+function handleMulterUpload(req, res, next) {
+    upload.single('file')(req, res, (err) => {
+        if (err) {
+            const status = err.status || (err.code === 'LIMIT_FILE_SIZE' ? 413 : 400);
+            return res.status(status).json({ detail: err.message });
+        }
+        next();
+    });
+}
+
+function handleZodError(err, res) {
+    if (err.name === 'ZodError') {
+        res.status(400).json({ detail: 'Validation failed', errors: err.errors });
+        return true;
+    }
+    return false;
+}
+
 function getBucket() {
     return new GridFSBucket(mongoose.connection.db, { bucketName: 'attachments' });
 }
@@ -41,15 +59,7 @@ const upload = multer({
 });
 
 // Extract text from a file without creating any document (admin)
-router.post('/extract-text', requireAdmin, (req, res, next) => {
-    upload.single('file')(req, res, (err) => {
-        if (err) {
-            const status = err.status || (err.code === 'LIMIT_FILE_SIZE' ? 413 : 400);
-            return res.status(status).json({ detail: err.message });
-        }
-        next();
-    });
-}, async (req, res) => {
+router.post('/extract-text', requireAdmin, handleMulterUpload, async (req, res) => {
     try {
         const file = req.file;
         if (!file) return res.status(400).json({ detail: 'No file uploaded' });
@@ -80,18 +90,12 @@ router.post('/import-bulk', requireAdmin, async (req, res) => {
         if (mode === 'replace') {
             await Document.deleteMany({});
         }
-        const normalized = documents.map(d => {
-            const { _id, id, ...rest } = d;
-            return rest;
-        });
+        const normalized = documents.map(({ _id, id, ...rest }) => rest);
         await Document.insertMany(normalized);
-        const result = await Document.find();
-        res.json(result);
+        res.json({ inserted: normalized.length, mode });
     } catch (err) {
         logger.error('Import failed', { message: err.message });
-        if (err.name === 'ZodError') {
-            return res.status(400).json({ detail: 'Validation failed', errors: err.errors });
-        }
+        if (handleZodError(err, res)) return;
         res.status(500).json({ detail: 'Import failed' });
     }
 });
@@ -129,9 +133,7 @@ router.post('/', requireAdmin, async (req, res) => {
         res.json(newDoc);
     } catch (err) {
         logger.error('Creating document', { message: err.message });
-        if (err.name === 'ZodError') {
-            return res.status(400).json({ detail: 'Validation failed', errors: err.errors });
-        }
+        if (handleZodError(err, res)) return;
         res.status(500).json({ detail: 'Error creating document' });
     }
 });
@@ -147,9 +149,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
         res.json(updated);
     } catch (err) {
         logger.error('Updating document', { message: err.message });
-        if (err.name === 'ZodError') {
-            return res.status(400).json({ detail: 'Validation failed', errors: err.errors });
-        }
+        if (handleZodError(err, res)) return;
         res.status(500).json({ detail: 'Error updating document' });
     }
 });
@@ -222,15 +222,7 @@ router.get('/:id/attachments/:attachmentId/file', getCurrentUser, async (req, re
 });
 
 // Upload attachment
-router.post('/:id/attachments', requireAdmin, (req, res, next) => {
-    upload.single('file')(req, res, (err) => {
-        if (err) {
-            const status = err.status || (err.code === 'LIMIT_FILE_SIZE' ? 413 : 400);
-            return res.status(status).json({ detail: err.message });
-        }
-        next();
-    });
-}, async (req, res) => {
+router.post('/:id/attachments', requireAdmin, handleMulterUpload, async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
         if (!doc) return res.status(404).json({ detail: 'Not found' });

@@ -31,7 +31,7 @@ export function applyMiddleware(app) {
                 callback(null, true);
             } else {
                 logger.warn('CORS: request from unauthorized origin', { origin });
-                callback(null, true);
+                callback(new Error('Not allowed by CORS'));
             }
         },
         credentials: true,

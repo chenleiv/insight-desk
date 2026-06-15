@@ -23,6 +23,12 @@ export async function loadAIConfig() {
     }
 }
 
+let _groq = null;
+function getGroq() {
+    if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    return _groq;
+}
+
 const router = express.Router();
 
 router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
@@ -35,7 +41,7 @@ router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
             });
         }
 
-        const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+        const groq = getGroq();
 
         // Enrich each context doc with attachment extractedText from MongoDB,
         // lazily back-filling any attachments that were uploaded before this feature.
