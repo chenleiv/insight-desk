@@ -103,6 +103,26 @@ function setAuthCookie(res, token) {
     });
 }
 
+router.post('/demo', async (req, res) => {
+    try {
+        const DEMO_EMAIL = 'admin@demo.com';
+        const DEMO_PASSWORD = 'admin123';
+
+        let user = await User.findOne({ email: DEMO_EMAIL });
+        if (!user) {
+            const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
+            user = await User.create({ email: DEMO_EMAIL, password_hash: hash, role: 'admin', displayName: 'Demo Admin' });
+        }
+
+        const token = createAccessToken(user.email, user.role);
+        setAuthCookie(res, token);
+        res.json({ user: formatUser(user) });
+    } catch (err) {
+        logger.error('Demo login failed', { message: err.message });
+        res.status(500).json({ detail: 'Internal server error' });
+    }
+});
+
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = loginSchema.parse(req.body);

@@ -1,7 +1,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, BrainCircuit, Sun, Moon } from "lucide-react";
-import { login, register } from "../../api/authClient";
+import { login, register, demoLogin } from "../../api/authClient";
 import { useAuth } from "../../auth/useAuth";
 import { useStatus } from "../../components/statusBar/useStatus";
 import { useTheme } from "../../hooks/useTheme";
@@ -202,7 +202,7 @@ export default function LoginPage() {
             disabled={isPending}
             onClick={async () => {
               try {
-                const res = await login("admin@demo.com", "admin123");
+                const res = await demoLogin();
                 loginSuccess(res.user);
                 nav(redirectTo, { replace: true });
               } catch {
