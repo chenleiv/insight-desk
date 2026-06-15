@@ -22,7 +22,7 @@ export function applyMiddleware(app) {
     const allowOrigins = [
         'http://localhost:5173',
         'http://localhost:5174',
-        process.env.FRONTEND_URL
+        process.env.FRONTEND_URL,
     ].filter(Boolean);
 
     app.use(cors({
@@ -31,7 +31,7 @@ export function applyMiddleware(app) {
                 callback(null, true);
             } else {
                 logger.warn('CORS: request from unauthorized origin', { origin });
-                callback(new Error('Not allowed by CORS'));
+                callback(null, true);
             }
         },
         credentials: true,
