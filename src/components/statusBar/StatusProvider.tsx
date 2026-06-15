@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import type { StatusMessage } from "./statusTypes";
 import { StatusContext, type StatusApi } from "./statusContext";
 import StatusBar from "./StatusBar";
@@ -7,7 +7,7 @@ function uid() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export function StatusProvider({ children }: { children: React.ReactNode }) {
+export function StatusProvider({ children }: { children: ReactNode }) {
   const [msg, setMsg] = useState<StatusMessage | null>(null);
   const timerRef = useRef<number | null>(null);
 

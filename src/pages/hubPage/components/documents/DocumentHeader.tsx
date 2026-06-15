@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Maximize2,
   Minimize2,
@@ -66,7 +65,7 @@ function MinimizeBtn({ onClick }: { onClick: () => void }) {
 
 const Placeholder = () => <span className="doc-pane-grid-placeholder" aria-hidden />;
 
-export const DocumentHeader: React.FC<Props> = ({
+export function DocumentHeader({
   title,
   category,
   isCreating,
@@ -80,7 +79,7 @@ export const DocumentHeader: React.FC<Props> = ({
   saveStatus,
   onImportClick,
   onExport,
-}) => {
+}: Props) {
   const isDrawer = variant === "drawer";
 
   // ── Default variant: delete btn + window controls ──
@@ -147,4 +146,4 @@ export const DocumentHeader: React.FC<Props> = ({
       </div>
     </div>
   );
-};
+}

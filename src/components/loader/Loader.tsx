@@ -1,4 +1,3 @@
-import React from "react";
 import { Loader2 } from "lucide-react";
 
 interface LoaderProps {
@@ -6,14 +5,6 @@ interface LoaderProps {
   className?: string;
 }
 
-export const Loader: React.FC<LoaderProps> = ({
-  size = 18,
-  className = "",
-}) => {
-  return (
-    <Loader2
-      size={size}
-      className={`icon-spin ${className}`}
-    />
-  );
-};
+export function Loader({ size = 18, className = "" }: LoaderProps) {
+  return <Loader2 size={size} className={`icon-spin ${className}`} />;
+}

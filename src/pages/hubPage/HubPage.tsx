@@ -196,7 +196,7 @@ export default function HubPage() {
       if (activeView.kind === "doc" && activeView.id) {
         const next = [activeView.id];
         setSelectedIds(next);
-        saveJson(scopedKey(CONTEXT_KEY, user?.email), next);
+        saveJson(CONTEXT_KEY, next);
       }
       setActiveView({ kind: "ai" });
     });

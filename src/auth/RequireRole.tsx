@@ -7,7 +7,7 @@ export default function RequireRole({ allow }: { allow: Role[] }) {
 
   if (!isReady) return <div />;
   if (!user) return <Navigate to="/login" replace />;
-  if (!allow.includes(user.role)) return <Navigate to="/documents" replace />;
+  if (!allow.includes(user.role)) return <Navigate to="/hub" replace />;
 
   return <Outlet />;
 }

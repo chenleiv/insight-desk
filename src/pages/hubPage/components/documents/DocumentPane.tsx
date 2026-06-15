@@ -1,5 +1,7 @@
 import "./docPane.scss";
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+
+const CLIENT_SIDE_EXTS = new Set(["json", "txt", "md", "rtf"]);
 import type { DocumentItem, DocumentInput } from "../../../../api/documentsClient";
 import { createDocument, uploadAttachment, extractTextFromFile } from "../../../../api/documentsClient";
 import { useStatus } from "../../../../components/statusBar/useStatus";
@@ -153,8 +155,6 @@ export default function DocumentPane({
   };
 
   const isCreationPending = saveStatus === "saving" && isCreating;
-
-  const CLIENT_SIDE_EXTS = new Set(["json", "txt", "md", "rtf"]);
 
   const handleImportContent = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

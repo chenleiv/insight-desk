@@ -18,6 +18,7 @@ export function applyOrder(
   if (!order.length) return docs;
 
   const map = new Map(docs.map((d) => [d.id, d]));
+  const orderSet = new Set(order);
   const ordered: DocumentItem[] = [];
 
   for (const id of order) {
@@ -26,7 +27,7 @@ export function applyOrder(
   }
 
   for (const d of docs) {
-    if (!order.includes(d.id)) ordered.push(d);
+    if (!orderSet.has(d.id)) ordered.push(d);
   }
 
   return ordered;

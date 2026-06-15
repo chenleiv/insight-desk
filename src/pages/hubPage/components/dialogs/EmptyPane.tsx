@@ -1,12 +1,11 @@
-import React from "react";
 import { DocumentDetailSkeleton } from "../../../../components/skeleton/Skeleton";
 
 type Props = {
   hasDocs: boolean;
-  loading?: boolean | undefined;
+  loading?: boolean;
 };
 
-export const EmptyPane: React.FC<Props> = ({ hasDocs, loading }) => {
+export function EmptyPane({ hasDocs, loading }: Props) {
   return (
     <div className="doc-pane">
       <div className="doc-pane-empty">
@@ -25,4 +24,4 @@ export const EmptyPane: React.FC<Props> = ({ hasDocs, loading }) => {
       </div>
     </div>
   );
-};
+}
