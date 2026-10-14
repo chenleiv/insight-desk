@@ -1,0 +1,44 @@
+[
+  {
+    "id": "q01",
+    "question": "Which severity level covers ransomware, and who is it escalated to?",
+    "expected": "P1 (Critical); escalated to CISO, Legal, CEO",
+    "type": "fact",
+    "target": "Security Incident Response (attachment)"
+  },
+  {
+    "id": "q02",
+    "question": "What is the phone number of the security team?",
+    "expected": "I couldn't find this information in your documents. Please upload a relevant document and try again.",
+    "type": "not-in-docs",
+    "target": null
+  },
+  {
+    "id": "q03",
+    "question": "When is the IT help desk open?",
+    "expected": "Sunday to Thursday, 08:00 to 18:00",
+    "type": "long-doc-start",
+    "target": "northwind-employee-handbook.md"
+  },
+  {
+    "id": "q04",
+    "question": "How far in advance must remote work days be requested?",
+    "expected": "At least five working days",
+    "type": "long-doc-middle",
+    "target": "northwind-employee-handbook.md"
+  },
+  {
+    "id": "q05",
+    "question": "When is the backup power generator tested?",
+    "expected": "Every second Tuesday of the month at 06:30",
+    "type": "long-doc-end",
+    "target": "northwind-employee-handbook.md"
+  },
+  {
+    "id": "q06",
+    "question": "How early do I need to ask to work from home?",
+    "expected": "At least five working days",
+    "type": "paraphrase",
+    "target": "northwind-employee-handbook.md"
+  }
+]
