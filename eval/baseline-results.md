@@ -17,11 +17,15 @@ Measured by hand on branch `rag-update`, before any RAG changes. Questions are d
 | q03 | long-doc-start | When is the IT help desk open? | Sunday to Thursday, 08:00 to 18:00 | correct | |
 | q04 | long-doc-middle | How far in advance must remote work days be requested? | At least five working days | correct | |
 | q05 | long-doc-end | When is the backup power generator tested? | Every second Tuesday of the month at 06:30 | correct | |
-| q06 | paraphrase | How early do I need to ask to work from home? | At least five working days | failed | The assistant said it could not find the information. Cause not yet confirmed. The query shares the word "work" with the handbook, so either the handbook was not among the top 3 documents selected by `scoreDoc`, or the model refused for another reason. To be verified by checking which documents were sent. |
+| q06 | paraphrase | How early do I need to ask to work from home? | At least five working days | failed | The assistant said it could not find the information. The handbook was not among the 3 documents sent to the model. The documents sent were "Password Management and Multi-Factor Authentication", "Security Incident Response" and "Cloud Security and SaaS Protection". `scoreDoc` scores for this query: Security Incident Response 32, Cloud Security and SaaS Protection 30, Northwind Employee Handbook 26 (the score of the Password Management document was not computed). The model refused correctly because it never received the handbook. |
+
+## Retrieval diagnosis
+
+`scoreDoc` matches query words as substrings, so short common words (do, to, from, work, need) match almost every text. Content and attachment text each add 2 points per word, so documents with large attachments are scored twice and outrank a document that is actually relevant. The only topical word in q06, "home", matched only the handbook, and was not enough.
 
 ## Summary
 
-5 of 6 correct. One open failure (q06), pending a root-cause check.
+5 of 6 correct. The single failure (q06) is a retrieval failure, not a model failure.
 
 ## How to rerun
 
