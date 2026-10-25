@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import "./tourOverlay.scss";
 
@@ -11,78 +11,37 @@ export type TourStep = {
   placement: TourPlacement;
 };
 
-export const HUB_TOUR_STEPS: TourStep[] = [
-  {
-    selector: ".doc-panel-wrapper",
-    title: "📄 Document list",
-    description:
-      "All your documents live here. Click any document to open it.\n\n⭐ Star — mark as favourite\n🧠 Brain — add to Brainy AI context (so it can read it)",
-    placement: "right",
-  },
-  {
-    selector: ".hub-main",
-    title: "🧠 Brainy AI",
-    description:
-      "Select one or more documents with the 🧠 brain icon, then ask Brainy anything about them — summaries, Q&A, comparisons.",
-    placement: "left",
-  },
-  {
-    selector: ".topbar-nav",
-    title: "Navigation",
-    description:
-      "Dashboard — an overview of all your documents.\n\nSettings — theme, account details, and team members.",
-    placement: "bottom",
-  },
-];
-
-export const DOC_TOUR_STEPS: TourStep[] = [
-  {
-    selector: ".notion-content-input",
-    title: "✏️ Auto-saved",
-    description: "Everything you write here is saved automatically.",
-    placement: "left",
-  },
-  {
-    selector: ".notion-att-chips",
-    title: "📎 Attachments",
-    description:
-      "Attach files here — PDF, Word, Excel. The text is extracted automatically so Brainy AI can read them.",
-    placement: "left",
-  },
-];
-
-export const NEW_DOC_TOUR_STEPS: TourStep[] = [
-  {
-    selector: ".notion-content-input",
-    title: "✏️ Start writing",
-    description: "Type your content here.",
-    placement: "left",
-  },
-  {
-    selector: ".doc-pane-import-btn",
-    title: "Import text from file",
-    description:
-      "Click here to extract text from a PDF, Word, or Excel file and paste it straight into the document.",
-    placement: "bottom",
-  },
-  {
-    selector: ".notion-att-chip--add",
-    title: "📎 Add file",
-    description:
-      "Attach a raw file to this document. Brainy AI will be able to read its contents.",
-    placement: "right",
-  },
-];
-
 type Rect = { top: number; left: number; width: number; height: number };
 
 const PAD = 8;
+const EDGE = 16;
+// Matches .tour-callout width in tourOverlay.scss
+const CALLOUT_W = 250;
 
-function getRect(selector: string): Rect | null {
+function subscribe(onChange: () => void) {
+  window.addEventListener("resize", onChange);
+  // Capture phase also catches scrolling inside nested containers
+  window.addEventListener("scroll", onChange, true);
+  return () => {
+    window.removeEventListener("resize", onChange);
+    window.removeEventListener("scroll", onChange, true);
+  };
+}
+
+// Serialized to a string so an unchanged layout yields an equal snapshot
+// and useSyncExternalStore does not re-render.
+function getLayoutKey(selector: string): string {
+  const viewport = `${window.innerWidth},${window.innerHeight}`;
   const el = document.querySelector(selector);
-  if (!el) return null;
+  if (!el) return viewport;
   const r = el.getBoundingClientRect();
-  return { top: r.top, left: r.left, width: r.width, height: r.height };
+  return `${viewport},${r.top},${r.left},${r.width},${r.height}`;
+}
+
+function parseLayoutKey(key: string): { vw: number; vh: number; rect: Rect | null } {
+  const [vw, vh, top, left, width, height] = key.split(",").map(Number);
+  const rect = top === undefined ? null : { top, left, width, height };
+  return { vw, vh, rect };
 }
 
 type Props = {
@@ -92,19 +51,15 @@ type Props = {
 
 export function TourOverlay({ steps, onDone }: Props) {
   const [step, setStep] = useState(0);
-  const [rect, setRect] = useState<Rect | null>(null);
 
   const current = steps[step];
 
-  const measure = useCallback(() => {
-    setRect(getRect(current.selector));
-  }, [current.selector]);
-
-  useEffect(() => {
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [measure]);
+  const layoutKey = useSyncExternalStore(
+    subscribe,
+    () => getLayoutKey(current.selector),
+    () => ""
+  );
+  const { vw, vh, rect } = parseLayoutKey(layoutKey);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -123,28 +78,36 @@ export function TourOverlay({ steps, onDone }: Props) {
   const spotW = (rect?.width ?? 0) + PAD * 2;
   const spotH = (rect?.height ?? 0) + PAD * 2;
 
-  let calloutStyle: React.CSSProperties = {};
-  if (rect) {
-    if (current.placement === "right") {
-      calloutStyle = {
-        top: Math.max(16, spotTop + spotH / 2 - 90),
-        left: spotLeft + spotW + 20,
-      };
-    } else if (current.placement === "left") {
-      calloutStyle = {
-        top: Math.max(16, spotTop + spotH / 2 - 90),
-        left: Math.max(16, spotLeft - 280),
-      };
-    } else {
-      calloutStyle = {
-        top: spotTop + spotH + 16,
-        left: Math.max(16, spotLeft + spotW / 2 - 125),
-      };
-    }
+  let calloutStyle: React.CSSProperties;
+  if (!rect) {
+    // Target not found: center the callout so the step is still readable
+    calloutStyle = {
+      top: Math.max(EDGE, vh / 2 - 90),
+      left: Math.max(EDGE, (vw - CALLOUT_W) / 2),
+    };
+  } else if (current.placement === "right") {
+    calloutStyle = {
+      top: Math.max(16, spotTop + spotH / 2 - 90),
+      left: spotLeft + spotW + 20,
+    };
+  } else if (current.placement === "left") {
+    calloutStyle = {
+      top: Math.max(16, spotTop + spotH / 2 - 90),
+      left: Math.max(16, spotLeft - 280),
+    };
+  } else {
+    calloutStyle = {
+      top: spotTop + spotH + 16,
+      left: Math.max(16, spotLeft + spotW / 2 - 125),
+    };
+  }
+  // Keep the callout inside the right edge of the viewport
+  if (typeof calloutStyle.left === "number") {
+    calloutStyle.left = Math.max(EDGE, Math.min(calloutStyle.left, vw - CALLOUT_W - EDGE));
   }
 
   return createPortal(
-    <div className="tour-backdrop" onClick={onDone}>
+    <div className={`tour-backdrop${rect ? "" : " tour-backdrop--dim"}`} onClick={onDone}>
       {rect && (
         <div
           className="tour-spotlight"
@@ -153,31 +116,29 @@ export function TourOverlay({ steps, onDone }: Props) {
         />
       )}
 
-      {rect && (
-        <div
-          className="tour-callout"
-          style={calloutStyle}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <p className="tour-step-counter">{step + 1} / {steps.length}</p>
-          <p className="tour-callout-title">{current.title}</p>
-          <p className="tour-callout-desc" style={{ whiteSpace: "pre-line" }}>{current.description}</p>
-          <div className="tour-callout-nav">
-            {step > 0 && (
-              <button type="button" className="tour-btn tour-btn--back" onClick={() => setStep((s) => s - 1)}>
-                ← Back
-              </button>
-            )}
-            <button
-              type="button"
-              className="tour-btn tour-btn--primary"
-              onClick={isLast ? onDone : () => setStep((s) => s + 1)}
-            >
-              {isLast ? "Done ✓" : "Next →"}
+      <div
+        className="tour-callout"
+        style={calloutStyle}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="tour-step-counter">{step + 1} / {steps.length}</p>
+        <p className="tour-callout-title">{current.title}</p>
+        <p className="tour-callout-desc" style={{ whiteSpace: "pre-line" }}>{current.description}</p>
+        <div className="tour-callout-nav">
+          {step > 0 && (
+            <button type="button" className="tour-btn tour-btn--back" onClick={() => setStep((s) => s - 1)}>
+              ← Back
             </button>
-          </div>
+          )}
+          <button
+            type="button"
+            className="tour-btn tour-btn--primary"
+            onClick={isLast ? onDone : () => setStep((s) => s + 1)}
+          >
+            {isLast ? "Done ✓" : "Next →"}
+          </button>
         </div>
-      )}
+      </div>
 
       <button type="button" className="tour-skip" onClick={onDone}>
         Skip tour

@@ -7,7 +7,8 @@ import { createDocument, uploadAttachment, extractTextFromFile } from "../../../
 import { useStatus } from "../../../../components/statusBar/useStatus";
 import { parseImportFile } from "../../utils/parseImportFile";
 import { EmptyPane } from "../dialogs/EmptyPane";
-import { TourOverlay, DOC_TOUR_STEPS, NEW_DOC_TOUR_STEPS } from "../dialogs/TourOverlay";
+import { TourOverlay } from "../dialogs/TourOverlay";
+import { DOC_TOUR_STEPS, NEW_DOC_TOUR_STEPS } from "../dialogs/tourSteps";
 import { DocumentHeader } from "./DocumentHeader";
 import { DocumentEdit } from "./DocumentEdit";
 import type { DocumentEditHandle } from "./DocumentEdit";

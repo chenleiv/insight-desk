@@ -31,7 +31,8 @@ import MobileDrawer from "./components/layout/MobileDrawer";
 import { useDocumentOrdering } from "./hooks/useDocumentOrdering";
 import { useImportExport } from "./hooks/useImportExport";
 import { WelcomeModal } from "./components/dialogs/WelcomeModal";
-import { TourOverlay, HUB_TOUR_STEPS } from "./components/dialogs/TourOverlay";
+import { TourOverlay } from "./components/dialogs/TourOverlay";
+import { HUB_TOUR_STEPS } from "./components/dialogs/tourSteps";
 
 type ActiveView =
   | { kind: "ai" }
