@@ -11,6 +11,119 @@ const EXCEL_MIMES = new Set([
     'application/vnd.ms-excel',
 ]);
 
+const TEXT_MIMES = new Set(['text/plain', 'text/markdown', 'application/rtf', 'text/rtf']);
+const RTF_MIMES = new Set(['application/rtf', 'text/rtf']);
+
+// RTF groups that hold formatting metadata rather than document text.
+const RTF_SKIP_GROUPS = new Set([
+    'fonttbl', 'colortbl', 'stylesheet', 'info', 'pict', 'object', 'fldinst',
+    'listtable', 'listoverridetable', 'header', 'footer', 'headerl', 'headerr',
+    'footerl', 'footerr', 'xmlnstbl', 'rsidtbl', 'themedata', 'latentstyles',
+]);
+
+const RTF_SYMBOLS = {
+    par: '\n', line: '\n', row: '\n', cell: '\t', tab: '\t',
+    emdash: '—', endash: '–', bullet: '•',
+    lquote: '‘', rquote: '’', ldblquote: '“', rdblquote: '”',
+};
+
+const RTF_CONTROL_WORD = /\\([a-zA-Z]+)(-?\d+)? ?/y;
+
+/**
+ * Convert an RTF document to plain text. Keeps paragraphs as line breaks and
+ * decodes escaped characters; drops all formatting.
+ */
+export function rtfToText(rtf) {
+    let out = '';
+    let skip = false;
+    let ucSkip = 1;       // fallback chars that follow each \uN escape
+    let pendingSkip = 0;  // fallback chars still to drop
+    let decoder = new TextDecoder('windows-1252');
+    const stack = [];
+
+    const emit = (text) => {
+        if (skip) return;
+        if (pendingSkip > 0) {
+            pendingSkip--;
+            return;
+        }
+        out += text;
+    };
+
+    let i = 0;
+    while (i < rtf.length) {
+        const ch = rtf[i];
+
+        if (ch === '{') {
+            stack.push({ skip, ucSkip });
+            i++;
+        } else if (ch === '}') {
+            ({ skip, ucSkip } = stack.pop() ?? { skip: false, ucSkip: 1 });
+            i++;
+        } else if (ch === '\r' || ch === '\n') {
+            // Raw line breaks are not content in RTF.
+            i++;
+        } else if (ch !== '\\') {
+            emit(ch);
+            i++;
+        } else {
+            const next = rtf[i + 1];
+            if (next === '\\' || next === '{' || next === '}') {
+                emit(next);
+                i += 2;
+            } else if (next === "'") {
+                const byte = parseInt(rtf.slice(i + 2, i + 4), 16);
+                if (!Number.isNaN(byte)) emit(decoder.decode(Uint8Array.of(byte)));
+                i += 4;
+            } else if (next === '\r' || next === '\n') {
+                emit('\n');
+                i += 2;
+            } else if (next === '*') {
+                skip = true;
+                i += 2;
+            } else if (next === '~') {
+                emit(' ');
+                i += 2;
+            } else {
+                RTF_CONTROL_WORD.lastIndex = i;
+                const match = RTF_CONTROL_WORD.exec(rtf);
+                if (!match) {
+                    i += 2;
+                    continue;
+                }
+                i = RTF_CONTROL_WORD.lastIndex;
+                const [, word, param] = match;
+
+                if (RTF_SKIP_GROUPS.has(word)) {
+                    skip = true;
+                } else if (word === 'u') {
+                    const code = Number(param);
+                    emit(String.fromCharCode(code < 0 ? code + 65536 : code));
+                    if (!skip) pendingSkip = ucSkip;
+                } else if (word === 'uc') {
+                    ucSkip = Number(param);
+                } else if (word === 'ansicpg') {
+                    try {
+                        decoder = new TextDecoder(`windows-${param}`);
+                    } catch {
+                        // Unknown code page: keep the default decoder.
+                    }
+                } else if (RTF_SYMBOLS[word]) {
+                    emit(RTF_SYMBOLS[word]);
+                }
+            }
+        }
+    }
+
+    return out
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n');
+}
+
+function isRtf(mimeType, text) {
+    return RTF_MIMES.has(mimeType) || text.trimStart().startsWith('{\\rtf');
+}
+
 export async function extractTextFromBuffer(buffer, mimeType) {
     try {
         if (mimeType === 'application/pdf') {
@@ -21,8 +134,9 @@ export async function extractTextFromBuffer(buffer, mimeType) {
             const result = await mammoth.extractRawText({ buffer });
             return result.value.trim().slice(0, 50000);
         }
-        if (['text/plain', 'text/markdown', 'application/rtf', 'text/rtf'].includes(mimeType)) {
-            return buffer.toString('utf-8').trim().slice(0, 50000);
+        if (TEXT_MIMES.has(mimeType)) {
+            const text = buffer.toString('utf-8');
+            return (isRtf(mimeType, text) ? rtfToText(text) : text).trim().slice(0, 50000);
         }
         if (EXCEL_MIMES.has(mimeType)) {
             const workbook = XLSX.read(buffer, { type: 'buffer' });
