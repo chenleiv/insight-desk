@@ -8,6 +8,7 @@ import { Document } from '../models.js';
 import { extractTextFromBuffer } from '../textExtract.js';
 import { getCurrentUser, requireAdmin } from '../auth.js';
 import { documentSchema, importBulkSchema } from '../schemas.js';
+import { syncDocumentChunks, deleteDocumentChunks } from '../rag/syncChunks.js';
 
 const router = Router();
 
@@ -29,6 +30,24 @@ function handleZodError(err, res) {
         return true;
     }
     return false;
+}
+
+// The document change is already saved, so a chunk failure is logged rather
+// than failing the request. `npm run reindex` repairs any stale chunks.
+async function refreshChunks(docs) {
+    try {
+        for (const doc of [].concat(docs)) await syncDocumentChunks(doc);
+    } catch (err) {
+        logger.error('Rebuilding chunks failed', { message: err.message });
+    }
+}
+
+async function removeChunks(docIds) {
+    try {
+        await deleteDocumentChunks(docIds);
+    } catch (err) {
+        logger.error('Deleting chunks failed', { message: err.message });
+    }
 }
 
 function getBucket() {
@@ -88,10 +107,13 @@ router.post('/import-bulk', requireAdmin, async (req, res) => {
     try {
         const { mode, documents } = importBulkSchema.parse(req.body);
         if (mode === 'replace') {
+            const existing = await Document.find({}, '_id');
             await Document.deleteMany({});
+            await removeChunks(existing.map((d) => d._id));
         }
-        const normalized = documents.map(({ _id, id, ...rest }) => rest);
-        await Document.insertMany(normalized);
+        const normalized = documents.map(({ _id, id, ...rest }) => ({ ...rest, ownerId: req.user._id }));
+        const inserted = await Document.insertMany(normalized);
+        await refreshChunks(inserted);
         res.json({ inserted: normalized.length, mode });
     } catch (err) {
         logger.error('Import failed', { message: err.message });
@@ -129,7 +151,8 @@ router.get('/:id', getCurrentUser, async (req, res) => {
 router.post('/', requireAdmin, async (req, res) => {
     try {
         const validated = documentSchema.parse(req.body);
-        const newDoc = await Document.create(validated);
+        const newDoc = await Document.create({ ...validated, ownerId: req.user._id });
+        await refreshChunks(newDoc);
         res.json(newDoc);
     } catch (err) {
         logger.error('Creating document', { message: err.message });
@@ -146,6 +169,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
         if (!updated) {
             return res.status(404).json({ detail: 'Not found' });
         }
+        await refreshChunks(updated);
         res.json(updated);
     } catch (err) {
         logger.error('Updating document', { message: err.message });
@@ -170,6 +194,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
                     .map(a => bucket.delete(a.gridfsId).catch(() => {}))
             );
         }
+        await removeChunks(deleted._id);
         res.status(204).send();
     } catch (err) {
         logger.error('Deleting document', { message: err.message });
@@ -257,6 +282,7 @@ router.post('/:id/attachments', requireAdmin, handleMulterUpload, async (req, re
             gridfsId: uploadStream.id,
         });
         await doc.save();
+        await refreshChunks(doc);
 
         res.json(doc.attachments[doc.attachments.length - 1]);
     } catch (err) {
@@ -281,6 +307,7 @@ router.delete('/:id/attachments/:attachmentId', requireAdmin, async (req, res) =
 
         doc.attachments.pull({ _id: req.params.attachmentId });
         await doc.save();
+        await refreshChunks(doc);
 
         res.status(204).send();
     } catch (err) {

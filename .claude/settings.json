@@ -35,7 +35,9 @@
       "Bash(ls backend*)"
     ],
     "deny": [
-      "Bash(git show *:*)"
+      "Bash(git show *:*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)"
     ]
   }
 }

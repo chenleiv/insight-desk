@@ -13,6 +13,7 @@ import authRouter, { seedUsersIfEmpty } from './auth.js';
 import aiRouter, { loadAIConfig } from './ai.js';
 import documentsRouter from './routes/documents.js';
 import usersRouter from './routes/users.js';
+import healthRouter from './routes/health.js';
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -65,9 +66,7 @@ app.use('/api/documents', documentsRouter);
 app.use('/api/users', usersRouter);
 
 // Health check
-app.get('/health', (req, res) => {
-    res.json({ ok: true });
-});
+app.use(healthRouter);
 
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain');

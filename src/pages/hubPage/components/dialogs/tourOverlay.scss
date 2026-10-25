@@ -4,6 +4,11 @@
   inset: 0;
   z-index: 9000;
   cursor: pointer;
+
+  // No spotlight to cast the shadow when the target is missing
+  &--dim {
+    background: rgba(0, 0, 0, 0.58);
+  }
 }
 
 /* ── Spotlight (cuts a transparent hole via box-shadow) ── */
