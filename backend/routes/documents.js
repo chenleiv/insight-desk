@@ -106,14 +106,17 @@ router.get('/export', requireAdmin, async (req, res) => {
 router.post('/import-bulk', requireAdmin, async (req, res) => {
     try {
         const { mode, documents } = importBulkSchema.parse(req.body);
-        if (mode === 'replace') {
-            const existing = await Document.find({}, '_id');
-            await Document.deleteMany({});
-            await removeChunks(existing.map((d) => d._id));
-        }
         const normalized = documents.map(({ _id, id, ...rest }) => ({ ...rest, ownerId: req.user._id }));
-        const inserted = await Document.insertMany(normalized);
-        await refreshChunks(inserted);
+        // One transaction: a failed import leaves existing documents and chunks untouched.
+        await Document.db.transaction(async (session) => {
+            if (mode === 'replace') {
+                const existing = await Document.find({}, '_id', { session });
+                await Document.deleteMany({}, { session });
+                await deleteDocumentChunks(existing.map((d) => d._id), session);
+            }
+            const inserted = await Document.insertMany(normalized, { session });
+            for (const doc of inserted) await syncDocumentChunks(doc, session);
+        });
         res.json({ inserted: normalized.length, mode });
     } catch (err) {
         logger.error('Import failed', { message: err.message });

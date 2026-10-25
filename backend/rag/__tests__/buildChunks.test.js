@@ -42,6 +42,26 @@ describe("buildDocumentChunks", () => {
     expect(chunks.at(-1).text).toBe("Beta text.");
   });
 
+  it("keeps repeated chunks once, even when whitespace differs", () => {
+    const doc = {
+      _id: DOC_ID,
+      content: "Main policy text.",
+      attachments: [
+        { extractedText: "Parking passes are issued in January." },
+        { extractedText: "Parking passes  are issued\nin January." },
+        { extractedText: "Main policy text." },
+      ],
+    };
+
+    const chunks = buildDocumentChunks(doc);
+
+    expect(chunks.map((c) => c.text)).toEqual([
+      "Main policy text.",
+      "Parking passes are issued in January.",
+    ]);
+    expect(chunks.map((c) => c.index)).toEqual([0, 1]);
+  });
+
   it("skips empty sources and handles missing attachments", () => {
     expect(buildDocumentChunks({ _id: DOC_ID, content: "   " })).toEqual([]);
 
