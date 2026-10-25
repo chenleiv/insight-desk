@@ -10,6 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node backend/index.js",
+    "reindex": "node backend/scripts/reindex.js",
+    "migrate:owner": "node backend/scripts/migrateDocumentOwner.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

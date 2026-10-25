@@ -23,6 +23,7 @@ const documentSchema = new mongoose.Schema({
     category: { type: String, required: true },
     content: { type: String, required: true },
     attachments: [attachmentSchema],
+    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
 }, {
     timestamps: true,
     toJSON: {
@@ -34,6 +35,17 @@ const documentSchema = new mongoose.Schema({
     }
 });
 
+// A slice of a document's text (content or attachment), produced by the reindex script.
+const chunkSchema = new mongoose.Schema({
+    docId: { type: mongoose.Schema.Types.ObjectId, ref: 'Document', required: true },
+    // Copied from the document's ownerId so retrieval can filter per user.
+    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    index: { type: Number, required: true, min: 0 },
+    text: { type: String, required: true },
+}, { timestamps: true });
+
+chunkSchema.index({ docId: 1, index: 1 }, { unique: true });
+
 const aiConfigSchema = new mongoose.Schema({
     _id: { type: String, default: 'ai' },
     systemPrompt: { type: String, default: '' },
@@ -43,3 +55,4 @@ const aiConfigSchema = new mongoose.Schema({
 export const User = mongoose.model('User', userSchema);
 export const Document = mongoose.model('Document', documentSchema);
 export const AIConfig = mongoose.model('AIConfig', aiConfigSchema);
+export const Chunk = mongoose.model('Chunk', chunkSchema);
