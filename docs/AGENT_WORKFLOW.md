@@ -50,3 +50,9 @@ router.get('/health', (req, res) => {
 **Commit:** `f5871cb Extract /health into its own router and add a test for it`. It touches three files, with 37 lines added and 3 removed.
 
 **Known limitation:** the test checks the router on its own, not the route order in `index.js`.
+
+## Reflection
+
+- **What I learned:** a soft rule in CLAUDE.md is not enough on its own; a hard deny rule in settings.json, plus a plan-then-approve loop, is what keeps the agent scoped and away from secrets.
+- **What is still unclear:** how to close the Bash gap (`cat backend/.env`) without blocking the commands the agent legitimately needs.
+- **Next step:** fix the 4 existing lint errors in `TourOverlay.tsx` as a separate task, so "done" can mean a clean lint.
