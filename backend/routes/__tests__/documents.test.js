@@ -14,6 +14,7 @@ const { Document, sync, remove } = vi.hoisted(() => ({
     findByIdAndDelete: vi.fn(),
     deleteMany: vi.fn(),
     insertMany: vi.fn(),
+    db: { transaction: vi.fn((fn) => fn("tx-session")) },
   },
   sync: vi.fn(),
   remove: vi.fn(),
@@ -150,7 +151,7 @@ describe("document routes keep chunks in sync", () => {
     expect(sync).not.toHaveBeenCalled();
   });
 
-  it("bulk import in replace mode drops old chunks, sets owners and builds new chunks", async () => {
+  it("bulk import in replace mode runs in one transaction, sets owners and builds new chunks", async () => {
     Document.find.mockResolvedValue([{ _id: "old-1" }, { _id: "old-2" }]);
     const inserted = [{ _id: "new-1", ...BODY, ownerId: USER._id }];
     Document.insertMany.mockResolvedValue(inserted);
@@ -161,9 +162,20 @@ describe("document routes keep chunks in sync", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(remove).toHaveBeenCalledWith(["old-1", "old-2"]);
-    expect(Document.insertMany).toHaveBeenCalledWith([{ ...BODY, ownerId: USER._id }]);
-    expect(sync).toHaveBeenCalledWith(inserted[0]);
+    expect(Document.db.transaction).toHaveBeenCalledOnce();
+    expect(Document.deleteMany).toHaveBeenCalledWith({}, { session: "tx-session" });
+    expect(remove).toHaveBeenCalledWith(["old-1", "old-2"], "tx-session");
+    expect(Document.insertMany).toHaveBeenCalledWith([{ ...BODY, ownerId: USER._id }], { session: "tx-session" });
+    expect(sync).toHaveBeenCalledWith(inserted[0], "tx-session");
+  });
+
+  it("bulk import fails as a whole when building chunks fails", async () => {
+    Document.insertMany.mockResolvedValue([{ _id: "new-1", ...BODY }]);
+    sync.mockRejectedValueOnce(new Error("db down"));
+
+    const res = await fetch(`${baseUrl}/import-bulk`, json("POST", { mode: "append", documents: [BODY] }));
+
+    expect(res.status).toBe(500);
   });
 
   it("still succeeds when rebuilding chunks fails after the document is saved", async () => {
