@@ -5,8 +5,14 @@ How I work with Claude Code on this repo: the agent builds, I approve and review
 ## Guardrails
 
 - **Rules file:** `.claude/CLAUDE.md` holds the working rules: plan first, wait for approval, never edit a test just to make it pass, all repo content in English, and the definition of done (`npm test`, `npm run lint`, `npm run build`, plus a summary of what changed, why, and the risks).
-- **Secrets:** `.claude/settings.json` denies `Read(**/.env)` and `Read(**/.env.*)`, so the agent cannot open `backend/.env` or any other env file. The earlier rule, `Read(.env)`, only covered the repo root.
+- **Secrets:** `.claude/settings.json` denies `Read(**/.env)` and `Read(**/.env.*)`, so the agent's `Read` tool cannot open `backend/.env` or any other env file. The earlier rule, `Read(.env)`, only covered the repo root.
 - **Allowlist:** read-only git commands plus test, lint, and build run without a prompt. Everything else asks first.
+
+## Secrets and the agent
+
+- **What can go wrong:** a secret from an env file ends up in the chat, which means it reaches the model provider and the local transcript, or it ends up in a log or a commit. The agent can cause this by reading the file, and a person can cause it by pasting the file into the chat.
+- **What prevents it:** env files are in `.gitignore` and have never been committed; `settings.json` hard-denies the agent's `Read` tool on them; `CLAUDE.md` forbids reading them or asking for their contents.
+- **What is still open:** the deny rule does not cover `Bash`, so `cat backend/.env` is stopped only by the soft rule in `CLAUDE.md`. To limit the damage of any leak, development and production use different secrets.
 
 ## The loop
 
