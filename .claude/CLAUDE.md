@@ -19,9 +19,10 @@ Before coding:
 1. Read context.md
 2. Understand affected files
 3. Return a plan
-4. Wait for approval on significant changes
+4. Wait for approval on any changes
 
 Never:
+
 - rewrite unrelated code
 - change architecture silently
 - remove security controls
@@ -37,8 +38,27 @@ Never:
 /ship — validate before commit
 /cleanup — remove leftovers
 
+- Run frontend: `npm run dev`
+- Run server: `npm run dev:backend`
+- test: `npm test`
+- Build: `npm run build`
+- Lint: `npm run lint`
+
 ---
 
-## Output
+## Working rules
 
-Concise. Explain: what changed, why, risks.
+- Never read `backend/.env` and never ask for its contents.
+- Write all code, comments, and repo content in English.
+- Never edit a test just to make it pass. If a test fails, alert me first, then propose a fix and wait for my approval before changing anything.
+
+---
+
+## Done
+
+A task is done only when all of these are true:
+
+- `npm test` passes
+- `npm run lint` reports no errors
+- `npm run build` succeeds
+- You summarized what changed, why, and the risks

@@ -36,7 +36,8 @@
     ],
     "deny": [
       "Bash(git show *:*)",
-      "Read(.env)"
+      "Read(**/.env)",
+      "Read(**/.env.*)"
     ]
   }
 }
