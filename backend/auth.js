@@ -2,11 +2,24 @@ import express from 'express';
 import { logger } from './logger.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { User } from './models.js';
 
 import { loginSchema, registerSchema } from './schemas.js';
 
 const router = express.Router();
+
+// Stricter than the global /api limit: slows down password guessing.
+// Only failed attempts count, so a user who logs in successfully is not penalized.
+// Per client IP, which needs TRUST_PROXY_HOPS set behind a proxy.
+const passwordAttemptLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    skipSuccessfulRequests: true,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { detail: 'Too many failed attempts, please try again in 15 minutes.' },
+});
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-secret-change-me') {
@@ -111,7 +124,7 @@ function setAuthCookie(res, token) {
     });
 }
 
-router.post('/login', async (req, res) => {
+router.post('/login', passwordAttemptLimiter, async (req, res) => {
     try {
         const { email, password } = loginSchema.parse(req.body);
 
@@ -227,7 +240,7 @@ router.post('/logout', (req, res) => {
     res.json({ ok: true });
 });
 
-router.patch('/password', getCurrentUser, async (req, res) => {
+router.patch('/password', passwordAttemptLimiter, getCurrentUser, async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
         if (!currentPassword || !newPassword) {
