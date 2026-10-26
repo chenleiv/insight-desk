@@ -32,6 +32,7 @@ import ImportPreviewDialog from "./components/dialogs/ImportPreviewDialog";
 import MobileDrawer from "./components/layout/MobileDrawer";
 import { useDocumentOrdering } from "./hooks/useDocumentOrdering";
 import { useImportExport } from "./hooks/useImportExport";
+import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
 import { WelcomeModal } from "./components/dialogs/WelcomeModal";
 import { TourOverlay } from "./components/dialogs/TourOverlay";
 import { HUB_TOUR_STEPS } from "./components/dialogs/tourSteps";
@@ -57,7 +58,12 @@ export default function HubPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>(() =>
     loadJson<string[]>(CONTEXT_KEY, [])
   );
-  const [isPaneDirty, setIsPaneDirty] = useState(false);
+  const {
+    isDirty: isPaneDirty,
+    setIsDirty: setIsPaneDirty,
+    clearDirty,
+    guardDirty,
+  } = useUnsavedChangesGuard();
   const [isDocPanelCollapsed, setIsDocPanelCollapsed] = useState<boolean>(() =>
     loadJson<boolean>("docPanelCollapsed", true)
   );
@@ -91,13 +97,6 @@ export default function HubPage() {
   useEffect(() => {
     if (missingDocId) setSearchParams(new URLSearchParams(), { replace: true });
   }, [missingDocId, setSearchParams]);
-
-  // Back/forward leave the open pane without guardDirty, so its dirty flag is stale.
-  const [prevLocationKey, setPrevLocationKey] = useState(location.key);
-  if (location.key !== prevLocationKey) {
-    setPrevLocationKey(location.key);
-    setIsPaneDirty(false);
-  }
 
   const [mobileDocPickerOpen, setMobileDocPickerOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -207,18 +206,6 @@ export default function HubPage() {
     startResize(e);
   }, [startResize]);
 
-  async function guardDirty(): Promise<boolean> {
-    if (!isPaneDirty) return true;
-    const ok = await confirm({
-      title: "Unsaved Changes",
-      message: "Discard unsaved changes?",
-      confirmLabel: "Discard",
-      variant: "danger",
-    });
-    if (ok) setIsPaneDirty(false);
-    return ok;
-  }
-
   function goToAI() {
     void guardDirty().then((ok) => {
       if (!ok) return;
@@ -260,7 +247,7 @@ export default function HubPage() {
   }
 
   function handleCreated(doc: DocumentItem) {
-    setIsPaneDirty(false);
+    clearDirty();
     setDocs((prev) => [doc, ...prev]);
     setOrder((prev) => {
       const next = [doc.id, ...prev.filter((x) => x !== doc.id)];
@@ -406,7 +393,7 @@ export default function HubPage() {
               canEdit={isAdmin}
               isCreating={activeView.kind === "creating"}
               onCancelCreate={() => {
-                setIsPaneDirty(false);
+                clearDirty();
                 setActiveView({ kind: "ai" });
               }}
               onCreated={handleCreated}
