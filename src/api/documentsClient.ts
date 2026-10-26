@@ -16,6 +16,7 @@ export async function deleteAttachment(docId: string, attachmentId: string): Pro
 export type Attachment = {
   _id: string;
   url: string;
+  gridfsId?: string | null;
   fileName: string;
   fileType: string;
   extractedText?: string;
