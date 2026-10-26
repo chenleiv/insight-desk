@@ -12,10 +12,11 @@ type Props = {
   onOpenDocPicker?: () => void;
   isMobile: boolean;
   onMenuClick: () => void;
+  onSignOut: () => void;
 };
 
-export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, onOpenAI, onOpenDocPicker, isMobile, onMenuClick }: Props) {
-  const { user, logout } = useAuth();
+export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, onOpenAI, onOpenDocPicker, isMobile, onMenuClick, onSignOut }: Props) {
+  const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
   const [menuOpen, setMenuOpen] = useState(false);
@@ -143,7 +144,7 @@ export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, on
                 <button
                   type="button"
                   className="topbar-user-menu-item"
-                  onClick={() => { setMenuOpen(false); void logout(); }}
+                  onClick={() => { setMenuOpen(false); onSignOut(); }}
                 >
                   <LogOut size={14} />
                   Sign out
