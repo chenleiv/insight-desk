@@ -3,6 +3,7 @@ import React, { useMemo, useRef, useEffect, useImperativeHandle, forwardRef } fr
 import { Clock, Paperclip, ExternalLink, X, Plus, ClipboardCopy } from "lucide-react";
 import type { DocumentInput, DocumentItem } from "../../../../api/documentsClient";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
+import { attachmentHref } from "../../utils/attachmentLink";
 
 type Props = {
   form: DocumentInput;
@@ -102,6 +103,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
         <div className="notion-att-chips">
           {existingAttachments.map((att) => {
             const isDeleting = deletingAttachmentId === att._id;
+            const href = doc ? attachmentHref(doc.id, att) : null;
             return (
               <span key={att._id} className="notion-att-chip">
                 <Paperclip size={11} aria-hidden />
@@ -116,9 +118,11 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
                     <ClipboardCopy size={11} />
                   </button>
                 )}
-                <a href={att.url} target="_blank" rel="noopener noreferrer" className="notion-att-chip-action" title="Open">
-                  <ExternalLink size={11} />
-                </a>
+                {href && (
+                  <a href={href} target="_blank" rel="noopener noreferrer" className="notion-att-chip-action" title="Open">
+                    <ExternalLink size={11} />
+                  </a>
+                )}
                 <button
                   type="button"
                   className="notion-att-chip-action"
