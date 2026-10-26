@@ -20,20 +20,14 @@ describe("attachmentHref", () => {
     expect(attachmentHref("doc-1", att({ gridfsId: "g1" }))).toBe("/api/documents/doc-1/attachments/att-1/file");
   });
 
-  it("keeps legacy links on the known Supabase storage host", () => {
-    const url = "https://nohpeeboyrhslwucxdog.supabase.co/storage/v1/object/public/attachments/a.pdf";
-    expect(attachmentHref("doc-1", att({ gridfsId: null, url }))).toBe(url);
-  });
-
-  it("gives no link for any other URL-only attachment", () => {
+  it("gives no link for URL-only attachments, whatever the URL", () => {
     for (const url of [
+      "https://nohpeeboyrhslwucxdog.supabase.co/storage/v1/object/public/attachments/a.pdf",
       "https://evil.example.com/login",
-      "http://nohpeeboyrhslwucxdog.supabase.co/a.pdf",
-      "https://nohpeeboyrhslwucxdog.supabase.co.evil.com/a.pdf",
       "javascript:alert(1)",
       "not a url",
     ]) {
-      expect(attachmentHref("doc-1", att({ url }))).toBeNull();
+      expect(attachmentHref("doc-1", att({ gridfsId: null, url }))).toBeNull();
     }
   });
 });

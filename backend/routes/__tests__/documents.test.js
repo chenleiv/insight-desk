@@ -141,6 +141,17 @@ describe("document routes keep chunks in sync", () => {
     expect(sync.mock.calls[0][0].attachments).toHaveLength(0);
   });
 
+  it("attachment delete hides internal error details from the client", async () => {
+    const doc = fakeDoc([{ _id: "att-1", gridfsId: "gridfs-1" }]);
+    doc.save.mockRejectedValueOnce(new Error("MongoServerError: connection to 10.0.0.5 closed"));
+    Document.findById.mockResolvedValue(doc);
+
+    const res = await fetch(`${baseUrl}/doc-1/attachments/att-1`, { method: "DELETE" });
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ detail: "Delete failed" });
+  });
+
   it("document delete removes its chunks", async () => {
     Document.findByIdAndDelete.mockResolvedValue({ _id: "doc-1", attachments: [] });
 

@@ -290,7 +290,7 @@ router.post('/:id/attachments', requireAdmin, handleMulterUpload, async (req, re
         res.json(doc.attachments[doc.attachments.length - 1]);
     } catch (err) {
         logger.error('Upload attachment failed', { message: err.message });
-        res.status(500).json({ detail: err.message || 'Upload failed' });
+        res.status(500).json({ detail: 'Upload failed' });
     }
 });
 
@@ -315,7 +315,7 @@ router.delete('/:id/attachments/:attachmentId', requireAdmin, async (req, res) =
         res.status(204).send();
     } catch (err) {
         logger.error('Delete attachment failed', { message: err.message });
-        res.status(500).json({ detail: err.message || 'Delete failed' });
+        res.status(500).json({ detail: 'Delete failed' });
     }
 });
 
