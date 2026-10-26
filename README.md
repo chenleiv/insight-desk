@@ -154,9 +154,11 @@ ai-workspace/
    FRONTEND_URL=http://localhost:5173
    PORT=8000
    ```
-   In production behind a reverse proxy (e.g. Render), also set `TRUST_PROXY_HOPS`
-   to the number of proxies in front of the server (usually `1`). This makes the
-   rate limiter see each client's real IP. Leave it unset locally.
+   In production behind reverse proxies, also set `TRUST_PROXY_HOPS` to the number
+   of proxies in front of the server. On Render this is `3` (Cloudflare, Render's
+   load balancer, and Render's local proxy), measured from the `X-Forwarded-For`
+   chain. This makes the rate limiter see each client's real IP; a value that is
+   too high lets clients spoof their IP. Leave it unset locally.
 
 3. **Start development servers**
    ```bash
