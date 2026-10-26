@@ -17,7 +17,6 @@ export function useResize(
       startX.current = e.clientX;
       startWidth.current = width;
 
-      // eslint-disable-next-line react-compiler/react-compiler
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     },
