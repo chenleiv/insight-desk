@@ -65,3 +65,9 @@ export function applyMiddleware(app) {
     });
     app.use('/api/', limiter);
 }
+
+// Mounted after all API routers: an unknown /api path is a client error, not a
+// page, so it must not fall through to the SPA's index.html with status 200.
+export function apiNotFound(req, res) {
+    res.status(404).json({ detail: 'Not found' });
+}
