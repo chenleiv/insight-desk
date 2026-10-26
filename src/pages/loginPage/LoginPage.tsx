@@ -202,7 +202,7 @@ export default function LoginPage() {
             disabled={isPending}
             onClick={async () => {
               try {
-                const res = await login("admin@demo.com", "admin123");
+                const res = await login("viewer@demo.com", "viewer123");
                 loginSuccess(res.user);
                 nav(redirectTo, { replace: true });
               } catch {
