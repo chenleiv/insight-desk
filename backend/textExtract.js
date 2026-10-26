@@ -159,15 +159,3 @@ export async function extractTextFromBuffer(buffer, mimeType) {
     }
     return '';
 }
-
-export async function extractTextFromUrl(url, mimeType) {
-    try {
-        const res = await fetch(url);
-        if (!res.ok) return '';
-        const buffer = Buffer.from(await res.arrayBuffer());
-        return extractTextFromBuffer(buffer, mimeType);
-    } catch (e) {
-        logger.error('Text extraction from URL failed', { message: e.message });
-    }
-    return '';
-}
