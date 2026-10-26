@@ -38,7 +38,7 @@ import { TourOverlay } from "./components/dialogs/TourOverlay";
 import { HUB_TOUR_STEPS } from "./components/dialogs/tourSteps";
 
 export default function HubPage() {
-  const { user, toggleFavorite, favoritesMap: favorites } = useAuth();
+  const { user, logout, toggleFavorite, favoritesMap: favorites } = useAuth();
   const status = useStatus();
   const confirm = useConfirm();
   const isMobile = useMobile(767);
@@ -242,6 +242,12 @@ export default function HubPage() {
     setMobileDocPickerOpen(false);
   }
 
+  // Logout ends the session and the hub unmounts before any navigation blocker runs,
+  // so unsaved changes are confirmed here first.
+  function signOut() {
+    void guardDirty().then((ok) => { if (ok) void logout(); });
+  }
+
   function closeView() {
     void guardDirty().then((ok) => { if (ok) setActiveView({ kind: "ai" }); });
   }
@@ -324,6 +330,7 @@ export default function HubPage() {
         onOpenAI={goToAI}
         isMobile={isMobile}
         onMenuClick={() => setDrawerOpen(true)}
+        onSignOut={signOut}
         {...(isMobile ? { onOpenDocPicker: () => setMobileDocPickerOpen(true) } : {})}
       />
 
@@ -433,6 +440,7 @@ export default function HubPage() {
           onDashboard={goToDashboard}
           onSettings={goToSettings}
           onClose={() => setDrawerOpen(false)}
+          onSignOut={signOut}
         />
       )}
 
