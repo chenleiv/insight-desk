@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useResize } from "../../hooks/useResize";
 import { useMobile } from "../../hooks/useMobile";
 
@@ -20,6 +21,7 @@ import {
   type DocumentItem,
 } from "../../api/documentsClient";
 import { CONTEXT_KEY } from "./utils/assistantUtils";
+import { paramsForView, viewFromParams, type ActiveView } from "./utils/hubView";
 
 import "./hubPage.scss";
 import "./components/documents/docPanel.scss";
@@ -33,13 +35,6 @@ import { useImportExport } from "./hooks/useImportExport";
 import { WelcomeModal } from "./components/dialogs/WelcomeModal";
 import { TourOverlay } from "./components/dialogs/TourOverlay";
 import { HUB_TOUR_STEPS } from "./components/dialogs/tourSteps";
-
-type ActiveView =
-  | { kind: "ai" }
-  | { kind: "dashboard" }
-  | { kind: "settings" }
-  | { kind: "doc"; id: string }
-  | { kind: "creating" };
 
 export default function HubPage() {
   const { user, toggleFavorite, favoritesMap: favorites } = useAuth();
@@ -67,7 +62,43 @@ export default function HubPage() {
     loadJson<boolean>("docPanelCollapsed", true)
   );
   const [isDraggingPanel, setIsDraggingPanel] = useState(false);
-  const [activeView, setActiveView] = useState<ActiveView>({ kind: "ai" });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  // The new-document form is local only and ends on any navigation, including back/forward.
+  const [creatingKey, setCreatingKey] = useState<string | null>(null);
+  const urlView = viewFromParams(searchParams);
+  // A document id in the URL that no longer exists (deleted, or a stale link).
+  const missingDocId =
+    urlView.kind === "doc" && docs.length > 0 && !docs.some((d) => d.id === urlView.id)
+      ? urlView.id
+      : null;
+  const activeView: ActiveView =
+    creatingKey === location.key ? { kind: "creating" }
+    : missingDocId ? { kind: "ai" }
+    : urlView;
+
+  // Each view change is a history entry, so back/forward move between views.
+  function setActiveView(view: ActiveView, options?: { replace?: boolean }) {
+    if (view.kind === "creating") {
+      setCreatingKey(location.key);
+      return;
+    }
+    setCreatingKey(null);
+    const next = paramsForView(view);
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, options);
+  }
+
+  useEffect(() => {
+    if (missingDocId) setSearchParams(new URLSearchParams(), { replace: true });
+  }, [missingDocId, setSearchParams]);
+
+  // Back/forward leave the open pane without guardDirty, so its dirty flag is stale.
+  const [prevLocationKey, setPrevLocationKey] = useState(location.key);
+  if (location.key !== prevLocationKey) {
+    setPrevLocationKey(location.key);
+    setIsPaneDirty(false);
+  }
+
   const [mobileDocPickerOpen, setMobileDocPickerOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem("insight-desk:welcomed"));
@@ -84,13 +115,10 @@ export default function HubPage() {
   const [prevDocs, setPrevDocs] = useState<DocumentItem[]>(docs);
   const [prevDocPanelWidth, setPrevDocPanelWidth] = useState(docPanelWidth);
 
-  // Adjust active view and selection when docs change (avoids setState in useEffect)
+  // Adjust selection when docs change (avoids setState in useEffect)
   if (docs !== prevDocs) {
     setPrevDocs(docs);
     if (docs.length > 0) {
-      if (activeView.kind === "doc" && !docs.some((d) => d.id === activeView.id)) {
-        setActiveView({ kind: "ai" });
-      }
       const ids = new Set(docs.map((d) => d.id));
       const nextIds = selectedIds.filter((id) => ids.has(id));
       if (!sameArray(nextIds, selectedIds)) {
@@ -259,7 +287,8 @@ export default function HubPage() {
         saveJson(orderKey, next);
         return next;
       });
-      if (wasActive) setActiveView({ kind: "ai" });
+      // Replace, so Back does not return to the deleted document.
+      if (wasActive) setActiveView({ kind: "ai" }, { replace: true });
       status.show({ kind: "success", message: "Document deleted." });
     } catch (e) {
       status.show({
