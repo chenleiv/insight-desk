@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 import { logger } from './logger.js';
-import { applyMiddleware } from './middleware/setup.js';
+import { applyMiddleware, apiNotFound } from './middleware/setup.js';
 import authRouter, { seedUsersIfEmpty } from './auth.js';
 import aiRouter, { loadAIConfig } from './ai.js';
 import documentsRouter from './routes/documents.js';
@@ -72,6 +72,8 @@ app.get('/robots.txt', (req, res) => {
     res.type('text/plain');
     res.send('User-agent: *\nAllow: /');
 });
+
+app.use('/api', apiNotFound);
 
 // SPA fallback
 app.get('*', (req, res) => {
