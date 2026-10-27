@@ -18,6 +18,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
     "@tanstack/react-query": "^5.100.9",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.2",

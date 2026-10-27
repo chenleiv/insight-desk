@@ -46,6 +46,8 @@ const chunkSchema = new mongoose.Schema({
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     index: { type: Number, required: true, min: 0 },
     text: { type: String, required: true },
+    // Set by `npm run reindex`; chunks saved by the routes do not have one yet.
+    embedding: { type: [Number], default: undefined },
 }, { timestamps: true });
 
 chunkSchema.index({ docId: 1, index: 1 }, { unique: true });

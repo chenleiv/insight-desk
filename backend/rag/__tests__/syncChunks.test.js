@@ -46,6 +46,20 @@ describe("syncDocumentChunks", () => {
       .rejects.toThrow("insert failed");
   });
 
+  it("adds an embedding to each chunk before the transaction when given embed", async () => {
+    const embed = vi.fn(async (text) => [text.length, 1]);
+
+    await syncDocumentChunks({ _id: "doc-1", content: "Some text." }, undefined, { embed });
+
+    expect(embed).toHaveBeenCalledWith("Some text.");
+    expect(Chunk.insertMany).toHaveBeenCalledWith(
+      [expect.objectContaining({ text: "Some text.", embedding: [10, 1] })],
+      { session: "tx-session" },
+    );
+    expect(embed.mock.invocationCallOrder[0])
+      .toBeLessThan(Chunk.db.transaction.mock.invocationCallOrder[0]);
+  });
+
   it("only deletes when the document has no text", async () => {
     const count = await syncDocumentChunks({ _id: "doc-1", content: "  " });
 

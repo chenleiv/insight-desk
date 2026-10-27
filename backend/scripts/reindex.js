@@ -1,10 +1,12 @@
-// Rebuild the Chunk collection from every document's content and attachments.
+// Rebuild the Chunk collection from every document's content and attachments,
+// with an embedding vector for each chunk.
 // Usage: npm run reindex [-- --dry-run]
 import '../loadEnv.js';
 import mongoose from 'mongoose';
 import { Document, Chunk } from '../models.js';
 import { buildDocumentChunks } from '../rag/buildChunks.js';
 import { syncDocumentChunks } from '../rag/syncChunks.js';
+import { embed } from '../rag/embed.js';
 
 const dryRun = process.argv.includes('--dry-run');
 
@@ -21,7 +23,7 @@ async function reindex() {
     for (const doc of docs) {
         const count = dryRun
             ? buildDocumentChunks(doc).length
-            : await syncDocumentChunks(doc);
+            : await syncDocumentChunks(doc, undefined, { embed });
         total += count;
         console.log(`${doc.title}: ${count} chunks`);
     }
