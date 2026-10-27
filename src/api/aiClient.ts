@@ -3,13 +3,15 @@ import { apiFetch } from "./base";
 export interface ChatResponse {
   answer: string;
   sources: { id: string; title: string }[];
+  // Chunks the answer cites, checked on the server against the retrieved set.
+  citations: { id: string; docId: string; title: string; index: number }[];
 }
 
-// The server picks the relevant passages; docIds only narrows the search to selected documents.
-export async function chatWithAI(message: string, docIds: string[]): Promise<ChatResponse> {
+// Only the question is sent; the server searches the user's documents for the context.
+export async function chatWithAI(message: string): Promise<ChatResponse> {
   return await apiFetch<ChatResponse>("/api/ai/chat", {
     method: "POST",
-    body: JSON.stringify({ message, docIds }),
+    body: JSON.stringify({ message }),
   });
 }
 

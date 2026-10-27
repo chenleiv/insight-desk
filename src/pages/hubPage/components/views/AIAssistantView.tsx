@@ -3,7 +3,7 @@ import "./aiAssistant.scss";
 import { BrainCircuit, Send, Bot, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { chatWithAI, getSuggestions, getSystemPrompt } from "../../../../api/aiClient";
 import type { DocumentItem } from "../../../../api/documentsClient";
-import { buildSnippet, uid, CHAT_KEY } from "../../utils/assistantUtils";
+import { buildSnippet, formatCitations, uid, CHAT_KEY } from "../../utils/assistantUtils";
 import { loadJson, saveJson, scopedKey } from "../../../../utils/storage";
 import type { ChatMessage } from "./assistantTypes";
 import TypewriterText from "../layout/TypewriterText";
@@ -85,7 +85,7 @@ export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker 
     setIsSending(true);
 
     try {
-      const response = await chatWithAI(question, selectedIds);
+      const response = await chatWithAI(question);
       const sources = response.sources.map((s: { id: string; title: string }) => ({
         id: s.id,
         title: s.title,
@@ -100,7 +100,7 @@ export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker 
         {
           id: uid(),
           role: "assistant",
-          text: response.answer,
+          text: formatCitations(response.answer, response.citations),
           sources,
           isTyped: false,
         },
