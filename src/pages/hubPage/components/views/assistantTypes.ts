@@ -3,7 +3,6 @@ type Role = "user" | "assistant";
 type SourceRef = {
   id: string;
   title: string;
-  snippet: string;
 };
 
 export type ChatMessage = {

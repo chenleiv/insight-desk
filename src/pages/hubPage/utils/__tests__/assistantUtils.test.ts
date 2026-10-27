@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSnippet, formatCitations } from "../assistantUtils";
+import { buildSnippet, citedSources, formatCitations } from "../assistantUtils";
 
 describe("buildSnippet", () => {
   it("returns empty string for empty content", () => {
@@ -57,5 +57,23 @@ describe("formatCitations", () => {
 
   it("leaves other brackets alone", () => {
     expect(formatCitations("See [note] and [1].", [])).toBe("See [note] and [1].");
+  });
+});
+
+describe("citedSources", () => {
+  it("lists each cited document once, in order of first citation", () => {
+    const citations = [
+      { id: "c2", docId: "d2", title: "Travel Guide", index: 1 },
+      { id: "c1", docId: "d1", title: "Vacation Policy", index: 0 },
+      { id: "c3", docId: "d2", title: "Travel Guide", index: 4 },
+    ];
+    expect(citedSources(citations)).toEqual([
+      { id: "d2", title: "Travel Guide" },
+      { id: "d1", title: "Vacation Policy" },
+    ]);
+  });
+
+  it("returns no sources when nothing is cited", () => {
+    expect(citedSources([])).toEqual([]);
   });
 });

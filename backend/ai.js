@@ -57,6 +57,13 @@ async function englishKeywords(groq, question) {
 
 const CONTEXT_CHUNKS = 5;
 
+// Chunks scoring below this are not sent to the model. Calibrated on the demo
+// documents: unrelated questions topped out at 0.27, related ones started at 0.34.
+// Kept at the low end, since the model is also told to answer only from context.
+const MIN_SIMILARITY = 0.3;
+
+export const NO_INFO_ANSWER = "I don't have information about this in your documents.";
+
 // A letter outside the Latin script, e.g. Hebrew. The embedding model only understands English.
 const NON_LATIN_LETTER = /(?!\p{Script=Latin})\p{L}/u;
 
@@ -76,13 +83,14 @@ function buildContext(chunks) {
 
 /**
  * Keep only citations of chunks that were actually retrieved. Ids the model
- * invented are removed from the answer and returned in `unknown`.
+ * invented are removed from the answer and returned in `unknown`. The model
+ * sometimes writes fullwidth brackets, 【c1】; those are rewritten as [c1].
  */
 function verifyCitations(answer, chunks) {
     const byId = new Map(chunks.map((c, i) => [`c${i + 1}`, c]));
     const citations = new Map();
     const unknown = [];
-    const text = answer.replace(/(\s*)\[\s*(c\d+(?:\s*,\s*c\d+)*)\s*\]/g, (_, space, list) => {
+    const text = answer.replace(/(\s*)[[【]\s*(c\d+(?:\s*,\s*c\d+)*)\s*[\]】]/g, (_, space, list) => {
         const ids = list.split(/\s*,\s*/);
         const valid = ids.filter((id) => byId.has(id));
         unknown.push(...ids.filter((id) => !byId.has(id)));
@@ -123,12 +131,15 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
             ? (await englishKeywords(groq, message)) ?? message
             : message;
         // Search only documents this user may read; the user comes from auth, never the request.
-        const chunks = await search(req.user, query, CONTEXT_CHUNKS);
+        const chunks = (await search(req.user, query, CONTEXT_CHUNKS))
+            .filter((c) => c.score >= MIN_SIMILARITY);
 
-        const question = neutralizeTags(message);
-        const userContent = chunks.length
-            ? `${buildContext(chunks)}\n\nQuestion: ${question}`
-            : question;
+        // Nothing close enough: answer without calling the model, so it cannot guess.
+        if (!chunks.length) {
+            return res.json({ answer: NO_INFO_ANSWER, citations: [], sources: [] });
+        }
+
+        const userContent = `${buildContext(chunks)}\n\nQuestion: ${neutralizeTags(message)}`;
 
         const messages = [
             { role: 'system', content: `${promptState.prompt}\n\n${CONTEXT_RULES}` },

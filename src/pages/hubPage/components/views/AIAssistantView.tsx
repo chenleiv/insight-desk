@@ -2,8 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import "./aiAssistant.scss";
 import { BrainCircuit, Send, Bot, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { chatWithAI, getSuggestions, getSystemPrompt } from "../../../../api/aiClient";
-import type { DocumentItem } from "../../../../api/documentsClient";
-import { buildSnippet, formatCitations, uid, CHAT_KEY } from "../../utils/assistantUtils";
+import { citedSources, formatCitations, uid, CHAT_KEY } from "../../utils/assistantUtils";
 import { loadJson, saveJson, scopedKey } from "../../../../utils/storage";
 import type { ChatMessage } from "./assistantTypes";
 import TypewriterText from "../layout/TypewriterText";
@@ -20,12 +19,11 @@ const DEFAULT_SUGGESTIONS = [
 ];
 
 type Props = {
-  docs: DocumentItem[];
   selectedIds: string[];
   onOpenMobilePicker?: () => void;
 };
 
-export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker }: Props) {
+export default function AIAssistantView({ selectedIds, onOpenMobilePicker }: Props) {
   const { user } = useAuth();
 
   const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS);
@@ -64,11 +62,6 @@ export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  const selectedDocs = selectedIds.length === 0
-    ? []
-    : docs.filter((d) => selectedIds.includes(d.id));
-  const contextDocs = selectedDocs.length > 0 ? selectedDocs : docs;
-
   const hasStartedChat = messages.some(m => m.role === "user") || isSending;
 
   async function sendMessage(text: string) {
@@ -86,14 +79,6 @@ export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker 
 
     try {
       const response = await chatWithAI(question);
-      const sources = response.sources.map((s: { id: string; title: string }) => ({
-        id: s.id,
-        title: s.title,
-        snippet: buildSnippet(
-          contextDocs.find((d) => d.id === s.id)?.content || "",
-          question
-        ),
-      }));
 
       setMessages((prev) => [
         ...prev,
@@ -101,7 +86,8 @@ export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker 
           id: uid(),
           role: "assistant",
           text: formatCitations(response.answer, response.citations),
-          sources,
+          // Only documents the answer actually cites, as checked by the server.
+          sources: citedSources(response.citations),
           isTyped: false,
         },
       ]);
@@ -238,6 +224,14 @@ export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker 
                         m.text
                       )}
                     </div>
+                    {m.role === "assistant" && !!m.sources?.length && (
+                      <div className="ai-message-sources">
+                        <span>Sources:</span>
+                        <ul>
+                          {m.sources.map((s) => <li key={s.id}>{s.title}</li>)}
+                        </ul>
+                      </div>
+                    )}
                     {m.role === "assistant" && <div className="ai-message-time">{timeString}</div>}
                   </div>
                 </div>

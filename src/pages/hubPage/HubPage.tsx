@@ -379,7 +379,6 @@ export default function HubPage() {
         <main className="hub-main">
           {activeView.kind === "ai" && (
             <AIAssistantView
-              docs={docs}
               selectedIds={selectedIds}
               {...(isMobile ? { onOpenMobilePicker: () => setMobileDocPickerOpen(true) } : {})}
             />

@@ -26,6 +26,11 @@ export function buildSnippet(content: string, query: string) {
   return prefix + clean.slice(start, end) + suffix;
 }
 
+/** The documents an answer cites, each once, in order of first citation. */
+export function citedSources(citations: ChatResponse["citations"]) {
+  return [...new Map(citations.map((c) => [c.docId, { id: c.docId, title: c.title }])).values()];
+}
+
 /** Show chunk citations like [c1, c2] as the cited documents' titles, each once. */
 export function formatCitations(answer: string, citations: ChatResponse["citations"]) {
   const titles = new Map(citations.map((c) => [c.id, c.title]));

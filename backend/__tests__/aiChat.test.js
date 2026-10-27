@@ -19,7 +19,7 @@ vi.mock("../rag/embed.js", () => ({ embed: vi.fn(async () => [1, 0, 0]) }));
 
 import { embed } from "../rag/embed.js";
 import { User, Document, Chunk } from "../models.js";
-import aiRouter from "../ai.js";
+import aiRouter, { NO_INFO_ANSWER } from "../ai.js";
 
 // Runs against a real in-memory MongoDB and the real auth middleware.
 let mongo;
@@ -156,6 +156,16 @@ describe("POST /api/ai/chat", () => {
     expect(body.answer).toBe("Send it to the team lead [c1]. It is unlimited. Both [c1].");
   });
 
+  it("accepts citations in fullwidth brackets and rewrites them as square brackets", async () => {
+    groqCreate.mockResolvedValueOnce({ choices: [{ message: { content: "Send it to the team lead【c1】." } }] });
+
+    const res = await chatAs(demoOne, { message: "vacation" });
+
+    const body = await res.json();
+    expect(body.citations.map((c) => c.id)).toEqual(["c1"]);
+    expect(body.answer).toBe("Send it to the team lead[c1].");
+  });
+
   it("returns no citations when the answer cites none", async () => {
     const res = await chatAs(demoOne, { message: "vacation" });
 
@@ -166,6 +176,27 @@ describe("POST /api/ai/chat", () => {
     await chatAs(demoOne, { message: "vacation" });
 
     expect(groqCreate.mock.calls.at(-1)[0].messages[0].content).toContain("[c1]");
+  });
+
+  it("answers that it has no information, without calling the model, when no chunk is similar enough", async () => {
+    embed.mockResolvedValueOnce([0, 0, 1]);
+
+    const res = await chatAs(viewer, { message: "chocolate cake recipe" });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ answer: NO_INFO_ANSWER, citations: [], sources: [] });
+    expect(groqCreate).not.toHaveBeenCalled();
+  });
+
+  it("does not send the model chunks below the similarity threshold", async () => {
+    // Scores 0 for "20 vacation days" and 0.71 for the other chunk.
+    embed.mockResolvedValueOnce([0, 1, 0]);
+
+    const res = await chatAs(viewer, { message: "vacation" });
+
+    expect(res.status).toBe(200);
+    expect(promptSent()).toContain("REAL: ignore this");
+    expect(promptSent()).not.toContain("20 vacation days");
   });
 
   // Last, since it uses up the rate limit for this client.

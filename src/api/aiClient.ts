@@ -2,6 +2,7 @@ import { apiFetch } from "./base";
 
 export interface ChatResponse {
   answer: string;
+  // Every document retrieved for the question; empty when nothing was similar enough.
   sources: { id: string; title: string }[];
   // Chunks the answer cites, checked on the server against the retrieved set.
   citations: { id: string; docId: string; title: string; index: number }[];
