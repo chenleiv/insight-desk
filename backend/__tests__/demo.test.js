@@ -82,6 +82,18 @@ describe("createDemoWorkspace", () => {
     expect(chunks.every((c) => c.ownerId === "demo-new")).toBe(true);
   });
 
+  it("gives every demo chunk its precomputed 384-dimension vector", async () => {
+    User.create.mockImplementation(async (u) => ({ _id: "demo-new", ...u }));
+    Document.insertMany.mockImplementation(async (docs) => docs);
+
+    await createDemoWorkspace(NOW);
+
+    const chunks = Chunk.insertMany.mock.calls[0][0];
+    for (const chunk of chunks) {
+      expect(chunk.embedding).toHaveLength(384);
+    }
+  });
+
   it("does not wait for the cleanup of old workspaces", async () => {
     User.find.mockReturnValue({ lean: () => new Promise(() => {}) });
     User.create.mockImplementation(async (u) => ({ _id: "demo-new", ...u }));
