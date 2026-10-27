@@ -15,7 +15,7 @@ type Props = {
   onOpenDocument?: (id: string) => void;
   onExport?: () => void;
   onImport?: (mode: "append" | "replace", fileType: "json" | "text") => void;
-  isAdmin?: boolean;
+  canEdit?: boolean;
 };
 
 function docTime(doc: DocumentItem): number {
@@ -30,7 +30,7 @@ export default function DashboardView({
   onOpenDocument,
   onExport,
   onImport,
-  isAdmin,
+  canEdit,
 }: Props) {
   const [showImportMenu, setShowImportMenu] = useState(false);
   const importBtnRef = useRef<HTMLButtonElement>(null);
@@ -92,8 +92,8 @@ export default function DashboardView({
             type="button"
             className="action-btn primary"
             onClick={() => void onNewDocument?.()}
-            disabled={!isAdmin}
-            title={isAdmin ? undefined : "Admin only"}
+            disabled={!canEdit}
+            title={canEdit ? undefined : "Admin only"}
           >
             + New Document
           </button>
@@ -102,7 +102,7 @@ export default function DashboardView({
               <Download size={15} /> Export
             </button>
           )}
-          {isAdmin && onImport && (
+          {canEdit && onImport && (
             <>
               <button
                 type="button"

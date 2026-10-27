@@ -19,6 +19,11 @@ export async function register(email: string, password: string, displayName?: st
   });
 }
 
+// Start a private demo workspace; the server signs the visitor in.
+export async function startDemo() {
+  return apiFetch<LoginResponse>("/api/auth/demo", { method: "POST" });
+}
+
 export async function me() {
   return apiFetch<AuthUser>("/api/auth/me");
 }

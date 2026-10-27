@@ -1,14 +1,19 @@
 import { Router } from 'express';
 import { logger } from '../logger.js';
 import { User } from '../models.js';
-import { requireAdmin } from '../auth.js';
+import { getCurrentUser, requireAdmin } from '../auth.js';
+import { isDemoUser } from '../access.js';
+import { DEMO_SAMPLE_USERS } from '../demo.js';
 
 const router = Router();
 
-// List all users (admin)
-router.get('/', requireAdmin, async (req, res) => {
+// List all users (admin). Demo users get a fictional list for the read-only screen.
+router.get('/', getCurrentUser, async (req, res) => {
+    if (isDemoUser(req.user)) return res.json(DEMO_SAMPLE_USERS);
+    if (req.user.role !== 'admin') return res.status(403).json({ detail: 'Admin only' });
     try {
-        const users = await User.find().select('-password_hash').sort({ createdAt: 1 });
+        // Temporary demo users are not real accounts to manage.
+        const users = await User.find({ role: { $ne: 'demo' } }).select('-password_hash').sort({ createdAt: 1 });
         res.json(users.map(u => ({
             id: u._id,
             email: u.email,
