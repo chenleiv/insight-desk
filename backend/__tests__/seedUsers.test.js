@@ -14,20 +14,7 @@ beforeEach(() => vi.clearAllMocks());
 describe("seedUsersIfEmpty with existing users", () => {
   beforeEach(() => User.countDocuments.mockResolvedValue(3));
 
-  it("creates the public demo account as a viewer, never an admin", async () => {
-    User.exists.mockResolvedValue(null);
-
-    await seedUsersIfEmpty();
-
-    expect(User.create).toHaveBeenCalledTimes(1);
-    const created = User.create.mock.calls[0][0];
-    expect(created).toMatchObject({ email: "viewer@demo.com", role: "viewer" });
-    expect(User.exists).not.toHaveBeenCalledWith({ email: "admin@demo.com" });
-  });
-
-  it("does nothing when the demo account already exists", async () => {
-    User.exists.mockResolvedValue({ _id: "u1" });
-
+  it("creates no accounts, including the retired viewer@demo.com", async () => {
     await seedUsersIfEmpty();
 
     expect(User.create).not.toHaveBeenCalled();
