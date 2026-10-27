@@ -26,6 +26,12 @@ export const aiChatSchema = z.object({
   docIds: z.array(z.string()).max(100).optional(),
 });
 
+// Search Schema (query string values arrive as strings)
+export const searchQuerySchema = z.object({
+  q: z.string().trim().min(1, 'Query is required').max(500),
+  k: z.coerce.number().int().min(1).max(20).optional(),
+});
+
 // Import Bulk Schema
 export const importBulkSchema = z.object({
   mode: z.enum(['append', 'replace']),
