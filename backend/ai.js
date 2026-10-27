@@ -29,6 +29,31 @@ function getGroq() {
     return _groq;
 }
 
+const CHAT_MODEL = 'openai/gpt-oss-20b';
+
+/**
+ * Turn a question into English search keywords, so a question in another
+ * language can match English documents. Returns null on failure.
+ */
+async function englishKeywords(groq, question) {
+    try {
+        const response = await groq.chat.completions.create({
+            model: CHAT_MODEL,
+            messages: [
+                { role: 'system', content: 'Translate the question into 3 to 8 English search keywords. Reply with the keywords only, separated by spaces.' },
+                { role: 'user', content: question },
+            ],
+            max_tokens: 200,
+            temperature: 0,
+            reasoning_effort: 'low',
+        });
+        return response.choices[0].message.content?.trim() || null;
+    } catch (err) {
+        logger.warn('Keyword translation failed', { message: err.message });
+        return null;
+    }
+}
+
 const router = express.Router();
 
 router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
@@ -44,7 +69,16 @@ router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
         const groq = getGroq();
 
         // Search only documents this user may read; the user comes from auth, never the request.
-        const chunks = await retrieveChunks(req.user, message, docIds);
+        let chunks = await retrieveChunks(req.user, message, docIds);
+        // No keyword matched, e.g. a Hebrew question about English documents:
+        // search again with English keywords before falling back to opening chunks.
+        if (!docIds?.length && !chunks.some((c) => c.score > 0)) {
+            const keywords = await englishKeywords(groq, message);
+            if (keywords) {
+                const translated = await retrieveChunks(req.user, keywords, docIds);
+                if (translated.some((c) => c.score > 0)) chunks = translated;
+            }
+        }
         const contextBlock = chunks.length
             ? `Context from documents:\n${chunks.map((c) => `[From: ${c.title}]\n${c.text}`).join('\n\n---\n\n')}`
             : '';
@@ -59,7 +93,7 @@ router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
         ];
 
         const response = await groq.chat.completions.create({
-            model: 'openai/gpt-oss-20b',
+            model: CHAT_MODEL,
             messages,
             max_tokens: 300,
             temperature: 0.3,

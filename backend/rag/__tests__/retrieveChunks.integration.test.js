@@ -127,7 +127,8 @@ describe("POST /api/ai/chat", () => {
       body: JSON.stringify(body),
     });
   }
-  const promptSent = () => groqCreate.mock.calls[0][0].messages[1].content;
+  // The answer is always the last model call; a keyword translation may come before it.
+  const promptSent = () => groqCreate.mock.calls.at(-1)[0].messages[1].content;
 
   it("sends the model only chunks the signed-in user may read, whatever ids the request names", async () => {
     const res = await chatAs(demoOne, {
@@ -148,5 +149,28 @@ describe("POST /api/ai/chat", () => {
     expect(res.status).toBe(200);
     expect(promptSent()).toContain("REAL: employees get 20 vacation days.");
     expect(promptSent()).not.toContain("DEMO");
+    // A matching question needs no keyword translation.
+    expect(groqCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("translates a question with no keyword match and searches again", async () => {
+    groqCreate.mockResolvedValueOnce({ choices: [{ message: { content: "vacation requests" } }] });
+
+    const res = await chatAs(demoOne, { message: "לאן שולחים בקשות?" });
+
+    expect(res.status).toBe(200);
+    expect(groqCreate).toHaveBeenCalledTimes(2);
+    expect(groqCreate.mock.calls[0][0].messages[1].content).toBe("לאן שולחים בקשות?");
+    expect(promptSent()).toContain("DEMO ONE");
+    expect(promptSent()).not.toContain("REAL");
+  });
+
+  it("still answers from the opening chunks when the translation fails", async () => {
+    groqCreate.mockRejectedValueOnce(new Error("rate limited"));
+
+    const res = await chatAs(demoOne, { message: "לאן שולחים בקשות?" });
+
+    expect(res.status).toBe(200);
+    expect(promptSent()).toContain("DEMO ONE");
   });
 });
