@@ -314,6 +314,7 @@ export default function HubPage() {
     activeDocId,
     onOpenDocument: goToDocument,
     onNew: goToCreate,
+    canCreate: isAdmin,
     onToggleFavorite: toggleFavorite,
     onToggleSelected: handleToggleSelected,
     onClearSelection: handleClearSelection,

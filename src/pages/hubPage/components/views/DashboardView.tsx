@@ -92,6 +92,8 @@ export default function DashboardView({
             type="button"
             className="action-btn primary"
             onClick={() => void onNewDocument?.()}
+            disabled={!isAdmin}
+            title={isAdmin ? undefined : "Admin only"}
           >
             + New Document
           </button>

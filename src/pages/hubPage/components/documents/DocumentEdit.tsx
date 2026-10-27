@@ -1,6 +1,6 @@
 import "./notionEditor.scss";
 import React, { useMemo, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
-import { Clock, Paperclip, ExternalLink, X, Plus, ClipboardCopy } from "lucide-react";
+import { Clock, Paperclip, ExternalLink, X, Plus, ClipboardCopy, Lock } from "lucide-react";
 import type { DocumentInput, DocumentItem } from "../../../../api/documentsClient";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
 import { attachmentHref } from "../../utils/attachmentLink";
@@ -75,6 +75,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
         onChange={handleChange}
         placeholder="Untitled…"
         autoFocus={isCreating}
+        readOnly={!canEdit}
         aria-label="Title"
         title={form.title || undefined}
       />
@@ -89,6 +90,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
             value={form.category}
             onChange={handleChange}
             placeholder="Category…"
+            readOnly={!canEdit}
             aria-label="Category"
             maxLength={60}
           />
@@ -97,6 +99,12 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
           <Clock size={13} strokeWidth={2} aria-hidden />
           {timeLabel}
         </span>
+        {!canEdit && (
+          <span className="notion-readonly-badge" title="Only admins can edit documents">
+            <Lock size={11} aria-hidden />
+            View only · Admin edits
+          </span>
+        )}
       </div>
 
       {canEdit && (
@@ -172,6 +180,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
         onChange={handleChange}
         placeholder="Start writing…"
         rows={8}
+        readOnly={!canEdit}
         aria-label="Content"
       />
 
