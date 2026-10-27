@@ -5,6 +5,7 @@ import { GridFSBucket } from 'mongodb';
 import { User, Document, Chunk } from './models.js';
 import { deleteDocumentChunks } from './rag/syncChunks.js';
 import { buildDocumentChunks } from './rag/buildChunks.js';
+import { chunkKey } from './rag/chunkKey.js';
 import { logger } from './logger.js';
 
 export const DEMO_TTL_MS = 24 * 60 * 60 * 1000;
@@ -12,6 +13,19 @@ export const DEMO_TTL_MS = 24 * 60 * 60 * 1000;
 const SAMPLE_DOCUMENTS = JSON.parse(
     readFileSync(new URL('./demo/sample-documents.json', import.meta.url), 'utf8'),
 );
+
+// Precomputed by `npm run embed:demo`, keyed by chunkKey(text), so demo
+// workspaces get vectors without loading the model in the server.
+const SAMPLE_VECTORS = JSON.parse(
+    readFileSync(new URL('./demo/sample-embeddings.json', import.meta.url), 'utf8'),
+).vectors;
+
+const missingVectors = SAMPLE_DOCUMENTS
+    .flatMap((doc) => buildDocumentChunks(doc))
+    .filter((chunk) => !SAMPLE_VECTORS[chunkKey(chunk.text)]).length;
+if (missingVectors) {
+    logger.warn('Demo chunks without a precomputed vector; run npm run embed:demo', { count: missingVectors });
+}
 
 /**
  * Remove demo workspaces whose time is up: their GridFS files, chunks,
@@ -62,9 +76,13 @@ export async function createDemoWorkspace(now = new Date()) {
     );
     // The documents are new and have no chunks yet, so one insert is enough;
     // a transaction per document made this take seconds. Chat retrieval works
-    // without chunks, so a failure here is logged, not fatal.
+    // without chunks, so a failure here is logged, not fatal. A chunk with no
+    // precomputed vector is saved without one.
     try {
-        await Chunk.insertMany(docs.flatMap((doc) => buildDocumentChunks(doc)));
+        const chunks = docs
+            .flatMap((doc) => buildDocumentChunks(doc))
+            .map((chunk) => ({ ...chunk, embedding: SAMPLE_VECTORS[chunkKey(chunk.text)] }));
+        await Chunk.insertMany(chunks);
     } catch (err) {
         logger.error('Building demo chunks failed', { message: err.message });
     }
