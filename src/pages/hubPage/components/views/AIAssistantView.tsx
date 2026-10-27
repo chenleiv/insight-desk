@@ -3,7 +3,7 @@ import "./aiAssistant.scss";
 import { BrainCircuit, Send, Bot, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { chatWithAI, getSuggestions, getSystemPrompt } from "../../../../api/aiClient";
 import type { DocumentItem } from "../../../../api/documentsClient";
-import { buildSnippet, scoreDoc, uid, CHAT_KEY } from "../../utils/assistantUtils";
+import { buildSnippet, uid, CHAT_KEY } from "../../utils/assistantUtils";
 import { loadJson, saveJson, scopedKey } from "../../../../utils/storage";
 import type { ChatMessage } from "./assistantTypes";
 import TypewriterText from "../layout/TypewriterText";
@@ -85,14 +85,7 @@ export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker 
     setIsSending(true);
 
     try {
-      const ranked = contextDocs
-        .map((d) => ({ doc: d, score: scoreDoc(d, question) }))
-        .sort((a, b) => b.score - a.score);
-      const top = selectedIds.length > 0
-        ? ranked.slice(0, 3).map((x) => x.doc)
-        : ranked.filter((x) => x.score > 0).slice(0, 3).map((x) => x.doc);
-
-      const response = await chatWithAI(question, top);
+      const response = await chatWithAI(question, selectedIds);
       const sources = response.sources.map((s: { id: string; title: string }) => ({
         id: s.id,
         title: s.title,

@@ -4,9 +4,8 @@ import Groq from 'groq-sdk';
 import { getCurrentUser, requireAdmin } from './auth.js';
 import { aiChatSchema } from './schemas.js';
 import { promptState, PROMPT_METADATA, DEFAULT_PROMPT } from './prompts.js';
-import { Document, AIConfig } from './models.js';
-import { extractStoredAttachmentText } from './attachmentText.js';
-import { canAccessDocument } from './access.js';
+import { AIConfig } from './models.js';
+import { retrieveChunks } from './rag/retrieveChunks.js';
 
 const DEFAULT_SUGGESTIONS = [
     "security issue related to this topic",
@@ -34,7 +33,7 @@ const router = express.Router();
 
 router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
     try {
-        const { message, context } = aiChatSchema.parse(req.body);
+        const { message, docIds } = aiChatSchema.parse(req.body);
 
         if (!process.env.GROQ_API_KEY) {
             return res.status(500).json({
@@ -44,48 +43,11 @@ router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
 
         const groq = getGroq();
 
-        // Enrich each context doc with attachment extractedText from MongoDB,
-        // back-filling stored attachments whose text is still missing.
-        const enrichedContext = await Promise.all((context || []).map(async (ctxDoc) => {
-            if (!ctxDoc.id) return ctxDoc;
-            try {
-                const dbDoc = await Document.findById(ctxDoc.id).lean();
-                // A document id the user may not see gets no stored content.
-                if (!canAccessDocument(req.user, dbDoc)) return { ...ctxDoc, attachments: [] };
-
-                const enrichedAttachments = await Promise.all(
-                    (dbDoc.attachments || []).map(async (att) => {
-                        if (att.extractedText) return att;
-                        const text = await extractStoredAttachmentText(att);
-                        if (text) {
-                            Document.updateOne(
-                                { _id: dbDoc._id, 'attachments._id': att._id },
-                                { $set: { 'attachments.$.extractedText': text } }
-                            ).catch(() => {});
-                        }
-                        return { ...att, extractedText: text };
-                    })
-                );
-                return { ...ctxDoc, attachments: enrichedAttachments };
-            } catch {
-                return ctxDoc;
-            }
-        }));
-
-        // Build document context block injected into the user message
-        let contextBlock = '';
-        if (enrichedContext.length > 0) {
-            const docTexts = enrichedContext.map((doc, idx) => {
-                let block = `[Document ${idx + 1}: ${doc.title}]\n${doc.content}`;
-                const attachParts = (doc.attachments || [])
-                    .filter(a => a.extractedText)
-                    .map(a => `[File: ${a.fileName}]\n${a.extractedText}`)
-                    .join('\n\n');
-                if (attachParts) block += `\n\n${attachParts}`;
-                return block;
-            });
-            contextBlock = `Context from documents:\n${docTexts.join('\n\n---\n\n')}`;
-        }
+        // Search only documents this user may read; the user comes from auth, never the request.
+        const chunks = await retrieveChunks(req.user, message, docIds);
+        const contextBlock = chunks.length
+            ? `Context from documents:\n${chunks.map((c) => `[From: ${c.title}]\n${c.text}`).join('\n\n---\n\n')}`
+            : '';
 
         const userContent = contextBlock
             ? `${contextBlock}\n\n---\nQuestion: ${message}`
@@ -105,7 +67,8 @@ router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
 
         res.json({
             answer: response.choices[0].message.content.trim(),
-            sources: enrichedContext.map(c => ({ id: c.id, title: c.title })),
+            // One source per document, in order of its best chunk.
+            sources: [...new Map(chunks.map((c) => [c.docId, { id: c.docId, title: c.title }])).values()],
         });
 
     } catch (error) {

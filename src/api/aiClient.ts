@@ -1,15 +1,15 @@
 import { apiFetch } from "./base";
-import { type DocumentItem } from "./documentsClient";
 
 export interface ChatResponse {
   answer: string;
   sources: { id: string; title: string }[];
 }
 
-export async function chatWithAI(message: string, context: DocumentItem[]): Promise<ChatResponse> {
+// The server picks the relevant passages; docIds only narrows the search to selected documents.
+export async function chatWithAI(message: string, docIds: string[]): Promise<ChatResponse> {
   return await apiFetch<ChatResponse>("/api/ai/chat", {
     method: "POST",
-    body: JSON.stringify({ message, context }),
+    body: JSON.stringify({ message, docIds }),
   });
 }
 
