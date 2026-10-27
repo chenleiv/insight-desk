@@ -2,15 +2,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "fs";
 
-const { User, Document, sync, remove, bucketDelete } = vi.hoisted(() => ({
+const { User, Document, Chunk, remove, bucketDelete } = vi.hoisted(() => ({
   User: { find: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
   Document: { find: vi.fn(), insertMany: vi.fn(), deleteMany: vi.fn() },
-  sync: vi.fn(),
+  Chunk: { insertMany: vi.fn() },
   remove: vi.fn(),
   bucketDelete: vi.fn(async () => {}),
 }));
-vi.mock("../models.js", () => ({ User, Document }));
-vi.mock("../rag/syncChunks.js", () => ({ syncDocumentChunks: sync, deleteDocumentChunks: remove }));
+vi.mock("../models.js", () => ({ User, Document, Chunk }));
+vi.mock("../rag/syncChunks.js", () => ({ deleteDocumentChunks: remove }));
 vi.mock("../logger.js", () => ({ logger: { info: vi.fn(), error: vi.fn() } }));
 vi.mock("mongodb", () => ({
   GridFSBucket: class {
@@ -74,7 +74,20 @@ describe("createDemoWorkspace", () => {
     for (const [i, copy] of copies.entries()) {
       expect(copy).toEqual({ ...SAMPLES[i], ownerId: "demo-new", demo: true });
     }
-    expect(sync).toHaveBeenCalledTimes(SAMPLES.length);
+
+    // All chunks go in with a single insert, each owned by the demo user.
+    expect(Chunk.insertMany).toHaveBeenCalledTimes(1);
+    const chunks = Chunk.insertMany.mock.calls[0][0];
+    expect(chunks.length).toBeGreaterThanOrEqual(SAMPLES.length);
+    expect(chunks.every((c) => c.ownerId === "demo-new")).toBe(true);
+  });
+
+  it("does not wait for the cleanup of old workspaces", async () => {
+    User.find.mockReturnValue({ lean: () => new Promise(() => {}) });
+    User.create.mockImplementation(async (u) => ({ _id: "demo-new", ...u }));
+    Document.insertMany.mockImplementation(async (docs) => docs);
+
+    await expect(createDemoWorkspace(NOW)).resolves.toMatchObject({ role: "demo" });
   });
 
   it("still creates the workspace when cleanup of old ones fails", async () => {
