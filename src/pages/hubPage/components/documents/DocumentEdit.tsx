@@ -1,8 +1,9 @@
 import "./notionEditor.scss";
 import React, { useMemo, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
-import { Clock, Paperclip, ExternalLink, X, Plus, ClipboardCopy } from "lucide-react";
+import { Clock, Paperclip, ExternalLink, X, Plus, ClipboardCopy, Lock } from "lucide-react";
 import type { DocumentInput, DocumentItem } from "../../../../api/documentsClient";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
+import { attachmentHref } from "../../utils/attachmentLink";
 
 type Props = {
   form: DocumentInput;
@@ -74,6 +75,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
         onChange={handleChange}
         placeholder="Untitled…"
         autoFocus={isCreating}
+        readOnly={!canEdit}
         aria-label="Title"
         title={form.title || undefined}
       />
@@ -88,6 +90,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
             value={form.category}
             onChange={handleChange}
             placeholder="Category…"
+            readOnly={!canEdit}
             aria-label="Category"
             maxLength={60}
           />
@@ -96,12 +99,19 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
           <Clock size={13} strokeWidth={2} aria-hidden />
           {timeLabel}
         </span>
+        {!canEdit && (
+          <span className="notion-readonly-badge" title="Only admins can edit documents">
+            <Lock size={11} aria-hidden />
+            View only · Admin edits
+          </span>
+        )}
       </div>
 
       {canEdit && (
         <div className="notion-att-chips">
           {existingAttachments.map((att) => {
             const isDeleting = deletingAttachmentId === att._id;
+            const href = doc ? attachmentHref(doc.id, att) : null;
             return (
               <span key={att._id} className="notion-att-chip">
                 <Paperclip size={11} aria-hidden />
@@ -116,9 +126,11 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
                     <ClipboardCopy size={11} />
                   </button>
                 )}
-                <a href={att.url} target="_blank" rel="noopener noreferrer" className="notion-att-chip-action" title="Open">
-                  <ExternalLink size={11} />
-                </a>
+                {href && (
+                  <a href={href} target="_blank" rel="noopener noreferrer" className="notion-att-chip-action" title="Open">
+                    <ExternalLink size={11} />
+                  </a>
+                )}
                 <button
                   type="button"
                   className="notion-att-chip-action"
@@ -168,6 +180,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
         onChange={handleChange}
         placeholder="Start writing…"
         rows={8}
+        readOnly={!canEdit}
         aria-label="Content"
       />
 

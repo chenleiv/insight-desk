@@ -4,7 +4,24 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
+// Number of reverse proxies in front of the server. On Render it is 3:
+// Cloudflare, Render's load balancer, and Render's local proxy.
+// Express then takes the client IP from X-Forwarded-For, skipping only that
+// many trusted hops, so a client cannot spoof its IP to dodge the rate limit.
+// Unset, zero, or invalid means no proxy is trusted.
+export function parseTrustProxyHops(value) {
+    if (value === undefined || value === '') return 0;
+    const hops = Number(value);
+    if (!Number.isInteger(hops) || hops < 0) {
+        logger.warn('Ignoring invalid TRUST_PROXY_HOPS', { value });
+        return 0;
+    }
+    return hops;
+}
+
 export function applyMiddleware(app) {
+    app.set('trust proxy', parseTrustProxyHops(process.env.TRUST_PROXY_HOPS));
+
     app.use(compression());
 
     app.use(helmet({
@@ -47,4 +64,10 @@ export function applyMiddleware(app) {
         message: { detail: 'Too many requests, please try again later.' }
     });
     app.use('/api/', limiter);
+}
+
+// Mounted after all API routers: an unknown /api path is a client error, not a
+// page, so it must not fall through to the SPA's index.html with status 200.
+export function apiNotFound(req, res) {
+    res.status(404).json({ detail: 'Not found' });
 }

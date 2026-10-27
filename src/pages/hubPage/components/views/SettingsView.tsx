@@ -7,7 +7,13 @@ import { AISection } from "./settings/AISection";
 
 type Tab = "account" | "users" | "ai";
 
-export default function SettingsView({ isAdmin }: { isAdmin: boolean }) {
+type Props = {
+  showAdminTabs: boolean;
+  // Demo visitors see the admin tabs but cannot change anything.
+  adminReadOnly: boolean;
+};
+
+export default function SettingsView({ showAdminTabs, adminReadOnly }: Props) {
   const [tab, setTab] = useState<Tab>("account");
 
   return (
@@ -21,7 +27,7 @@ export default function SettingsView({ isAdmin }: { isAdmin: boolean }) {
           <User size={15} />
           Account
         </button>
-        {isAdmin && (
+        {showAdminTabs && (
           <button
             type="button"
             className={`settings-tab ${tab === "users" ? "active" : ""}`}
@@ -31,7 +37,7 @@ export default function SettingsView({ isAdmin }: { isAdmin: boolean }) {
             Users
           </button>
         )}
-        {isAdmin && (
+        {showAdminTabs && (
           <button
             type="button"
             className={`settings-tab ${tab === "ai" ? "active" : ""}`}
@@ -45,8 +51,8 @@ export default function SettingsView({ isAdmin }: { isAdmin: boolean }) {
 
       <div className="settings-content">
         {tab === "account" && <AccountSection />}
-        {tab === "users" && isAdmin && <UsersSection />}
-        {tab === "ai" && isAdmin && <AISection />}
+        {tab === "users" && showAdminTabs && <UsersSection readOnly={adminReadOnly} />}
+        {tab === "ai" && showAdminTabs && <AISection readOnly={adminReadOnly} />}
       </div>
     </div>
   );

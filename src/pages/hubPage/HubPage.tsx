@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useResize } from "../../hooks/useResize";
 import { useMobile } from "../../hooks/useMobile";
 
@@ -20,6 +21,7 @@ import {
   type DocumentItem,
 } from "../../api/documentsClient";
 import { CONTEXT_KEY } from "./utils/assistantUtils";
+import { paramsForView, viewFromParams, type ActiveView } from "./utils/hubView";
 
 import "./hubPage.scss";
 import "./components/documents/docPanel.scss";
@@ -28,26 +30,24 @@ import DashboardView from "./components/views/DashboardView";
 import SettingsView from "./components/views/SettingsView";
 import ImportPreviewDialog from "./components/dialogs/ImportPreviewDialog";
 import MobileDrawer from "./components/layout/MobileDrawer";
+import DemoBanner from "./components/layout/DemoBanner";
 import { useDocumentOrdering } from "./hooks/useDocumentOrdering";
 import { useImportExport } from "./hooks/useImportExport";
+import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
 import { WelcomeModal } from "./components/dialogs/WelcomeModal";
 import { TourOverlay } from "./components/dialogs/TourOverlay";
 import { HUB_TOUR_STEPS } from "./components/dialogs/tourSteps";
 
-type ActiveView =
-  | { kind: "ai" }
-  | { kind: "dashboard" }
-  | { kind: "settings" }
-  | { kind: "doc"; id: string }
-  | { kind: "creating" };
-
 export default function HubPage() {
-  const { user, toggleFavorite, favoritesMap: favorites } = useAuth();
+  const { user, logout, toggleFavorite, favoritesMap: favorites } = useAuth();
   const status = useStatus();
   const confirm = useConfirm();
   const isMobile = useMobile(767);
 
   const isAdmin = user?.role === "admin";
+  const isDemo = user?.role === "demo";
+  // Demo visitors edit their own copy of the documents; admin settings stay read-only for them.
+  const canEditDocs = isAdmin || isDemo;
   const orderKey = scopedKey("documentsOrder", user?.email);
 
   const { docs, loading: docsLoading, error: docsError } = useDocuments();
@@ -62,12 +62,46 @@ export default function HubPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>(() =>
     loadJson<string[]>(CONTEXT_KEY, [])
   );
-  const [isPaneDirty, setIsPaneDirty] = useState(false);
+  const {
+    isDirty: isPaneDirty,
+    setIsDirty: setIsPaneDirty,
+    clearDirty,
+    guardDirty,
+  } = useUnsavedChangesGuard();
   const [isDocPanelCollapsed, setIsDocPanelCollapsed] = useState<boolean>(() =>
     loadJson<boolean>("docPanelCollapsed", true)
   );
   const [isDraggingPanel, setIsDraggingPanel] = useState(false);
-  const [activeView, setActiveView] = useState<ActiveView>({ kind: "ai" });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  // The new-document form is local only and ends on any navigation, including back/forward.
+  const [creatingKey, setCreatingKey] = useState<string | null>(null);
+  const urlView = viewFromParams(searchParams);
+  // A document id in the URL that no longer exists (deleted, or a stale link).
+  const missingDocId =
+    urlView.kind === "doc" && docs.length > 0 && !docs.some((d) => d.id === urlView.id)
+      ? urlView.id
+      : null;
+  const activeView: ActiveView =
+    creatingKey === location.key ? { kind: "creating" }
+    : missingDocId ? { kind: "ai" }
+    : urlView;
+
+  // Each view change is a history entry, so back/forward move between views.
+  function setActiveView(view: ActiveView, options?: { replace?: boolean }) {
+    if (view.kind === "creating") {
+      setCreatingKey(location.key);
+      return;
+    }
+    setCreatingKey(null);
+    const next = paramsForView(view);
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, options);
+  }
+
+  useEffect(() => {
+    if (missingDocId) setSearchParams(new URLSearchParams(), { replace: true });
+  }, [missingDocId, setSearchParams]);
+
   const [mobileDocPickerOpen, setMobileDocPickerOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem("insight-desk:welcomed"));
@@ -84,13 +118,10 @@ export default function HubPage() {
   const [prevDocs, setPrevDocs] = useState<DocumentItem[]>(docs);
   const [prevDocPanelWidth, setPrevDocPanelWidth] = useState(docPanelWidth);
 
-  // Adjust active view and selection when docs change (avoids setState in useEffect)
+  // Adjust selection when docs change (avoids setState in useEffect)
   if (docs !== prevDocs) {
     setPrevDocs(docs);
     if (docs.length > 0) {
-      if (activeView.kind === "doc" && !docs.some((d) => d.id === activeView.id)) {
-        setActiveView({ kind: "ai" });
-      }
       const ids = new Set(docs.map((d) => d.id));
       const nextIds = selectedIds.filter((id) => ids.has(id));
       if (!sameArray(nextIds, selectedIds)) {
@@ -179,18 +210,6 @@ export default function HubPage() {
     startResize(e);
   }, [startResize]);
 
-  async function guardDirty(): Promise<boolean> {
-    if (!isPaneDirty) return true;
-    const ok = await confirm({
-      title: "Unsaved Changes",
-      message: "Discard unsaved changes?",
-      confirmLabel: "Discard",
-      variant: "danger",
-    });
-    if (ok) setIsPaneDirty(false);
-    return ok;
-  }
-
   function goToAI() {
     void guardDirty().then((ok) => {
       if (!ok) return;
@@ -227,12 +246,18 @@ export default function HubPage() {
     setMobileDocPickerOpen(false);
   }
 
+  // Logout ends the session and the hub unmounts before any navigation blocker runs,
+  // so unsaved changes are confirmed here first.
+  function signOut() {
+    void guardDirty().then((ok) => { if (ok) void logout(); });
+  }
+
   function closeView() {
     void guardDirty().then((ok) => { if (ok) setActiveView({ kind: "ai" }); });
   }
 
   function handleCreated(doc: DocumentItem) {
-    setIsPaneDirty(false);
+    clearDirty();
     setDocs((prev) => [doc, ...prev]);
     setOrder((prev) => {
       const next = [doc.id, ...prev.filter((x) => x !== doc.id)];
@@ -259,7 +284,8 @@ export default function HubPage() {
         saveJson(orderKey, next);
         return next;
       });
-      if (wasActive) setActiveView({ kind: "ai" });
+      // Replace, so Back does not return to the deleted document.
+      if (wasActive) setActiveView({ kind: "ai" }, { replace: true });
       status.show({ kind: "success", message: "Document deleted." });
     } catch (e) {
       status.show({
@@ -292,6 +318,7 @@ export default function HubPage() {
     activeDocId,
     onOpenDocument: goToDocument,
     onNew: goToCreate,
+    canCreate: canEditDocs,
     onToggleFavorite: toggleFavorite,
     onToggleSelected: handleToggleSelected,
     onClearSelection: handleClearSelection,
@@ -301,6 +328,8 @@ export default function HubPage() {
   return (
     <div className="hub-layout">
 
+      {isDemo && <DemoBanner />}
+
       <TopBar
         activeView={activeView.kind}
         onOpenDashboard={goToDashboard}
@@ -308,6 +337,7 @@ export default function HubPage() {
         onOpenAI={goToAI}
         isMobile={isMobile}
         onMenuClick={() => setDrawerOpen(true)}
+        onSignOut={signOut}
         {...(isMobile ? { onOpenDocPicker: () => setMobileDocPickerOpen(true) } : {})}
       />
 
@@ -361,23 +391,23 @@ export default function HubPage() {
                 onOpenDocument={goToDocument}
                 onExport={handleExport}
                 onImport={handleImport}
-                isAdmin={isAdmin}
+                canEdit={canEditDocs}
               />
             </div>
           )}
           {activeView.kind === "settings" && (
             <div className="hub-view-scroll">
-              <SettingsView isAdmin={isAdmin} />
+              <SettingsView showAdminTabs={isAdmin || isDemo} adminReadOnly={isDemo} />
             </div>
           )}
           {(activeView.kind === "doc" || activeView.kind === "creating") && (
             <DocumentPane
               key={activeView.kind === "creating" ? "creating" : activeView.id}
               doc={activeDoc}
-              canEdit={isAdmin}
+              canEdit={canEditDocs}
               isCreating={activeView.kind === "creating"}
               onCancelCreate={() => {
-                setIsPaneDirty(false);
+                clearDirty();
                 setActiveView({ kind: "ai" });
               }}
               onCreated={handleCreated}
@@ -417,6 +447,7 @@ export default function HubPage() {
           onDashboard={goToDashboard}
           onSettings={goToSettings}
           onClose={() => setDrawerOpen(false)}
+          onSignOut={signOut}
         />
       )}
 

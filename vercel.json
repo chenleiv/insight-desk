@@ -3,6 +3,6 @@
   "outputDirectory": "dist",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "env": {
-    "VITE_API_BASE": "https://ai-knowledge-workspace.onrender.com"
+    "VITE_API_BASE": "https://insight-desk-bwji.onrender.com"
   }
 }

@@ -5,7 +5,8 @@ import { getCurrentUser, requireAdmin } from './auth.js';
 import { aiChatSchema } from './schemas.js';
 import { promptState, PROMPT_METADATA, DEFAULT_PROMPT } from './prompts.js';
 import { Document, AIConfig } from './models.js';
-import { extractTextFromUrl } from './textExtract.js';
+import { extractStoredAttachmentText } from './attachmentText.js';
+import { canAccessDocument } from './access.js';
 
 const DEFAULT_SUGGESTIONS = [
     "security issue related to this topic",
@@ -44,17 +45,18 @@ router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
         const groq = getGroq();
 
         // Enrich each context doc with attachment extractedText from MongoDB,
-        // lazily back-filling any attachments that were uploaded before this feature.
+        // back-filling stored attachments whose text is still missing.
         const enrichedContext = await Promise.all((context || []).map(async (ctxDoc) => {
             if (!ctxDoc.id) return ctxDoc;
             try {
                 const dbDoc = await Document.findById(ctxDoc.id).lean();
-                if (!dbDoc) return ctxDoc;
+                // A document id the user may not see gets no stored content.
+                if (!canAccessDocument(req.user, dbDoc)) return { ...ctxDoc, attachments: [] };
 
                 const enrichedAttachments = await Promise.all(
                     (dbDoc.attachments || []).map(async (att) => {
                         if (att.extractedText) return att;
-                        const text = await extractTextFromUrl(att.url, att.fileType);
+                        const text = await extractStoredAttachmentText(att);
                         if (text) {
                             Document.updateOne(
                                 { _id: dbDoc._id, 'attachments._id': att._id },

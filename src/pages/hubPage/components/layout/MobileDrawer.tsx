@@ -6,10 +6,11 @@ type Props = {
   onDashboard: () => void;
   onSettings: () => void;
   onClose: () => void;
+  onSignOut: () => void;
 };
 
-export default function MobileDrawer({ onDashboard, onSettings, onClose }: Props) {
-  const { user, logout } = useAuth();
+export default function MobileDrawer({ onDashboard, onSettings, onClose, onSignOut }: Props) {
+  const { user } = useAuth();
 
   function handleDashboard() {
     onDashboard();
@@ -21,9 +22,9 @@ export default function MobileDrawer({ onDashboard, onSettings, onClose }: Props
     onClose();
   }
 
-  async function handleSignOut() {
+  function handleSignOut() {
     onClose();
-    await logout();
+    onSignOut();
   }
 
   return (
@@ -69,7 +70,7 @@ export default function MobileDrawer({ onDashboard, onSettings, onClose }: Props
         <button
           type="button"
           className="mobile-drawer-item mobile-drawer-item--danger"
-          onClick={() => void handleSignOut()}
+          onClick={handleSignOut}
         >
           <LogOut size={16} />
           Sign out

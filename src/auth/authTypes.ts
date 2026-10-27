@@ -1,7 +1,15 @@
 export const AUTH_USER_KEY = "authUser";
 
-export type Role = "admin" | "viewer";
-export type AuthUser = { email: string; role: Role; favorites: string[]; displayName?: string; jobTitle?: string };
+// "demo": a temporary visitor with a private copy of the sample documents.
+export type Role = "admin" | "viewer" | "demo";
+export type AuthUser = {
+  email: string;
+  role: Role;
+  favorites: string[];
+  displayName?: string;
+  jobTitle?: string;
+  expiresAt?: string;
+};
 
 export type AuthContextValue = {
   user: AuthUser | null;

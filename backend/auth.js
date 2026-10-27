@@ -2,11 +2,35 @@ import express from 'express';
 import { logger } from './logger.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { User } from './models.js';
+import { canEditDocuments, isDemoUser } from './access.js';
+import { createDemoWorkspace } from './demo.js';
 
 import { loginSchema, registerSchema } from './schemas.js';
 
 const router = express.Router();
+
+// Stricter than the global /api limit: slows down password guessing.
+// Only failed attempts count, so a user who logs in successfully is not penalized.
+// Per client IP, which needs TRUST_PROXY_HOPS set behind a proxy.
+const passwordAttemptLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    skipSuccessfulRequests: true,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { detail: 'Too many failed attempts, please try again in 15 minutes.' },
+});
+
+// Each demo workspace copies the sample documents, so creation is capped per IP.
+const demoCreationLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { detail: 'Too many demo sessions from this network, please try again later.' },
+});
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-secret-change-me') {
@@ -28,6 +52,7 @@ function formatUser(user) {
         favorites: user.favorites || [],
         displayName: user.displayName || '',
         jobTitle: user.jobTitle || '',
+        ...(isDemoUser(user) && { expiresAt: user.expiresAt }),
     };
 }
 
@@ -49,6 +74,19 @@ const FRONTEND_URL = process.env.FRONTEND_URL || APP_BASE_URL;
 export async function seedUsersIfEmpty() {
     const count = await User.countDocuments();
     if (count === 0) {
+        // Production never gets a hard-coded admin: the first admin comes from
+        // SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD, or is not created at all.
+        if (process.env.NODE_ENV === 'production') {
+            const email = process.env.SEED_ADMIN_EMAIL;
+            const password = process.env.SEED_ADMIN_PASSWORD;
+            if (!email || !password) {
+                logger.error('No users and SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD not set; no admin created');
+                return;
+            }
+            await User.create({ email, password_hash: await bcrypt.hash(password, 10), role: 'admin' });
+            logger.info('Seeded initial admin from environment');
+            return;
+        }
         logger.info('Seeding initial users');
         const adminHash = await bcrypt.hash('admin123', 10);
         const viewerHash = await bcrypt.hash('viewer123', 10);
@@ -57,15 +95,6 @@ export async function seedUsersIfEmpty() {
             { email: 'viewer@demo.com', password_hash: viewerHash, role: 'viewer' }
         ]);
         logger.info('Users seeded successfully');
-        return;
-    }
-
-    // Ensure demo user always exists even when other users are present
-    const demoExists = await User.exists({ email: 'admin@demo.com' });
-    if (!demoExists) {
-        const adminHash = await bcrypt.hash('admin123', 10);
-        await User.create({ email: 'admin@demo.com', password_hash: adminHash, role: 'admin' });
-        logger.info('Demo user created');
     }
 }
 
@@ -85,6 +114,9 @@ export async function getCurrentUser(req, res, next) {
         if (!user) {
             return res.status(401).json({ detail: 'User not found' });
         }
+        if (isDemoUser(user) && user.expiresAt && user.expiresAt < new Date()) {
+            return res.status(401).json({ detail: 'Demo session expired' });
+        }
         req.user = user;
         next();
     } catch (err) {
@@ -101,6 +133,16 @@ export function requireAdmin(req, res, next) {
     });
 }
 
+// Admins edit the shared documents; demo users edit their own sandbox.
+export function requireEditor(req, res, next) {
+    getCurrentUser(req, res, () => {
+        if (!canEditDocuments(req.user)) {
+            return res.status(403).json({ detail: 'Not allowed' });
+        }
+        next();
+    });
+}
+
 function setAuthCookie(res, token) {
     res.cookie(COOKIE_NAME, token, {
         httpOnly: true,
@@ -111,7 +153,7 @@ function setAuthCookie(res, token) {
     });
 }
 
-router.post('/login', async (req, res) => {
+router.post('/login', passwordAttemptLimiter, async (req, res) => {
     try {
         const { email, password } = loginSchema.parse(req.body);
 
@@ -222,12 +264,24 @@ router.get('/google/callback', async (req, res) => {
     }
 });
 
+// Start a private demo workspace and sign in as its temporary user.
+router.post('/demo', demoCreationLimiter, async (req, res) => {
+    try {
+        const user = await createDemoWorkspace();
+        setAuthCookie(res, createAccessToken(user.email, user.role));
+        res.status(201).json({ user: formatUser(user) });
+    } catch (err) {
+        logger.error('Demo workspace creation failed', { message: err.message });
+        res.status(500).json({ detail: 'Could not start the demo' });
+    }
+});
+
 router.post('/logout', (req, res) => {
     res.clearCookie(COOKIE_NAME, { path: '/' });
     res.json({ ok: true });
 });
 
-router.patch('/password', getCurrentUser, async (req, res) => {
+router.patch('/password', passwordAttemptLimiter, getCurrentUser, async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
         if (!currentPassword || !newPassword) {
@@ -238,6 +292,9 @@ router.patch('/password', getCurrentUser, async (req, res) => {
         }
 
         const user = req.user;
+        if (isDemoUser(user)) {
+            return res.status(403).json({ detail: 'Not available in the demo' });
+        }
         if (user.password_hash && !(await bcrypt.compare(currentPassword, user.password_hash))) {
             return res.status(401).json({ detail: 'Current password is incorrect' });
         }

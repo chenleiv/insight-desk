@@ -11,6 +11,7 @@ type Props = {
   activeDocId: string | null;
   onOpenDocument: (id: string) => void;
   onNew: () => void;
+  canCreate: boolean;
   onToggleFavorite: (id: string) => void;
   onToggleSelected: (id: string) => void;
   onClearSelection: () => void;
@@ -26,6 +27,7 @@ export default function DocPanel({
   activeDocId,
   onOpenDocument,
   onNew,
+  canCreate,
   onToggleFavorite,
   onToggleSelected,
   onClearSelection,
@@ -95,9 +97,16 @@ export default function DocPanel({
         </div>
       </div>
 
-      <button type="button" className="doc-panel-new-row" onClick={onNew}>
+      <button
+        type="button"
+        className="doc-panel-new-row"
+        onClick={onNew}
+        disabled={!canCreate}
+        title={canCreate ? undefined : "Admin only"}
+      >
         <Plus size={13} />
         New document
+        {!canCreate && <span className="doc-panel-new-row-tag">Admin only</span>}
       </button>
 
       <div className="doc-panel-search">

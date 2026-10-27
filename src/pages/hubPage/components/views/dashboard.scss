@@ -49,6 +49,12 @@
         transition: all 0.2s;
         white-space: nowrap;
 
+        &:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            filter: none;
+        }
+
         &.primary {
             background: var(--primary);
             color: white;

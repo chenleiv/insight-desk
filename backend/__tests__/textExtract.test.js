@@ -1,6 +1,48 @@
 // @vitest-environment node
 import { describe, it, expect } from "vitest";
+import * as XLSX from "xlsx";
 import { rtfToText, extractTextFromBuffer } from "../textExtract.js";
+
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const XLS_MIME = "application/vnd.ms-excel";
+
+// Two-sheet workbook, written at runtime in the given format.
+function workbookBuffer(bookType) {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "qty"], ["apple", 3]]), "Fruits");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["city"], ["Haifa"]]), "Cities");
+  return XLSX.write(wb, { type: "buffer", bookType });
+}
+
+const WORKBOOK_TEXT = "[Sheet: Fruits]\nname\tqty\napple\t3\n[Sheet: Cities]\ncity\nHaifa";
+
+// Minimal PDF with one text line per page, xref offsets computed at runtime.
+function pdfBuffer(pageTexts) {
+  const pageIds = pageTexts.map((_, i) => 4 + i * 2);
+  const objs = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageTexts.length} >>`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  for (const [i, text] of pageTexts.entries()) {
+    const stream = `BT /F1 18 Tf 20 60 Td (${text}) Tj ET`;
+    objs.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Contents ${pageIds[i] + 1} 0 R /Resources << /Font << /F1 3 0 R >> >> >>`,
+      `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    );
+  }
+  let pdf = "%PDF-1.4\n";
+  const offsets = objs.map((obj, i) => {
+    const offset = pdf.length;
+    pdf += `${i + 1} 0 obj\n${obj}\nendobj\n`;
+    return offset;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n`;
+  pdf += offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("");
+  pdf += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(pdf, "latin1");
+}
 
 // RTF unicode escape for a decimal code point, built at runtime.
 const u = (code) => "\\" + "u" + code;
@@ -55,5 +97,20 @@ describe("extractTextFromBuffer", () => {
   it("returns plain text and markdown unchanged", async () => {
     const md = "# Title\n\nSome {braces} and a back\\slash.";
     expect(await extractTextFromBuffer(Buffer.from(`  ${md}\n`), "text/markdown")).toBe(md);
+  });
+
+  it("extracts every sheet of an .xlsx file as tab-separated rows", async () => {
+    expect(await extractTextFromBuffer(workbookBuffer("xlsx"), XLSX_MIME)).toBe(WORKBOOK_TEXT);
+  });
+
+  it("extracts every sheet of a legacy .xls file", async () => {
+    expect(await extractTextFromBuffer(workbookBuffer("biff8"), XLS_MIME)).toBe(WORKBOOK_TEXT);
+  });
+
+  it("extracts the text of every PDF page without page markers", async () => {
+    const text = await extractTextFromBuffer(pdfBuffer(["First page", "Second page"]), "application/pdf");
+    expect(text).toContain("First page");
+    expect(text).toContain("Second page");
+    expect(text).not.toMatch(/-- \d+ of \d+ --/);
   });
 });

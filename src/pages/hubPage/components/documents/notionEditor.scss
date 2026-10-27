@@ -211,6 +211,17 @@
     color: var(--muted);
 }
 
+.notion-readonly-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    font-size: 11.5px;
+    color: var(--muted);
+    background: var(--soft);
+    border-radius: 999px;
+}
+
 .notion-summary {
     font-size: 15px;
     line-height: 1.65;

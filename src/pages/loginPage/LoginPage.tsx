@@ -1,10 +1,11 @@
 import { useActionState, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, BrainCircuit, Sun, Moon } from "lucide-react";
-import { login, register } from "../../api/authClient";
+import { login, register, startDemo } from "../../api/authClient";
 import { useAuth } from "../../auth/useAuth";
 import { useStatus } from "../../components/statusBar/useStatus";
 import { useTheme } from "../../hooks/useTheme";
+import { Loader } from "../../components/loader/Loader";
 import "./loginPage.scss";
 
 export type LoginLocationState = { from?: Location };
@@ -20,6 +21,8 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [demoPending, setDemoPending] = useState(false);
+  const [demoSlow, setDemoSlow] = useState(false);
 
   const redirectTo = (() => {
     const state = location.state as LoginLocationState | null;
@@ -56,6 +59,29 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthed) nav(redirectTo, { replace: true });
   }, [isAuthed, nav, redirectTo]);
+
+  // A sleeping server can take up to a minute to wake, so explain longer waits.
+  useEffect(() => {
+    if (!demoPending) return;
+    const timer = setTimeout(() => setDemoSlow(true), 5000);
+    return () => {
+      clearTimeout(timer);
+      setDemoSlow(false);
+    };
+  }, [demoPending]);
+
+  const startDemoSession = async () => {
+    setDemoPending(true);
+    try {
+      const res = await startDemo();
+      loginSuccess(res.user);
+      nav(redirectTo, { replace: true });
+    } catch {
+      status.show({ kind: "error", title: "Demo unavailable", message: "Could not connect to demo account." });
+    } finally {
+      setDemoPending(false);
+    }
+  };
 
   const switchMode = (next: "login" | "register") => {
     setMode(next);
@@ -178,7 +204,7 @@ export default function LoginPage() {
         <button
           className="primary-btn signin-btn"
           type="submit"
-          disabled={isPending}
+          disabled={isPending || demoPending}
         >
           {isPending
             ? mode === "register"
@@ -199,19 +225,24 @@ export default function LoginPage() {
           <button
             type="button"
             className="login-demo-btn"
-            disabled={isPending}
-            onClick={async () => {
-              try {
-                const res = await login("admin@demo.com", "admin123");
-                loginSuccess(res.user);
-                nav(redirectTo, { replace: true });
-              } catch {
-                status.show({ kind: "error", title: "Demo unavailable", message: "Could not connect to demo account." });
-              }
-            }}
+            disabled={isPending || demoPending}
+            aria-busy={demoPending}
+            onClick={startDemoSession}
           >
-            Try Demo
+            {demoPending ? (
+              <>
+                <Loader size={16} />
+                Preparing your demo workspace...
+              </>
+            ) : (
+              "Try Demo"
+            )}
           </button>
+          {demoSlow && (
+            <p className="login-demo-wait" role="status">
+              The server may be waking up. This can take up to a minute.
+            </p>
+          )}
         </div>
       )}
     </div>

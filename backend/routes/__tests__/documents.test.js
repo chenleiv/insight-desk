@@ -30,7 +30,7 @@ vi.mock("../../auth.js", () => {
     req.user = USER;
     next();
   };
-  return { getCurrentUser: authenticate, requireAdmin: authenticate };
+  return { getCurrentUser: authenticate, requireAdmin: authenticate, requireEditor: authenticate };
 });
 vi.mock("../../textExtract.js", () => ({
   extractTextFromBuffer: vi.fn(async () => "Attachment text."),
@@ -107,6 +107,7 @@ describe("document routes keep chunks in sync", () => {
 
   it("edit rebuilds chunks and does not change the owner", async () => {
     const updated = { _id: "doc-1", ...BODY, ownerId: "owner-0" };
+    Document.findById.mockResolvedValue(fakeDoc());
     Document.findByIdAndUpdate.mockResolvedValue(updated);
 
     const res = await fetch(`${baseUrl}/doc-1`, json("PUT", { ...BODY, ownerId: "attacker" }));
@@ -141,7 +142,19 @@ describe("document routes keep chunks in sync", () => {
     expect(sync.mock.calls[0][0].attachments).toHaveLength(0);
   });
 
+  it("attachment delete hides internal error details from the client", async () => {
+    const doc = fakeDoc([{ _id: "att-1", gridfsId: "gridfs-1" }]);
+    doc.save.mockRejectedValueOnce(new Error("MongoServerError: connection to 10.0.0.5 closed"));
+    Document.findById.mockResolvedValue(doc);
+
+    const res = await fetch(`${baseUrl}/doc-1/attachments/att-1`, { method: "DELETE" });
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ detail: "Delete failed" });
+  });
+
   it("document delete removes its chunks", async () => {
+    Document.findById.mockResolvedValue(fakeDoc());
     Document.findByIdAndDelete.mockResolvedValue({ _id: "doc-1", attachments: [] });
 
     const res = await fetch(`${baseUrl}/doc-1`, { method: "DELETE" });
@@ -163,7 +176,8 @@ describe("document routes keep chunks in sync", () => {
 
     expect(res.status).toBe(200);
     expect(Document.db.transaction).toHaveBeenCalledOnce();
-    expect(Document.deleteMany).toHaveBeenCalledWith({}, { session: "tx-session" });
+    expect(Document.find).toHaveBeenCalledWith({ demo: { $ne: true } }, "_id", { session: "tx-session" });
+    expect(Document.deleteMany).toHaveBeenCalledWith({ _id: { $in: ["old-1", "old-2"] } }, { session: "tx-session" });
     expect(remove).toHaveBeenCalledWith(["old-1", "old-2"], "tx-session");
     expect(Document.insertMany).toHaveBeenCalledWith([{ ...BODY, ownerId: USER._id }], { session: "tx-session" });
     expect(sync).toHaveBeenCalledWith(inserted[0], "tx-session");

@@ -4,7 +4,7 @@ import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 
 const _require = createRequire(import.meta.url);
-const pdfParse = _require('pdf-parse');
+const { PDFParse } = _require('pdf-parse');
 
 const EXCEL_MIMES = new Set([
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -127,8 +127,14 @@ function isRtf(mimeType, text) {
 export async function extractTextFromBuffer(buffer, mimeType) {
     try {
         if (mimeType === 'application/pdf') {
-            const data = await pdfParse(buffer);
-            return data.text.trim().slice(0, 50000);
+            const parser = new PDFParse({ data: buffer });
+            try {
+                // Empty pageJoiner drops the default "-- 1 of N --" page markers.
+                const result = await parser.getText({ pageJoiner: '' });
+                return result.text.trim().slice(0, 50000);
+            } finally {
+                await parser.destroy();
+            }
         }
         if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
             const result = await mammoth.extractRawText({ buffer });
@@ -150,18 +156,6 @@ export async function extractTextFromBuffer(buffer, mimeType) {
         }
     } catch (e) {
         logger.error('Text extraction failed', { message: e.message });
-    }
-    return '';
-}
-
-export async function extractTextFromUrl(url, mimeType) {
-    try {
-        const res = await fetch(url);
-        if (!res.ok) return '';
-        const buffer = Buffer.from(await res.arrayBuffer());
-        return extractTextFromBuffer(buffer, mimeType);
-    } catch (e) {
-        logger.error('Text extraction from URL failed', { message: e.message });
     }
     return '';
 }
