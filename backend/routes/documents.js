@@ -10,6 +10,7 @@ import { getCurrentUser, requireEditor } from '../auth.js';
 import { canAccessDocument, documentScope, isDemoUser } from '../access.js';
 import { documentSchema, importBulkSchema } from '../schemas.js';
 import { syncDocumentChunks, deleteDocumentChunks } from '../rag/syncChunks.js';
+import { embed } from '../rag/embed.js';
 
 const router = Router();
 
@@ -33,11 +34,12 @@ function handleZodError(err, res) {
     return false;
 }
 
+// Each chunk gets an embedding so semantic search can find it right after the save.
 // The document change is already saved, so a chunk failure is logged rather
 // than failing the request. `npm run reindex` repairs any stale chunks.
 async function refreshChunks(docs) {
     try {
-        for (const doc of [].concat(docs)) await syncDocumentChunks(doc);
+        for (const doc of [].concat(docs)) await syncDocumentChunks(doc, undefined, { embed });
     } catch (err) {
         logger.error('Rebuilding chunks failed', { message: err.message });
     }
@@ -110,15 +112,18 @@ router.post('/import-bulk', requireEditor, async (req, res) => {
         const demoFlag = isDemoUser(req.user) ? { demo: true } : {};
         const normalized = documents.map(({ _id, id, ...rest }) => ({ ...rest, ownerId: req.user._id, ...demoFlag }));
         // One transaction: a failed import leaves existing documents and chunks untouched.
+        let inserted = [];
         await Document.db.transaction(async (session) => {
             if (mode === 'replace') {
                 const existing = await Document.find(documentScope(req.user), '_id', { session });
                 await Document.deleteMany({ _id: { $in: existing.map((d) => d._id) } }, { session });
                 await deleteDocumentChunks(existing.map((d) => d._id), session);
             }
-            const inserted = await Document.insertMany(normalized, { session });
+            inserted = await Document.insertMany(normalized, { session });
             for (const doc of inserted) await syncDocumentChunks(doc, session);
         });
+        // Embeddings are added after the commit, so the slow model calls never hold the transaction open.
+        await refreshChunks(inserted);
         res.json({ inserted: normalized.length, mode });
     } catch (err) {
         logger.error('Import failed', { message: err.message });
