@@ -5,7 +5,7 @@ import { EventEmitter } from "events";
 
 const USER = { _id: "user-1", role: "admin" };
 
-const { Document, sync, remove } = vi.hoisted(() => ({
+const { Document, sync, remove, embed } = vi.hoisted(() => ({
   Document: {
     create: vi.fn(),
     find: vi.fn(),
@@ -18,6 +18,7 @@ const { Document, sync, remove } = vi.hoisted(() => ({
   },
   sync: vi.fn(),
   remove: vi.fn(),
+  embed: vi.fn(),
 }));
 
 vi.mock("../../models.js", () => ({ Document }));
@@ -25,6 +26,7 @@ vi.mock("../../rag/syncChunks.js", () => ({
   syncDocumentChunks: sync,
   deleteDocumentChunks: remove,
 }));
+vi.mock("../../rag/embed.js", () => ({ embed }));
 vi.mock("../../auth.js", () => {
   const authenticate = (req, _res, next) => {
     req.user = USER;
@@ -94,7 +96,7 @@ const json = (method, body) => ({
 });
 
 describe("document routes keep chunks in sync", () => {
-  it("create sets ownerId from the logged-in user and builds chunks", async () => {
+  it("create sets ownerId from the logged-in user and builds chunks with embeddings", async () => {
     const created = { _id: "doc-1", ...BODY, ownerId: USER._id };
     Document.create.mockResolvedValue(created);
 
@@ -102,10 +104,10 @@ describe("document routes keep chunks in sync", () => {
 
     expect(res.status).toBe(200);
     expect(Document.create).toHaveBeenCalledWith({ ...BODY, ownerId: USER._id });
-    expect(sync).toHaveBeenCalledWith(created);
+    expect(sync).toHaveBeenCalledWith(created, undefined, { embed });
   });
 
-  it("edit rebuilds chunks and does not change the owner", async () => {
+  it("edit rebuilds chunks with embeddings and does not change the owner", async () => {
     const updated = { _id: "doc-1", ...BODY, ownerId: "owner-0" };
     Document.findById.mockResolvedValue(fakeDoc());
     Document.findByIdAndUpdate.mockResolvedValue(updated);
@@ -114,7 +116,7 @@ describe("document routes keep chunks in sync", () => {
 
     expect(res.status).toBe(200);
     expect(Document.findByIdAndUpdate).toHaveBeenCalledWith("doc-1", BODY, { new: true });
-    expect(sync).toHaveBeenCalledWith(updated);
+    expect(sync).toHaveBeenCalledWith(updated, undefined, { embed });
   });
 
   it("attachment add rebuilds chunks including the extracted text", async () => {
@@ -127,7 +129,7 @@ describe("document routes keep chunks in sync", () => {
 
     expect(res.status).toBe(200);
     expect(doc.save).toHaveBeenCalled();
-    expect(sync).toHaveBeenCalledWith(doc);
+    expect(sync).toHaveBeenCalledWith(doc, undefined, { embed });
     expect(sync.mock.calls[0][0].attachments[0].extractedText).toBe("Attachment text.");
   });
 
@@ -138,7 +140,7 @@ describe("document routes keep chunks in sync", () => {
     const res = await fetch(`${baseUrl}/doc-1/attachments/att-1`, { method: "DELETE" });
 
     expect(res.status).toBe(204);
-    expect(sync).toHaveBeenCalledWith(doc);
+    expect(sync).toHaveBeenCalledWith(doc, undefined, { embed });
     expect(sync.mock.calls[0][0].attachments).toHaveLength(0);
   });
 
@@ -181,6 +183,23 @@ describe("document routes keep chunks in sync", () => {
     expect(remove).toHaveBeenCalledWith(["old-1", "old-2"], "tx-session");
     expect(Document.insertMany).toHaveBeenCalledWith([{ ...BODY, ownerId: USER._id }], { session: "tx-session" });
     expect(sync).toHaveBeenCalledWith(inserted[0], "tx-session");
+  });
+
+  it("bulk import adds embeddings only after the transaction commits", async () => {
+    const inserted = [{ _id: "new-1", ...BODY }];
+    Document.insertMany.mockResolvedValue(inserted);
+    Document.db.transaction.mockImplementationOnce(async (fn) => {
+      await fn("tx-session");
+      expect(sync).not.toHaveBeenCalledWith(expect.anything(), undefined, { embed });
+    });
+
+    const res = await fetch(`${baseUrl}/import-bulk`, json("POST", { mode: "append", documents: [BODY] }));
+
+    expect(res.status).toBe(200);
+    expect(sync.mock.calls).toEqual([
+      [inserted[0], "tx-session"],
+      [inserted[0], undefined, { embed }],
+    ]);
   });
 
   it("bulk import fails as a whole when building chunks fails", async () => {
