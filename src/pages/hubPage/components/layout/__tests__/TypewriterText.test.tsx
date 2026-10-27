@@ -22,7 +22,7 @@ afterEach(() => {
 
 const shown = () => container.querySelector(".typewriter")?.textContent ?? "";
 const hasCursor = () => container.querySelector(".typewriter-cursor") !== null;
-const render = (text: string, onComplete?: () => void) =>
+const render = (text: string, onComplete: () => void = () => {}) =>
   act(() => root.render(<TypewriterText text={text} speed={10} onComplete={onComplete} />));
 const tick = (ms: number) => act(() => vi.advanceTimersByTime(ms));
 
