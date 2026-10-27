@@ -2,8 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import "./aiAssistant.scss";
 import { BrainCircuit, Send, Bot, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { chatWithAI, getSuggestions, getSystemPrompt } from "../../../../api/aiClient";
-import type { DocumentItem } from "../../../../api/documentsClient";
-import { buildSnippet, uid, CHAT_KEY } from "../../utils/assistantUtils";
+import { citedSources, formatCitations, uid, CHAT_KEY } from "../../utils/assistantUtils";
 import { loadJson, saveJson, scopedKey } from "../../../../utils/storage";
 import type { ChatMessage } from "./assistantTypes";
 import TypewriterText from "../layout/TypewriterText";
@@ -19,13 +18,7 @@ const DEFAULT_SUGGESTIONS = [
   "What is the most important rules from this topic?",
 ];
 
-type Props = {
-  docs: DocumentItem[];
-  selectedIds: string[];
-  onOpenMobilePicker?: () => void;
-};
-
-export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker }: Props) {
+export default function AIAssistantView() {
   const { user } = useAuth();
 
   const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS);
@@ -64,11 +57,6 @@ export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  const selectedDocs = selectedIds.length === 0
-    ? []
-    : docs.filter((d) => selectedIds.includes(d.id));
-  const contextDocs = selectedDocs.length > 0 ? selectedDocs : docs;
-
   const hasStartedChat = messages.some(m => m.role === "user") || isSending;
 
   async function sendMessage(text: string) {
@@ -85,23 +73,16 @@ export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker 
     setIsSending(true);
 
     try {
-      const response = await chatWithAI(question, selectedIds);
-      const sources = response.sources.map((s: { id: string; title: string }) => ({
-        id: s.id,
-        title: s.title,
-        snippet: buildSnippet(
-          contextDocs.find((d) => d.id === s.id)?.content || "",
-          question
-        ),
-      }));
+      const response = await chatWithAI(question);
 
       setMessages((prev) => [
         ...prev,
         {
           id: uid(),
           role: "assistant",
-          text: response.answer,
-          sources,
+          text: formatCitations(response.answer, response.citations),
+          // Only documents the answer actually cites, as checked by the server.
+          sources: citedSources(response.citations),
           isTyped: false,
         },
       ]);
@@ -238,6 +219,14 @@ export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker 
                         m.text
                       )}
                     </div>
+                    {m.role === "assistant" && !!m.sources?.length && (
+                      <div className="ai-message-sources">
+                        <span>Sources:</span>
+                        <ul>
+                          {m.sources.map((s) => <li key={s.id}>{s.title}</li>)}
+                        </ul>
+                      </div>
+                    )}
                     {m.role === "assistant" && <div className="ai-message-time">{timeString}</div>}
                   </div>
                 </div>
@@ -312,20 +301,6 @@ export default function AIAssistantView({ docs, selectedIds, onOpenMobilePicker 
               <SlidersHorizontal size={13} />
               System Prompt
             </button>
-            {onOpenMobilePicker && (
-              <button
-                type="button"
-                className="ai-mobile-context-btn"
-                onClick={onOpenMobilePicker}
-              >
-                {selectedIds.length > 0 ? `Context (${selectedIds.length})` : "Context"}
-              </button>
-            )}
-            <p className="ai-composer-hint">
-              {selectedIds.length === 0
-                ? "Using all documents for context"
-                : `${selectedIds.length} document${selectedIds.length === 1 ? "" : "s"} in context`}
-            </p>
             {hasStartedChat && (
               <button
                 type="button"

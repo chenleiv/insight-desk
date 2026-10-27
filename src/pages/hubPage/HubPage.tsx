@@ -14,13 +14,11 @@ import { useAuth } from "../../auth/useAuth";
 import { useStatus } from "../../components/statusBar/useStatus";
 import useConfirm from "../../hooks/useConfirm";
 
-import { sameArray } from "./utils/ordering";
 import { saveJson, loadJson, scopedKey } from "../../utils/storage";
 import {
   deleteDocument,
   type DocumentItem,
 } from "../../api/documentsClient";
-import { CONTEXT_KEY } from "./utils/assistantUtils";
 import { paramsForView, viewFromParams, type ActiveView } from "./utils/hubView";
 
 import "./hubPage.scss";
@@ -59,9 +57,6 @@ export default function HubPage() {
   const PANEL_DEFAULT_WIDTH = 320;
   const PANEL_COLLAPSE_THRESHOLD = 130;
 
-  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
-    loadJson<string[]>(CONTEXT_KEY, [])
-  );
   const {
     isDirty: isPaneDirty,
     setIsDirty: setIsPaneDirty,
@@ -115,21 +110,7 @@ export default function HubPage() {
     savedPanelWidth, PANEL_COLLAPSE_THRESHOLD, 500, false
   );
 
-  const [prevDocs, setPrevDocs] = useState<DocumentItem[]>(docs);
   const [prevDocPanelWidth, setPrevDocPanelWidth] = useState(docPanelWidth);
-
-  // Adjust selection when docs change (avoids setState in useEffect)
-  if (docs !== prevDocs) {
-    setPrevDocs(docs);
-    if (docs.length > 0) {
-      const ids = new Set(docs.map((d) => d.id));
-      const nextIds = selectedIds.filter((id) => ids.has(id));
-      if (!sameArray(nextIds, selectedIds)) {
-        setSelectedIds(nextIds);
-        saveJson(CONTEXT_KEY, nextIds);
-      }
-    }
-  }
 
   // Sync collapse state with panel width during render (avoids setState in useEffect)
   if (docPanelWidth !== prevDocPanelWidth) {
@@ -154,18 +135,6 @@ export default function HubPage() {
     if (docsError) status.show({ kind: "error", message: docsError });
   }, [docsError, status]);
 
-  const handleToggleSelected = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      saveJson(CONTEXT_KEY, next);
-      return next;
-    });
-  }, []);
-
-  const handleClearSelection = useCallback(() => {
-    setSelectedIds([]);
-    saveJson(CONTEXT_KEY, []);
-  }, []);
 
   const handleToggleDocPanel = useCallback(() => {
     setIsDocPanelCollapsed((prev) => {
@@ -212,13 +181,7 @@ export default function HubPage() {
 
   function goToAI() {
     void guardDirty().then((ok) => {
-      if (!ok) return;
-      if (activeView.kind === "doc" && activeView.id) {
-        const next = [activeView.id];
-        setSelectedIds(next);
-        saveJson(CONTEXT_KEY, next);
-      }
-      setActiveView({ kind: "ai" });
+      if (ok) setActiveView({ kind: "ai" });
     });
   }
 
@@ -314,14 +277,11 @@ export default function HubPage() {
   const docPanelProps = {
     docs: orderedDocs,
     favorites,
-    selectedIds,
     activeDocId,
     onOpenDocument: goToDocument,
     onNew: goToCreate,
     canCreate: canEditDocs,
     onToggleFavorite: toggleFavorite,
-    onToggleSelected: handleToggleSelected,
-    onClearSelection: handleClearSelection,
     loading: docsLoading,
   };
 
@@ -378,11 +338,7 @@ export default function HubPage() {
 
         <main className="hub-main">
           {activeView.kind === "ai" && (
-            <AIAssistantView
-              docs={docs}
-              selectedIds={selectedIds}
-              {...(isMobile ? { onOpenMobilePicker: () => setMobileDocPickerOpen(true) } : {})}
-            />
+            <AIAssistantView />
           )}
           {activeView.kind === "dashboard" && (
             <div className="hub-view-scroll">

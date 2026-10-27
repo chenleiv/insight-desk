@@ -20,10 +20,15 @@ export const documentSchema = z.object({
 });
 
 // AI Schemas
-export const aiChatSchema = z.object({
-  message: z.string().min(1, 'Message is required'),
-  // Documents the user selected to narrow the search; access is checked on the server.
-  docIds: z.array(z.string()).max(100).optional(),
+// Only the question: the server finds the context itself, so any other field is rejected.
+export const aiChatSchema = z.strictObject({
+  message: z.string().trim().min(1, 'Message is required').max(2000),
+});
+
+// Search Schema (query string values arrive as strings)
+export const searchQuerySchema = z.object({
+  q: z.string().trim().min(1, 'Query is required').max(500),
+  k: z.coerce.number().int().min(1).max(20).optional(),
 });
 
 // Import Bulk Schema

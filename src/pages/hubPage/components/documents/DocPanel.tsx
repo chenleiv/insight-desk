@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Search, X, Paperclip, BrainCircuit, Star, Plus, ChevronRight } from "lucide-react";
+import { Search, X, Paperclip, Star, Plus, ChevronRight } from "lucide-react";
 import type { DocumentItem } from "../../../../api/documentsClient";
 import { getCategoryChipStyle } from "../../utils/docs";
 import { Skeleton } from "../../../../components/skeleton/Skeleton";
@@ -7,14 +7,11 @@ import { Skeleton } from "../../../../components/skeleton/Skeleton";
 type Props = {
   docs: DocumentItem[];
   favorites: Record<string, boolean>;
-  selectedIds: string[];
   activeDocId: string | null;
   onOpenDocument: (id: string) => void;
   onNew: () => void;
   canCreate: boolean;
   onToggleFavorite: (id: string) => void;
-  onToggleSelected: (id: string) => void;
-  onClearSelection: () => void;
   isCollapsed?: boolean;
   onToggleCollapsed?: () => void;
   loading?: boolean;
@@ -23,14 +20,11 @@ type Props = {
 export default function DocPanel({
   docs,
   favorites,
-  selectedIds,
   activeDocId,
   onOpenDocument,
   onNew,
   canCreate,
   onToggleFavorite,
-  onToggleSelected,
-  onClearSelection,
   isCollapsed,
   onToggleCollapsed,
   loading,
@@ -72,19 +66,6 @@ export default function DocPanel({
       <div className="doc-panel-header">
         <span className="doc-panel-title">Documents</span>
         <div className="doc-panel-header-actions">
-          {selectedIds.length > 0 && (
-            <button
-              type="button"
-              className="doc-panel-clear-btn"
-              onClick={onClearSelection}
-              data-tooltip="Clear AI context selection"
-              data-tooltip-pos="bottom"
-            >
-              <BrainCircuit size={11} />
-              {selectedIds.length}
-              <X size={9} strokeWidth={2.5} />
-            </button>
-          )}
           <button
             type="button"
             className={`doc-panel-star-btn${showFavoritesOnly ? " active" : ""}`}
@@ -139,13 +120,12 @@ export default function DocPanel({
           </li>
         ))}
         {!loading && filteredDocs.map((doc) => {
-          const isContext = selectedIds.includes(doc.id);
           const isActive = doc.id === activeDocId;
           const isFav = !!favorites[doc.id];
           return (
             <li
               key={doc.id}
-              className={`doc-panel-row${isActive ? " doc-panel-row--active" : ""}${isContext ? " doc-panel-row--context" : ""}`}
+              className={`doc-panel-row${isActive ? " doc-panel-row--active" : ""}`}
               onClick={() => onOpenDocument(doc.id)}
               role="button"
               tabIndex={0}
@@ -179,16 +159,6 @@ export default function DocPanel({
                   data-tooltip-pos="left"
                 >
                   <Star size={14} fill={isFav ? "currentColor" : "none"} />
-                </button>
-                <button
-                  type="button"
-                  className={`doc-panel-row-ctx-btn${isContext ? " active" : ""}`}
-                  onClick={(e) => { e.stopPropagation(); onToggleSelected(doc.id); }}
-                  aria-label={isContext ? "Remove from AI context" : "Add to AI context"}
-                  data-tooltip={isContext ? "Remove from AI context" : "Add to AI context"}
-                  data-tooltip-pos="left"
-                >
-                  <BrainCircuit size={14} />
                 </button>
               </div>
             </li>

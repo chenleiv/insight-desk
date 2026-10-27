@@ -1,11 +1,12 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { logger } from './logger.js';
 import Groq from 'groq-sdk';
 import { getCurrentUser, requireAdmin } from './auth.js';
 import { aiChatSchema } from './schemas.js';
-import { promptState, PROMPT_METADATA, DEFAULT_PROMPT } from './prompts.js';
+import { promptState, PROMPT_METADATA, DEFAULT_PROMPT, CONTEXT_RULES } from './prompts.js';
 import { AIConfig } from './models.js';
-import { retrieveChunks } from './rag/retrieveChunks.js';
+import { search } from './rag/search.js';
 
 const DEFAULT_SUGGESTIONS = [
     "security issue related to this topic",
@@ -54,11 +55,68 @@ async function englishKeywords(groq, question) {
     }
 }
 
+const CONTEXT_CHUNKS = 5;
+
+// Chunks scoring below this are not sent to the model. Calibrated on the demo
+// documents: unrelated questions topped out at 0.27, related ones started at 0.34.
+// Kept at the low end, since the model is also told to answer only from context.
+const MIN_SIMILARITY = 0.3;
+
+export const NO_INFO_ANSWER = "I don't have information about this in your documents.";
+
+// A letter outside the Latin script, e.g. Hebrew. The embedding model only understands English.
+const NON_LATIN_LETTER = /(?!\p{Script=Latin})\p{L}/u;
+
+/** Break any <chunk> or <context> tag in untrusted text, so it cannot close or open a delimiter. */
+function neutralizeTags(text) {
+    return text.replace(/<(\/?)(chunk|context)/gi, '&lt;$1$2');
+}
+
+/** Wrap each chunk in its own delimiter, with a short id the model can cite. */
+function buildContext(chunks) {
+    const blocks = chunks.map((c, i) => {
+        const title = neutralizeTags(c.title).replace(/"/g, '&quot;');
+        return `<chunk id="c${i + 1}" title="${title}">\n${neutralizeTags(c.text)}\n</chunk>`;
+    });
+    return `<context>\n${blocks.join('\n\n')}\n</context>`;
+}
+
+/**
+ * Keep only citations of chunks that were actually retrieved. Ids the model
+ * invented are removed from the answer and returned in `unknown`. The model
+ * sometimes writes fullwidth brackets, 【c1】; those are rewritten as [c1].
+ */
+function verifyCitations(answer, chunks) {
+    const byId = new Map(chunks.map((c, i) => [`c${i + 1}`, c]));
+    const citations = new Map();
+    const unknown = [];
+    const text = answer.replace(/(\s*)[[【]\s*(c\d+(?:\s*,\s*c\d+)*)\s*[\]】]/g, (_, space, list) => {
+        const ids = list.split(/\s*,\s*/);
+        const valid = ids.filter((id) => byId.has(id));
+        unknown.push(...ids.filter((id) => !byId.has(id)));
+        for (const id of valid) {
+            const c = byId.get(id);
+            if (!citations.has(id)) citations.set(id, { id, docId: c.docId, title: c.title, index: c.index });
+        }
+        return valid.length ? `${space}[${[...new Set(valid)].join(', ')}]` : '';
+    });
+    return { answer: text.trim(), citations: [...citations.values()], unknown };
+}
+
+// Each question embeds the query on the CPU and calls Groq, so chat is capped per client IP.
+const chatLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { detail: 'Too many questions, please try again in a minute.' },
+});
+
 const router = express.Router();
 
-router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
+router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
     try {
-        const { message, docIds } = aiChatSchema.parse(req.body);
+        const { message } = aiChatSchema.parse(req.body);
 
         if (!process.env.GROQ_API_KEY) {
             return res.status(500).json({
@@ -68,27 +126,23 @@ router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
 
         const groq = getGroq();
 
-        // Search only documents this user may read; the user comes from auth, never the request.
-        let chunks = await retrieveChunks(req.user, message, docIds);
-        // No keyword matched, e.g. a Hebrew question about English documents:
-        // search again with English keywords before falling back to opening chunks.
-        if (!docIds?.length && !chunks.some((c) => c.score > 0)) {
-            const keywords = await englishKeywords(groq, message);
-            if (keywords) {
-                const translated = await retrieveChunks(req.user, keywords, docIds);
-                if (translated.some((c) => c.score > 0)) chunks = translated;
-            }
-        }
-        const contextBlock = chunks.length
-            ? `Context from documents:\n${chunks.map((c) => `[From: ${c.title}]\n${c.text}`).join('\n\n---\n\n')}`
-            : '';
-
-        const userContent = contextBlock
-            ? `${contextBlock}\n\n---\nQuestion: ${message}`
+        // A question in another script is searched with English keywords; the model still gets the original.
+        const query = NON_LATIN_LETTER.test(message)
+            ? (await englishKeywords(groq, message)) ?? message
             : message;
+        // Search only documents this user may read; the user comes from auth, never the request.
+        const chunks = (await search(req.user, query, CONTEXT_CHUNKS))
+            .filter((c) => c.score >= MIN_SIMILARITY);
+
+        // Nothing close enough: answer without calling the model, so it cannot guess.
+        if (!chunks.length) {
+            return res.json({ answer: NO_INFO_ANSWER, citations: [], sources: [] });
+        }
+
+        const userContent = `${buildContext(chunks)}\n\nQuestion: ${neutralizeTags(message)}`;
 
         const messages = [
-            { role: 'system', content: promptState.prompt },
+            { role: 'system', content: `${promptState.prompt}\n\n${CONTEXT_RULES}` },
             { role: 'user', content: userContent },
         ];
 
@@ -99,8 +153,12 @@ router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
             temperature: 0.3,
         });
 
+        const { answer, citations, unknown } = verifyCitations(response.choices[0].message.content, chunks);
+        if (unknown.length) logger.warn('Model cited chunks that were not retrieved', { ids: unknown });
+
         res.json({
-            answer: response.choices[0].message.content.trim(),
+            answer,
+            citations,
             // One source per document, in order of its best chunk.
             sources: [...new Map(chunks.map((c) => [c.docId, { id: c.docId, title: c.title }])).values()],
         });

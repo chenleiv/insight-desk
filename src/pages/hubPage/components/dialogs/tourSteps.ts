@@ -5,14 +5,14 @@ export const HUB_TOUR_STEPS: TourStep[] = [
     selector: ".doc-panel-wrapper",
     title: "📄 Document list",
     description:
-      "All your documents live here. Click any document to open it.\n\n⭐ Star — mark as favourite\n🧠 Brain — add to Brainy AI context (so it can read it)",
+      "All your documents live here. Click any document to open it.\n\n⭐ Star — mark as favourite",
     placement: "right",
   },
   {
     selector: ".hub-main",
     title: "🧠 Brainy AI",
     description:
-      "Select one or more documents with the 🧠 brain icon, then ask Brainy anything about them — summaries, Q&A, comparisons.",
+      "Ask Brainy anything about your documents — summaries, Q&A, comparisons. It finds the relevant documents for you.",
     placement: "left",
   },
   {
