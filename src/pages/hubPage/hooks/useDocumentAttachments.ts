@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Attachment, DocumentItem } from "../../../api/documentsClient";
 import { uploadAttachment, deleteAttachment } from "../../../api/documentsClient";
@@ -23,8 +23,13 @@ export function useDocumentAttachments({ doc, canEdit, onSaved }: Options) {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [localAttachments, setLocalAttachments] = useState<Attachment[] | null>(null);
 
+  // Drop local attachment edits when another document opens (reset during render, not in an effect).
   const docId = doc?.id;
-  useEffect(() => { setLocalAttachments(null); }, [docId]);
+  const [attachmentsDocId, setAttachmentsDocId] = useState(docId);
+  if (attachmentsDocId !== docId) {
+    setAttachmentsDocId(docId);
+    setLocalAttachments(null);
+  }
 
   const effectiveDoc = useMemo<DocumentItem | null>(() => {
     if (!doc) return null;

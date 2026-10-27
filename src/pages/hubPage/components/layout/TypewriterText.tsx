@@ -7,21 +7,24 @@ type Props = {
 };
 
 export default function TypewriterText({ text, speed = 15, onComplete }: Props) {
-    const [displayedText, setDisplayedText] = useState("");
-    const [complete, setComplete] = useState(false);
+    // How much of `text` is shown; a new text restarts from zero during render.
+    const [progress, setProgress] = useState({ text, count: 0 });
+    if (progress.text !== text) setProgress({ text, count: 0 });
+    const displayedText = text.slice(0, progress.text === text ? progress.count : 0);
+    const complete = progress.text === text && progress.count >= text.length;
+
     const onCompleteRef = useRef(onComplete);
-    onCompleteRef.current = onComplete;
+    useEffect(() => {
+        onCompleteRef.current = onComplete;
+    }, [onComplete]);
 
     useEffect(() => {
         let i = 0;
-        setDisplayedText("");
-        setComplete(false);
         const interval = setInterval(() => {
-            setDisplayedText(text.slice(0, i + 1));
             i++;
+            setProgress({ text, count: i });
             if (i >= text.length) {
                 clearInterval(interval);
-                setComplete(true);
                 onCompleteRef.current?.();
             }
         }, speed);
