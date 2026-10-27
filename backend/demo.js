@@ -2,8 +2,9 @@ import { readFileSync } from 'fs';
 import { randomUUID } from 'crypto';
 import mongoose from 'mongoose';
 import { GridFSBucket } from 'mongodb';
-import { User, Document } from './models.js';
-import { syncDocumentChunks, deleteDocumentChunks } from './rag/syncChunks.js';
+import { User, Document, Chunk } from './models.js';
+import { deleteDocumentChunks } from './rag/syncChunks.js';
+import { buildDocumentChunks } from './rag/buildChunks.js';
 import { logger } from './logger.js';
 
 export const DEMO_TTL_MS = 24 * 60 * 60 * 1000;
@@ -38,15 +39,15 @@ export async function removeExpiredDemoWorkspaces(now = new Date()) {
 
 /**
  * Create a private demo workspace: a temporary demo user that owns its own
- * copy of the sample documents. Expired workspaces are cleaned up first.
+ * copy of the sample documents. Expired workspaces are cleaned up in the
+ * background, so the visitor never waits for it.
  */
 export async function createDemoWorkspace(now = new Date()) {
-    try {
-        const removed = await removeExpiredDemoWorkspaces(now);
-        if (removed) logger.info('Removed expired demo workspaces', { count: removed });
-    } catch (err) {
-        logger.error('Demo cleanup failed', { message: err.message });
-    }
+    removeExpiredDemoWorkspaces(now)
+        .then((removed) => {
+            if (removed) logger.info('Removed expired demo workspaces', { count: removed });
+        })
+        .catch((err) => logger.error('Demo cleanup failed', { message: err.message }));
 
     const user = await User.create({
         email: `demo-${randomUUID()}@demo.invalid`,
@@ -59,9 +60,11 @@ export async function createDemoWorkspace(now = new Date()) {
     const docs = await Document.insertMany(
         SAMPLE_DOCUMENTS.map((d) => ({ ...d, ownerId: user._id, demo: true })),
     );
-    // Chat retrieval works without chunks, so a failure here is logged, not fatal.
+    // The documents are new and have no chunks yet, so one insert is enough;
+    // a transaction per document made this take seconds. Chat retrieval works
+    // without chunks, so a failure here is logged, not fatal.
     try {
-        for (const doc of docs) await syncDocumentChunks(doc);
+        await Chunk.insertMany(docs.flatMap((doc) => buildDocumentChunks(doc)));
     } catch (err) {
         logger.error('Building demo chunks failed', { message: err.message });
     }

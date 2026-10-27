@@ -248,9 +248,21 @@
             border-color: var(--primary);
         }
 
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+
         &:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
+    }
+
+    .login-demo-wait {
+        margin: 0;
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
     }
 }
