@@ -6,6 +6,7 @@ import { aiChatSchema } from './schemas.js';
 import { promptState, PROMPT_METADATA, DEFAULT_PROMPT } from './prompts.js';
 import { Document, AIConfig } from './models.js';
 import { extractStoredAttachmentText } from './attachmentText.js';
+import { canAccessDocument } from './access.js';
 
 const DEFAULT_SUGGESTIONS = [
     "security issue related to this topic",
@@ -49,7 +50,8 @@ router.post('/api/ai/chat', getCurrentUser, async (req, res) => {
             if (!ctxDoc.id) return ctxDoc;
             try {
                 const dbDoc = await Document.findById(ctxDoc.id).lean();
-                if (!dbDoc) return ctxDoc;
+                // A document id the user may not see gets no stored content.
+                if (!canAccessDocument(req.user, dbDoc)) return { ...ctxDoc, attachments: [] };
 
                 const enrichedAttachments = await Promise.all(
                     (dbDoc.attachments || []).map(async (att) => {

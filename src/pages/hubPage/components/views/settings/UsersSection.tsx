@@ -10,7 +10,7 @@ import {
 import { useStatus } from "../../../../../components/statusBar/useStatus";
 import useConfirm from "../../../../../hooks/useConfirm";
 
-export function UsersSection() {
+export function UsersSection({ readOnly = false }: { readOnly?: boolean }) {
   const { user: currentUser } = useAuth();
   const status = useStatus();
   const confirm = useConfirm();
@@ -91,6 +91,7 @@ export function UsersSection() {
         <div>
           <h2>User Management</h2>
           <p>Manage roles and access for all users</p>
+          {readOnly && <p className="settings-readonly-note">Admin only · Sample users shown in the demo, changes are disabled</p>}
         </div>
         <span className="settings-user-count">{users.length} users</span>
       </div>
@@ -136,7 +137,7 @@ export function UsersSection() {
                   <select
                     className="settings-role-select"
                     value={u.role}
-                    disabled={isMe || isPendingRow}
+                    disabled={readOnly || isMe || isPendingRow}
                     onChange={(e) => handleRoleChange(u.id, e.target.value as UserRecord["role"])}
                   >
                     <option value="admin">Admin</option>
@@ -146,7 +147,7 @@ export function UsersSection() {
                   <button
                     type="button"
                     className={`settings-status-btn ${u.status}`}
-                    disabled={isMe || isPendingRow}
+                    disabled={readOnly || isMe || isPendingRow}
                     onClick={() => handleStatusToggle(u.id, u.status)}
                     title={u.status === "active" ? "Click to deactivate" : "Click to activate"}
                   >
@@ -156,7 +157,7 @@ export function UsersSection() {
                   <button
                     type="button"
                     className="settings-delete-btn icon-btn danger"
-                    disabled={isMe || isPendingRow}
+                    disabled={readOnly || isMe || isPendingRow}
                     onClick={() => handleDelete(u.id, u.email)}
                     aria-label="Delete user"
                     title="Delete user"

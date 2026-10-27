@@ -7,7 +7,7 @@ import {
 } from "../../../../../api/aiClient";
 import { useStatus } from "../../../../../components/statusBar/useStatus";
 
-export function AISection() {
+export function AISection({ readOnly = false }: { readOnly?: boolean }) {
   const status = useStatus();
 
   const [promptDraft, setPromptDraft] = useState("");
@@ -66,6 +66,7 @@ export function AISection() {
           <div>
             <h2>System Prompt</h2>
             <p>Defines how the AI assistant behaves and responds</p>
+            {readOnly && <p className="settings-readonly-note">Admin only · View only in the demo</p>}
           </div>
         </div>
         <div className="settings-form">
@@ -73,6 +74,7 @@ export function AISection() {
             className="settings-ai-textarea"
             value={promptDraft}
             onChange={(e) => setPromptDraft(e.target.value)}
+            readOnly={readOnly}
             disabled={!promptLoaded || promptSaving}
             rows={12}
             placeholder="Loading…"
@@ -80,7 +82,7 @@ export function AISection() {
           <button
             type="button"
             className="settings-save-btn"
-            disabled={!promptLoaded || promptSaving}
+            disabled={readOnly || !promptLoaded || promptSaving}
             onClick={savePrompt}
           >
             {promptSaving ? "Saving…" : "Save prompt"}
@@ -103,6 +105,7 @@ export function AISection() {
                 className="settings-input"
                 value={q}
                 onChange={(e) => setQuestions((prev) => prev.map((v, idx) => idx === i ? e.target.value : v))}
+                readOnly={readOnly}
                 disabled={!questionsLoaded || questionsSaving}
                 placeholder={`Example question ${i + 1}`}
               />
@@ -111,7 +114,7 @@ export function AISection() {
           <button
             type="button"
             className="settings-save-btn"
-            disabled={!questionsLoaded || questionsSaving}
+            disabled={readOnly || !questionsLoaded || questionsSaving}
             onClick={saveQuestions}
           >
             {questionsSaving ? "Saving…" : "Save questions"}

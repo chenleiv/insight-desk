@@ -3,6 +3,9 @@ import { Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "../../../../../auth/useAuth";
 import { changePassword, updateProfile } from "../../../../../api/authClient";
 import { useStatus } from "../../../../../components/statusBar/useStatus";
+import type { Role } from "../../../../../auth/authTypes";
+
+const ROLE_LABELS: Record<Role, string> = { admin: "Administrator", viewer: "Viewer", demo: "Demo" };
 
 function PasswordField({
   label,
@@ -137,7 +140,7 @@ export function AccountSection() {
         </div>
         <div className="settings-info-row">
           <span className="settings-info-label">Role</span>
-          <span className="settings-info-value">{user?.role === "admin" ? "Administrator" : "Viewer"}</span>
+          <span className="settings-info-value">{ROLE_LABELS[user?.role ?? "viewer"]}</span>
         </div>
         {profileDirty && (
           <div className="settings-profile-save-row">
@@ -163,6 +166,7 @@ export function AccountSection() {
         )}
       </div>
 
+      {user?.role !== "demo" && (
       <div className="settings-pw-section">
         <button
           type="button"
@@ -190,6 +194,7 @@ export function AccountSection() {
           </form>
         )}
       </div>
+      )}
     </div>
   );
 }

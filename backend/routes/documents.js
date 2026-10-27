@@ -6,7 +6,8 @@ import multer from 'multer';
 import { randomUUID } from 'crypto';
 import { Document } from '../models.js';
 import { extractTextFromBuffer } from '../textExtract.js';
-import { getCurrentUser, requireAdmin } from '../auth.js';
+import { getCurrentUser, requireEditor } from '../auth.js';
+import { canAccessDocument, documentScope, isDemoUser } from '../access.js';
 import { documentSchema, importBulkSchema } from '../schemas.js';
 import { syncDocumentChunks, deleteDocumentChunks } from '../rag/syncChunks.js';
 
@@ -77,8 +78,8 @@ const upload = multer({
     },
 });
 
-// Extract text from a file without creating any document (admin)
-router.post('/extract-text', requireAdmin, handleMulterUpload, async (req, res) => {
+// Extract text from a file without creating any document (editors)
+router.post('/extract-text', requireEditor, handleMulterUpload, async (req, res) => {
     try {
         const file = req.file;
         if (!file) return res.status(400).json({ detail: 'No file uploaded' });
@@ -90,10 +91,10 @@ router.post('/extract-text', requireAdmin, handleMulterUpload, async (req, res) 
     }
 });
 
-// Export all documents (admin)
-router.get('/export', requireAdmin, async (req, res) => {
+// Export the documents the user can see (editors)
+router.get('/export', requireEditor, async (req, res) => {
     try {
-        const docs = await Document.find();
+        const docs = await Document.find(documentScope(req.user));
         logger.info('Exporting docs', { count: docs.length });
         res.json(docs);
     } catch (err) {
@@ -102,16 +103,17 @@ router.get('/export', requireAdmin, async (req, res) => {
     }
 });
 
-// Bulk import (admin)
-router.post('/import-bulk', requireAdmin, async (req, res) => {
+// Bulk import (editors). Replace mode only replaces the documents the user can see.
+router.post('/import-bulk', requireEditor, async (req, res) => {
     try {
         const { mode, documents } = importBulkSchema.parse(req.body);
-        const normalized = documents.map(({ _id, id, ...rest }) => ({ ...rest, ownerId: req.user._id }));
+        const demoFlag = isDemoUser(req.user) ? { demo: true } : {};
+        const normalized = documents.map(({ _id, id, ...rest }) => ({ ...rest, ownerId: req.user._id, ...demoFlag }));
         // One transaction: a failed import leaves existing documents and chunks untouched.
         await Document.db.transaction(async (session) => {
             if (mode === 'replace') {
-                const existing = await Document.find({}, '_id', { session });
-                await Document.deleteMany({}, { session });
+                const existing = await Document.find(documentScope(req.user), '_id', { session });
+                await Document.deleteMany({ _id: { $in: existing.map((d) => d._id) } }, { session });
                 await deleteDocumentChunks(existing.map((d) => d._id), session);
             }
             const inserted = await Document.insertMany(normalized, { session });
@@ -125,10 +127,10 @@ router.post('/import-bulk', requireAdmin, async (req, res) => {
     }
 });
 
-// List all documents
+// List the documents the user can see
 router.get('/', getCurrentUser, async (req, res) => {
     try {
-        const docs = await Document.find().sort({ createdAt: -1 });
+        const docs = await Document.find(documentScope(req.user)).sort({ createdAt: -1 });
         res.json(docs);
     } catch (err) {
         logger.error('Fetching documents', { message: err.message });
@@ -140,7 +142,7 @@ router.get('/', getCurrentUser, async (req, res) => {
 router.get('/:id', getCurrentUser, async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
-        if (!doc) {
+        if (!canAccessDocument(req.user, doc)) {
             return res.status(404).json({ detail: 'Not found' });
         }
         res.json(doc);
@@ -151,10 +153,14 @@ router.get('/:id', getCurrentUser, async (req, res) => {
 });
 
 // Create document
-router.post('/', requireAdmin, async (req, res) => {
+router.post('/', requireEditor, async (req, res) => {
     try {
         const validated = documentSchema.parse(req.body);
-        const newDoc = await Document.create({ ...validated, ownerId: req.user._id });
+        const newDoc = await Document.create({
+            ...validated,
+            ownerId: req.user._id,
+            ...(isDemoUser(req.user) && { demo: true }),
+        });
         await refreshChunks(newDoc);
         res.json(newDoc);
     } catch (err) {
@@ -165,9 +171,12 @@ router.post('/', requireAdmin, async (req, res) => {
 });
 
 // Update document
-router.put('/:id', requireAdmin, async (req, res) => {
+router.put('/:id', requireEditor, async (req, res) => {
     try {
         const validated = documentSchema.parse(req.body);
+        if (!canAccessDocument(req.user, await Document.findById(req.params.id))) {
+            return res.status(404).json({ detail: 'Not found' });
+        }
         const updated = await Document.findByIdAndUpdate(req.params.id, validated, { new: true });
         if (!updated) {
             return res.status(404).json({ detail: 'Not found' });
@@ -182,8 +191,11 @@ router.put('/:id', requireAdmin, async (req, res) => {
 });
 
 // Delete document
-router.delete('/:id', requireAdmin, async (req, res) => {
+router.delete('/:id', requireEditor, async (req, res) => {
     try {
+        if (!canAccessDocument(req.user, await Document.findById(req.params.id))) {
+            return res.status(404).json({ detail: 'Not found' });
+        }
         const deleted = await Document.findByIdAndDelete(req.params.id);
         if (!deleted) {
             return res.status(404).json({ detail: 'Not found' });
@@ -210,6 +222,9 @@ router.post('/:id/toggle-favorite', getCurrentUser, async (req, res) => {
     try {
         const docId = req.params.id;
         const user = req.user;
+        if (!canAccessDocument(user, await Document.findById(docId))) {
+            return res.status(404).json({ detail: 'Not found' });
+        }
 
         const isFavorite = user.favorites.includes(docId);
         if (isFavorite) {
@@ -230,7 +245,7 @@ router.post('/:id/toggle-favorite', getCurrentUser, async (req, res) => {
 router.get('/:id/attachments/:attachmentId/file', getCurrentUser, async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
-        if (!doc) return res.status(404).json({ detail: 'Not found' });
+        if (!canAccessDocument(req.user, doc)) return res.status(404).json({ detail: 'Not found' });
 
         const attachment = doc.attachments.id(req.params.attachmentId);
         if (!attachment || !attachment.gridfsId) return res.status(404).json({ detail: 'Attachment not found' });
@@ -250,10 +265,10 @@ router.get('/:id/attachments/:attachmentId/file', getCurrentUser, async (req, re
 });
 
 // Upload attachment
-router.post('/:id/attachments', requireAdmin, handleMulterUpload, async (req, res) => {
+router.post('/:id/attachments', requireEditor, handleMulterUpload, async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
-        if (!doc) return res.status(404).json({ detail: 'Not found' });
+        if (!canAccessDocument(req.user, doc)) return res.status(404).json({ detail: 'Not found' });
 
         const file = req.file;
         if (!file) return res.status(400).json({ detail: 'No file uploaded' });
@@ -295,10 +310,10 @@ router.post('/:id/attachments', requireAdmin, handleMulterUpload, async (req, re
 });
 
 // Delete attachment
-router.delete('/:id/attachments/:attachmentId', requireAdmin, async (req, res) => {
+router.delete('/:id/attachments/:attachmentId', requireEditor, async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
-        if (!doc) return res.status(404).json({ detail: 'Not found' });
+        if (!canAccessDocument(req.user, doc)) return res.status(404).json({ detail: 'Not found' });
 
         const attachment = doc.attachments.id(req.params.attachmentId);
         if (!attachment) return res.status(404).json({ detail: 'Attachment not found' });

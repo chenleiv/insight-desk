@@ -1,0 +1,21 @@
+// Who may see and change which documents.
+// Demo users work in a private sandbox of documents they own. Everyone else
+// shares the regular (non-demo) documents, which only admins may change.
+
+export function isDemoUser(user) {
+    return user?.role === 'demo';
+}
+
+export function canEditDocuments(user) {
+    return user?.role === 'admin' || isDemoUser(user);
+}
+
+// Mongo filter for the documents a user may see.
+export function documentScope(user) {
+    return isDemoUser(user) ? { ownerId: user._id } : { demo: { $ne: true } };
+}
+
+export function canAccessDocument(user, doc) {
+    if (!doc) return false;
+    return isDemoUser(user) ? String(doc.ownerId) === String(user._id) : !doc.demo;
+}

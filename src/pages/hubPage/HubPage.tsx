@@ -30,6 +30,7 @@ import DashboardView from "./components/views/DashboardView";
 import SettingsView from "./components/views/SettingsView";
 import ImportPreviewDialog from "./components/dialogs/ImportPreviewDialog";
 import MobileDrawer from "./components/layout/MobileDrawer";
+import DemoBanner from "./components/layout/DemoBanner";
 import { useDocumentOrdering } from "./hooks/useDocumentOrdering";
 import { useImportExport } from "./hooks/useImportExport";
 import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
@@ -44,6 +45,9 @@ export default function HubPage() {
   const isMobile = useMobile(767);
 
   const isAdmin = user?.role === "admin";
+  const isDemo = user?.role === "demo";
+  // Demo visitors edit their own copy of the documents; admin settings stay read-only for them.
+  const canEditDocs = isAdmin || isDemo;
   const orderKey = scopedKey("documentsOrder", user?.email);
 
   const { docs, loading: docsLoading, error: docsError } = useDocuments();
@@ -314,7 +318,7 @@ export default function HubPage() {
     activeDocId,
     onOpenDocument: goToDocument,
     onNew: goToCreate,
-    canCreate: isAdmin,
+    canCreate: canEditDocs,
     onToggleFavorite: toggleFavorite,
     onToggleSelected: handleToggleSelected,
     onClearSelection: handleClearSelection,
@@ -323,6 +327,8 @@ export default function HubPage() {
 
   return (
     <div className="hub-layout">
+
+      {isDemo && <DemoBanner />}
 
       <TopBar
         activeView={activeView.kind}
@@ -385,20 +391,20 @@ export default function HubPage() {
                 onOpenDocument={goToDocument}
                 onExport={handleExport}
                 onImport={handleImport}
-                isAdmin={isAdmin}
+                canEdit={canEditDocs}
               />
             </div>
           )}
           {activeView.kind === "settings" && (
             <div className="hub-view-scroll">
-              <SettingsView isAdmin={isAdmin} />
+              <SettingsView showAdminTabs={isAdmin || isDemo} adminReadOnly={isDemo} />
             </div>
           )}
           {(activeView.kind === "doc" || activeView.kind === "creating") && (
             <DocumentPane
               key={activeView.kind === "creating" ? "creating" : activeView.id}
               doc={activeDoc}
-              canEdit={isAdmin}
+              canEdit={canEditDocs}
               isCreating={activeView.kind === "creating"}
               onCancelCreate={() => {
                 clearDirty();
