@@ -95,16 +95,6 @@ export async function seedUsersIfEmpty() {
             { email: 'viewer@demo.com', password_hash: viewerHash, role: 'viewer' }
         ]);
         logger.info('Users seeded successfully');
-        return;
-    }
-
-    // Ensure the public "Try Demo" account exists. It is read-only (viewer): its
-    // password ships in the frontend, so it must never be an admin.
-    const demoExists = await User.exists({ email: 'viewer@demo.com' });
-    if (!demoExists) {
-        const viewerHash = await bcrypt.hash('viewer123', 10);
-        await User.create({ email: 'viewer@demo.com', password_hash: viewerHash, role: 'viewer' });
-        logger.info('Demo user created');
     }
 }
 
