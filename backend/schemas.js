@@ -22,11 +22,8 @@ export const documentSchema = z.object({
 // AI Schemas
 export const aiChatSchema = z.object({
   message: z.string().min(1, 'Message is required'),
-  context: z.array(z.object({
-    id: z.union([z.string(), z.number()]).optional(),
-    title: z.string(),
-    content: z.string(),
-  }).passthrough()).optional(),
+  // Documents the user selected to narrow the search; access is checked on the server.
+  docIds: z.array(z.string()).max(100).optional(),
 });
 
 // Import Bulk Schema

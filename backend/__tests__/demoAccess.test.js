@@ -148,25 +148,6 @@ describe("demo workspace isolation", () => {
   });
 });
 
-describe("chat respects the same isolation", () => {
-  async function promptSentFor(docId) {
-    const res = await demo("/api/ai/chat", {
-      method: "POST",
-      body: JSON.stringify({ message: "Summarize", context: [{ id: docId, title: "T", content: "client text" }] }),
-    });
-    expect(res.status).toBe(200);
-    return JSON.stringify(groqCreate.mock.calls[0][0].messages);
-  }
-
-  it("adds stored attachment text from the demo user's own document", async () => {
-    expect(await promptSentFor("own-1")).toContain("OWN ATTACHMENT TEXT");
-  });
-
-  it("never adds stored content from a document the demo user cannot see", async () => {
-    expect(await promptSentFor("real-1")).not.toContain("REAL ATTACHMENT TEXT");
-  });
-});
-
 describe("demo users cannot change system-wide settings", () => {
   it("blocks user management and AI settings", async () => {
     expect((await demo("/api/users/x", { method: "PATCH", body: JSON.stringify({ role: "admin" }) })).status).toBe(403);

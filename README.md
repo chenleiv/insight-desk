@@ -138,6 +138,8 @@ ai-workspace/
 - MongoDB instance (local or Atlas)
 - Groq API key
 
+> **MongoDB must run as a replica set.** The server uses MongoDB transactions (document chunk sync and bulk import), and transactions only work on a replica set. MongoDB Atlas always runs as a replica set, so it works out of the box. A local MongoDB must be started as a replica set; a single-node replica set is enough. A plain standalone instance (for example, a default Docker `mongo` container) will fail on import and on document edits.
+
 ### Quick Start
 
 1. **Install dependencies**

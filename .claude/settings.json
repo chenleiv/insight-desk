@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /Users/chenleiv/insight-desk/.claude/hooks/build-check.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/build-check.sh",
             "timeout": 120,
             "statusMessage": "Validating build..."
           }
@@ -37,7 +37,9 @@
     "deny": [
       "Bash(git show *:*)",
       "Read(**/.env)",
-      "Read(**/.env.*)"
+      "Read(**/.env.*)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)"
     ]
   }
 }
