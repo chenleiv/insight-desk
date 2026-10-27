@@ -1,7 +1,6 @@
 import type { ChatResponse } from "../../../api/aiClient";
 
 export const CHAT_KEY = "assistantChat";
-export const CONTEXT_KEY = "assistantContext";
 
 export function uid() {
   return crypto.randomUUID

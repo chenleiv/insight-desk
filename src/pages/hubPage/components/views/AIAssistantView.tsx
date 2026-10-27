@@ -18,12 +18,7 @@ const DEFAULT_SUGGESTIONS = [
   "What is the most important rules from this topic?",
 ];
 
-type Props = {
-  selectedIds: string[];
-  onOpenMobilePicker?: () => void;
-};
-
-export default function AIAssistantView({ selectedIds, onOpenMobilePicker }: Props) {
+export default function AIAssistantView() {
   const { user } = useAuth();
 
   const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS);
@@ -306,20 +301,6 @@ export default function AIAssistantView({ selectedIds, onOpenMobilePicker }: Pro
               <SlidersHorizontal size={13} />
               System Prompt
             </button>
-            {onOpenMobilePicker && (
-              <button
-                type="button"
-                className="ai-mobile-context-btn"
-                onClick={onOpenMobilePicker}
-              >
-                {selectedIds.length > 0 ? `Context (${selectedIds.length})` : "Context"}
-              </button>
-            )}
-            <p className="ai-composer-hint">
-              {selectedIds.length === 0
-                ? "Using all documents for context"
-                : `${selectedIds.length} document${selectedIds.length === 1 ? "" : "s"} in context`}
-            </p>
             {hasStartedChat && (
               <button
                 type="button"
