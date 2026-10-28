@@ -5,7 +5,7 @@ import { EventEmitter } from "events";
 
 const USER = { _id: "user-1", role: "admin" };
 
-const { Document, sync, remove, embed } = vi.hoisted(() => ({
+const { Document, sync, remove, embed, scheduleRetry } = vi.hoisted(() => ({
   Document: {
     create: vi.fn(),
     find: vi.fn(),
@@ -19,6 +19,7 @@ const { Document, sync, remove, embed } = vi.hoisted(() => ({
   sync: vi.fn(),
   remove: vi.fn(),
   embed: vi.fn(),
+  scheduleRetry: vi.fn(),
 }));
 
 vi.mock("../../models.js", () => ({ Document }));
@@ -27,6 +28,7 @@ vi.mock("../../rag/syncChunks.js", () => ({
   deleteDocumentChunks: remove,
 }));
 vi.mock("../../rag/embed.js", () => ({ embed }));
+vi.mock("../../rag/embedMissing.js", () => ({ scheduleEmbeddingRetry: scheduleRetry }));
 vi.mock("../../auth.js", () => {
   const authenticate = (req, _res, next) => {
     req.user = USER;
@@ -228,5 +230,31 @@ describe("document routes keep chunks in sync", () => {
     const res = await fetch(baseUrl, json("POST", BODY));
 
     expect(res.status).toBe(200);
+  });
+
+  it("when embedding fails, saves the new chunks without embeddings and schedules a retry", async () => {
+    const updated = { _id: "doc-1", ...BODY };
+    Document.findById.mockResolvedValue(fakeDoc());
+    Document.findByIdAndUpdate.mockResolvedValue(updated);
+    sync.mockRejectedValueOnce(new Error("model down"));
+
+    const res = await fetch(`${baseUrl}/doc-1`, json("PUT", BODY));
+
+    expect(res.status).toBe(200);
+    expect(sync.mock.calls).toEqual([
+      [updated, undefined, { embed, reuseEmbeddings: true }],
+      [updated],
+    ]);
+    expect(scheduleRetry).toHaveBeenCalledOnce();
+  });
+
+  it("does not schedule a retry when the save without embeddings also fails", async () => {
+    Document.create.mockResolvedValue({ _id: "doc-1", ...BODY });
+    sync.mockRejectedValueOnce(new Error("db down")).mockRejectedValueOnce(new Error("db down"));
+
+    const res = await fetch(baseUrl, json("POST", BODY));
+
+    expect(res.status).toBe(200);
+    expect(scheduleRetry).not.toHaveBeenCalled();
   });
 });
