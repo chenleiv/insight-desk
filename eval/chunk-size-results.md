@@ -9,3 +9,4 @@ A hit means a chunk of the expected document is ranked first (hit@1) or within t
 | 300 | 60 | 140 | 19/20 (95%) | 20/20 (100%) | q19 (top: Password Management and Multi-Factor Authentication) |
 | 600 | 120 | 72 | 20/20 (100%) | 20/20 (100%) | none |
 | 1000 | 200 | 43 | 19/20 (95%) | 20/20 (100%) | q19 (top: Northwind Employee Handbook) |
+| 800 (current) | 150 | 52 | 19/20 (95%) | 20/20 (100%) | q19 (top: Password Management and Multi-Factor Authentication) |

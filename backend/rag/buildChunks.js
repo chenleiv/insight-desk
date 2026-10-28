@@ -1,7 +1,7 @@
 import { chunkText } from "./chunker.js";
 
-export const CHUNK_SIZE = 800;
-export const CHUNK_OVERLAP = 150;
+export const CHUNK_SIZE = 600;
+export const CHUNK_OVERLAP = 120;
 
 /**
  * Build chunk records for one document: its main content plus the text

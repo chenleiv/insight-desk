@@ -10,10 +10,14 @@ import { readFileSync, writeFileSync } from "fs";
 import { chunkText } from "../backend/rag/chunker.js";
 import { embed, EMBEDDING_MODEL } from "../backend/rag/embed.js";
 import { cosineSimilarity } from "../backend/rag/similarity.js";
+import { CHUNK_SIZE, CHUNK_OVERLAP } from "../backend/rag/buildChunks.js";
 
-const CHUNK_SIZES = [300, 600, 1000];
-// Same overlap ratio as production (150 / 800, rounded to 20%).
+// Candidates use a 20% overlap; the current production setting is measured as-is.
 const OVERLAP_RATIO = 0.2;
+const CONFIGS = [
+  ...[300, 600, 1000].map((size) => ({ size, overlap: Math.round(size * OVERLAP_RATIO) })),
+  { size: CHUNK_SIZE, overlap: CHUNK_OVERLAP, current: true },
+];
 const RESULTS_FILE = new URL("./chunk-size-results.md", import.meta.url);
 
 const readJson = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
@@ -23,8 +27,7 @@ const questions = readJson("./questions.json");
 /** True when one of the top `k` chunks belongs to the expected document. */
 const hitAt = (ranked, expectedDoc, k) => ranked.slice(0, k).some((c) => c.title === expectedDoc);
 
-async function evaluate(size, questionVectors) {
-  const overlap = Math.round(size * OVERLAP_RATIO);
+async function evaluate({ size, overlap, current }, questionVectors) {
   const chunks = [];
   for (const doc of documents) {
     for (const text of chunkText(doc.content ?? "", size, overlap)) {
@@ -44,7 +47,7 @@ async function evaluate(size, questionVectors) {
     if (hitAt(ranked, q.expectedDoc, 3)) hit3++;
   });
 
-  return { size, overlap, chunks: chunks.length, hit1, hit3, misses };
+  return { size, overlap, current, chunks: chunks.length, hit1, hit3, misses };
 }
 
 const pct = (n) => `${n}/${questions.length} (${Math.round((n / questions.length) * 100)}%)`;
@@ -53,17 +56,17 @@ const questionVectors = [];
 for (const q of questions) questionVectors.push(await embed(q.question));
 
 const rows = [];
-for (const size of CHUNK_SIZES) {
-  const r = await evaluate(size, questionVectors);
+for (const config of CONFIGS) {
+  const r = await evaluate(config, questionVectors);
   rows.push(r);
-  console.log(`size ${size}: hit@1 ${pct(r.hit1)}, hit@3 ${pct(r.hit3)}`);
+  console.log(`size ${r.size}: hit@1 ${pct(r.hit1)}, hit@3 ${pct(r.hit3)}`);
 }
 
 const table = [
   "| chunk size | overlap | chunks | hit@1 | hit@3 | missed at 1 |",
   "|---|---|---|---|---|---|",
   ...rows.map((r) =>
-    `| ${r.size} | ${r.overlap} | ${r.chunks} | ${pct(r.hit1)} | ${pct(r.hit3)} | ${r.misses.join(", ") || "none"} |`),
+    `| ${r.size}${r.current ? " (current)" : ""} | ${r.overlap} | ${r.chunks} | ${pct(r.hit1)} | ${pct(r.hit3)} | ${r.misses.join(", ") || "none"} |`),
 ].join("\n");
 
 writeFileSync(RESULTS_FILE, `# Chunk size results
