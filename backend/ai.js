@@ -3,11 +3,13 @@ import rateLimit from 'express-rate-limit';
 import { logger } from './logger.js';
 import Groq from 'groq-sdk';
 import { getCurrentUser, requireAdmin } from './auth.js';
-import { aiChatSchema, aiFeedbackSchema } from './schemas.js';
+import { aiChatSchema, aiFeedbackSchema, qualityQuerySchema } from './schemas.js';
 import { promptState, PROMPT_METADATA, DEFAULT_PROMPT, CONTEXT_RULES } from './prompts.js';
 import { AIConfig } from './models.js';
 import { search } from './rag/search.js';
 import { logRetrieval, saveFeedback } from './rag/retrievalLog.js';
+import { getRetrievalSummary } from './rag/retrievalStats.js';
+import { canViewQuality } from './access.js';
 
 const DEFAULT_SUGGESTIONS = [
     "security issue related to this topic",
@@ -204,6 +206,35 @@ router.post('/api/ai/feedback', getCurrentUser, feedbackLimiter, async (req, res
     } catch (error) {
         logger.error('Feedback error', { message: error?.message ?? String(error) });
         res.status(500).json({ detail: 'Could not save feedback. Please try again later.' });
+    }
+});
+
+// Anyone can open a demo session, so the quality endpoint is capped per client.
+const qualityLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { detail: 'Too many requests, please try again in a minute.' },
+});
+
+// Aggregate answer-quality metrics, the same as `npm run eval:prod`, for admins
+// and demo visitors. The summary holds counts and scores, never records,
+// documents or users.
+router.get('/api/ai/quality', getCurrentUser, qualityLimiter, async (req, res) => {
+    if (!canViewQuality(req.user)) {
+        return res.status(403).json({ detail: 'Not allowed' });
+    }
+    const parsed = qualityQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+        return res.status(400).json({ detail: 'Validation failed', errors: parsed.error.issues });
+    }
+    try {
+        const { days } = parsed.data;
+        res.json({ days, ...(await getRetrievalSummary({ days })) });
+    } catch (error) {
+        logger.error('Quality summary error', { message: error?.message ?? String(error) });
+        res.status(500).json({ detail: 'Could not load quality metrics. Please try again later.' });
     }
 });
 

@@ -1,0 +1,198 @@
+@use "../../../../styles/mixins";
+
+/* ===== Quality View ===== */
+.quality-view {
+    display: flex;
+    flex-direction: column;
+    padding: 32px;
+    width: 100%;
+
+    @include mixins.mobile {
+        padding: 20px 16px;
+    }
+}
+
+.quality-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.quality-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 24px 24px 20px;
+    border-bottom: 1px solid var(--border);
+
+    h2 {
+        margin: 0 0 4px;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+    }
+
+    .quality-demo-note {
+        margin-top: 6px;
+        font-size: 12px;
+    }
+}
+
+.quality-status {
+    padding: 40px 24px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.quality-range {
+    display: flex;
+    flex-shrink: 0;
+    gap: 4px;
+    padding: 3px;
+    background: var(--soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+
+    .quality-range-btn {
+        padding: 5px 12px;
+        font-size: 13px;
+        color: var(--muted);
+        background: none;
+        border: none;
+        border-radius: 7px;
+        cursor: pointer;
+
+        &.active {
+            background: var(--panel);
+            color: var(--text);
+            box-shadow: 0 1px 4px var(--shadow);
+        }
+    }
+}
+
+.quality-body {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px;
+}
+
+.quality-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.quality-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    background: var(--soft);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+
+    .quality-card-label,
+    .quality-card-note {
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    .quality-card-value {
+        font-size: 22px;
+        font-weight: 600;
+        color: var(--text);
+    }
+}
+
+.quality-heading {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.quality-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.quality-bar-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 80px;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text);
+
+    .quality-bar-track {
+        height: 12px;
+        background: var(--soft-2);
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .quality-bar-fill {
+        display: block;
+        height: 100%;
+        background: var(--primary);
+        border-radius: 6px;
+    }
+
+    .quality-bar-value {
+        color: var(--muted);
+        text-align: right;
+    }
+}
+
+.quality-table-scroll {
+    overflow-x: auto;
+}
+
+.quality-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    color: var(--text);
+
+    th,
+    td {
+        padding: 8px 10px;
+        text-align: right;
+        border-bottom: 1px solid var(--border);
+    }
+
+    th:first-child {
+        text-align: left;
+    }
+
+    thead th {
+        font-weight: 500;
+        color: var(--muted);
+    }
+
+    tbody th {
+        font-weight: 400;
+    }
+}
+
+.quality-note {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+}

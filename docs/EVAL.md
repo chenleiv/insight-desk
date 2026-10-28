@@ -80,7 +80,25 @@ Records are deleted automatically after 30 days by a MongoDB TTL index on `creat
 npm run eval:prod
 ```
 
-It connects with `MONGODB_URI` and prints a table: number of questions, share of "no information" answers, mean top-chunk score, the number of questions that retrieved no chunk at all (for example, a user with no indexed documents), and the distribution of top-chunk scores (`< 0.3`, `0.3 - 0.4`, `0.4 - 0.5`, `0.5 - 0.6`, `>= 0.6`). A second table shows feedback for regular answers, "no information" answers and all answers: the number of answers, how many were rated, and the share of `up` and `down` among the rated ones. The calculation is in `backend/rag/retrievalStats.js`.
+By default it covers the last 30 days (all records, given the TTL). For another range:
+
+```
+npm run eval:prod -- --days 7
+```
+
+It connects with `MONGODB_URI` and first prints the database host and name it read from (never credentials), so it is clear whether the numbers come from development or production. Then it prints a table: number of questions, share of "no information" answers, mean top-chunk score, the number of questions that retrieved no chunk at all (for example, a user with no indexed documents), and the distribution of top-chunk scores (`< 0.3`, `0.3 - 0.4`, `0.4 - 0.5`, `0.5 - 0.6`, `>= 0.6`). A second table shows feedback for regular answers, "no information" answers and all answers: the number of answers, how many were rated, and the share of `up` and `down` among the rated ones. The calculation is in `backend/rag/retrievalStats.js`: `getRetrievalSummary({ days })` loads the records of the range and summarizes them, and both the script and the quality dashboard call it.
+
+### Quality dashboard
+
+The same metrics are shown in the app, so they can be read without running the script.
+
+- **Where:** the **Quality** button in the top bar, next to Dashboard and Settings (in the side menu on mobile). It opens its own view at `/hub?view=quality`. It has number cards (questions, share of "no information", mean top-chunk score, share rated helpful), a bar chart of the top-score distribution, and the feedback table. A switch picks the last 7 or 30 days.
+- **Who:** users with the `admin` role and demo visitors, so the dashboard can be shown in the public demo. `viewer` users do not see the button (a direct link sends them back to the chat), and the server enforces it: `GET /api/ai/quality?days=7|30` returns 403 to viewers and 401 to requests without a session. Any other `days` value returns 400.
+- **Why demo visitors may see it:** the response holds aggregates only, so a visitor learns nothing about other users' questions, documents or identity. What it does reveal is how much the chat is used (for example, the number of questions in the last week). The numbers are real, and a visitor's own questions are counted in them.
+- **Protection:** anyone can open a demo session, so the endpoint is rate limited to 30 requests per minute per client.
+- **What it returns:** only the aggregate summary (counts, mean score, buckets and feedback counts) plus `days`. No records, document IDs, owner tags, timestamps or user data. Tests in `backend/__tests__/aiChat.test.js` check the 403 for viewers, that demo users get the same aggregates as admins, the rate limit, that the response holds only these fields, and that it equals what `getRetrievalSummary` returns for the script.
+- **Which data:** the dashboard reads the database its server is connected to. On the deployed site that is the production database; on a local server it is the development one. To compare the script with the dashboard, run both against the same database: the script's first line shows which one it read.
+- The range is counted back from the moment of the request, so two readings a few minutes apart can differ by a record at the edge of the range.
 
 ### What these metrics can and cannot tell
 

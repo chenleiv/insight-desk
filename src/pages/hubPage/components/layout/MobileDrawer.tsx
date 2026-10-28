@@ -1,19 +1,25 @@
-import { LayoutDashboard, LogOut, Settings, X } from "lucide-react";
+import { BarChart3, LayoutDashboard, LogOut, Settings, X } from "lucide-react";
 import { useAuth } from "../../../../auth/useAuth";
 import { getInitials } from "../../../../utils/initials";
 
 type Props = {
   onDashboard: () => void;
   onSettings: () => void;
+  onQuality?: () => void;
   onClose: () => void;
   onSignOut: () => void;
 };
 
-export default function MobileDrawer({ onDashboard, onSettings, onClose, onSignOut }: Props) {
+export default function MobileDrawer({ onDashboard, onSettings, onQuality, onClose, onSignOut }: Props) {
   const { user } = useAuth();
 
   function handleDashboard() {
     onDashboard();
+    onClose();
+  }
+
+  function handleQuality() {
+    onQuality?.();
     onClose();
   }
 
@@ -59,6 +65,12 @@ export default function MobileDrawer({ onDashboard, onSettings, onClose, onSignO
             <LayoutDashboard size={16} />
             Dashboard
           </button>
+          {onQuality && (
+            <button type="button" className="mobile-drawer-item" onClick={handleQuality}>
+              <BarChart3 size={16} />
+              Quality
+            </button>
+          )}
           <button type="button" className="mobile-drawer-item" onClick={handleSettings}>
             <Settings size={16} />
             Settings

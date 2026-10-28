@@ -27,6 +27,7 @@ import "./components/documents/docPanel.scss";
 
 import DashboardView from "./components/views/DashboardView";
 import SettingsView from "./components/views/SettingsView";
+import QualityView from "./components/views/QualityView";
 import ImportPreviewDialog from "./components/dialogs/ImportPreviewDialog";
 import MobileDrawer from "./components/layout/MobileDrawer";
 import DemoBanner from "./components/layout/DemoBanner";
@@ -47,6 +48,8 @@ export default function HubPage() {
   const isDemo = user?.role === "demo";
   // Demo visitors edit their own copy of the documents; admin settings stay read-only for them.
   const canEditDocs = isAdmin || isDemo;
+  // Aggregate quality metrics; the server returns 403 to viewers.
+  const canViewQuality = isAdmin || isDemo;
   const orderKey = scopedKey("documentsOrder", user?.email);
 
   const { docs, loading: docsLoading, error: docsError } = useDocuments();
@@ -87,6 +90,7 @@ export default function HubPage() {
   const activeView: ActiveView =
     creatingKey === location.key ? { kind: "creating" }
     : missingDocId ? { kind: "ai" }
+    : urlView.kind === "quality" && !canViewQuality ? { kind: "ai" }
     : urlView;
 
   // Each view change is a history entry, so back/forward move between views.
@@ -197,6 +201,11 @@ export default function HubPage() {
     void guardDirty().then((ok) => { if (ok) setActiveView({ kind: "dashboard" }); });
   }
 
+  function goToQuality() {
+    if (activeView.kind === "quality") { setActiveView({ kind: "ai" }); return; }
+    void guardDirty().then((ok) => { if (ok) setActiveView({ kind: "quality" }); });
+  }
+
   function goToSettings() {
     if (activeView.kind === "settings") { setActiveView({ kind: "ai" }); return; }
     void guardDirty().then((ok) => { if (ok) setActiveView({ kind: "settings" }); });
@@ -302,6 +311,7 @@ export default function HubPage() {
         activeView={activeView.kind}
         onOpenDashboard={goToDashboard}
         onOpenSettings={goToSettings}
+        {...(canViewQuality ? { onOpenQuality: goToQuality } : {})}
         onOpenAI={goToAI}
         isMobile={isMobile}
         onMenuClick={() => setDrawerOpen(true)}
@@ -367,6 +377,11 @@ export default function HubPage() {
               <SettingsView showAdminTabs={isAdmin || isDemo} adminReadOnly={isDemo} />
             </div>
           )}
+          {activeView.kind === "quality" && (
+            <div className="hub-view-scroll">
+              <QualityView isDemo={isDemo} />
+            </div>
+          )}
           {(activeView.kind === "doc" || activeView.kind === "creating") && (
             <DocumentPane
               key={activeView.kind === "creating" ? "creating" : activeView.id}
@@ -415,6 +430,7 @@ export default function HubPage() {
         <MobileDrawer
           onDashboard={goToDashboard}
           onSettings={goToSettings}
+          {...(canViewQuality ? { onQuality: goToQuality } : {})}
           onClose={() => setDrawerOpen(false)}
           onSignOut={signOut}
         />

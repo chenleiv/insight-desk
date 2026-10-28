@@ -1,3 +1,5 @@
+import { RetrievalLog } from "../models.js";
+
 // Top-score buckets: [label, lower bound inclusive]. The first matches the chat's 0.3 threshold.
 export const SCORE_BUCKETS = [
   ["< 0.3", -Infinity],
@@ -43,6 +45,17 @@ export function summarizeRetrievalLogs(logs) {
       all: countFeedback(logs),
     },
   };
+}
+
+/**
+ * Load the retrieval logs of the last `days` days, counted back from `now`,
+ * and summarize them. Shared by `npm run eval:prod` and the quality endpoint,
+ * so both report the same numbers. Only aggregates are returned.
+ */
+export async function getRetrievalSummary({ days, now = new Date() }) {
+  const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const logs = await RetrievalLog.find({ createdAt: { $gte: since, $lte: now } }, "results.score noInfo feedback").lean();
+  return summarizeRetrievalLogs(logs);
 }
 
 const pct = (n, total) => (total ? `${Math.round((n / total) * 100)}%` : "-");
