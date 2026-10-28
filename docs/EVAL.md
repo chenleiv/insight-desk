@@ -50,8 +50,48 @@ Documents already stored in MongoDB keep the chunks and embeddings built with th
 5. **Answer quality**, not only retrieval: send the top chunks to the model and score the answer against `expected`.
 6. **Chunk-level hits** (the chunk that holds the answer, not just the right document) and MRR, for a finer signal.
 
-## Measuring in production (ideas, not built)
+## Measuring in production
 
-- Run the eval script against the demo documents in the production environment, to confirm the deployed setting behaves as measured here.
-- Log and sample real questions, storing only IDs and similarity scores, never user text.
-- Track indirect signals: the share of "no information" answers, and user feedback on answers.
+In production there is no known "right document" for a question, so hit@k cannot be computed. Instead, every chat question leaves a small record of what retrieval found, and a script summarizes those records as indirect quality signals.
+
+### What is collected
+
+`POST /api/ai/chat` saves one `RetrievalLog` record per question (`backend/rag/retrievalLog.js`):
+
+- `createdAt`: when the question was asked.
+- `results`: every chunk the search returned (up to 5), best first, *before* the similarity threshold: its `docId`, chunk `index` and similarity `score`.
+- `noInfo`: true when no chunk reached the threshold, so the answer was "no information" and the model was not called.
+- `chunkSize` and `minSimilarity`: the settings in the code at the time.
+
+Records are deleted automatically after 30 days by a MongoDB TTL index on `createdAt`.
+
+### What is not collected, and why
+
+- **No question text, no chunk text, no answer text.** Questions and documents can hold personal or confidential information, and a measurement log should not become a second copy of it.
+- **No user ID, email or IP.** The metrics are about retrieval, not about people, so records cannot be tied to a user.
+- The record is built field by field from IDs and scores only, and the schema rejects unknown fields. A test in `backend/__tests__/aiChat.test.js` checks that a saved record contains neither the question, the chunk text, nor the user's ID or email.
+- `docId` does show which documents were used. It is kept so a low score can be traced to a document, and the 30-day TTL bounds how long it is kept.
+
+### How to run
+
+```
+npm run eval:prod
+```
+
+It connects with `MONGODB_URI` and prints a table: number of questions, share of "no information" answers, mean top-chunk score, the number of questions that retrieved no chunk at all (for example, a user with no indexed documents), and the distribution of top-chunk scores (`< 0.3`, `0.3 - 0.4`, `0.4 - 0.5`, `0.5 - 0.6`, `>= 0.6`). The calculation is in `backend/rag/retrievalStats.js`.
+
+### What these metrics can and cannot tell
+
+They can:
+
+- Show drift over time: a falling mean top score, or a rising share of "no information", after a change to chunking, the embedding model or the documents.
+- Help tune `MIN_SIMILARITY`: many top scores just under 0.3 suggest the threshold may be cutting answerable questions.
+- Show how often users ask about things their documents do not cover.
+
+They cannot:
+
+- Say whether the retrieved chunk was the right one. A high score means "similar", not "correct"; hit@k still needs labeled questions (`npm run eval`).
+- Say whether the model's answer was correct or helpful. Only retrieval is logged.
+- Tell a good "no information" (the answer really is not in the documents) from a bad one (retrieval missed it).
+- Compare across settings reliably: scores depend on the embedding model and the questions asked, and `chunkSize` is the value in the code, not necessarily the size the stored chunks were built with if `npm run reindex` has not been run since.
+- Represent many users yet: with demo traffic, counts are small and a few visitors can swing every number.

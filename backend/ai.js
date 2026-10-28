@@ -7,6 +7,7 @@ import { aiChatSchema } from './schemas.js';
 import { promptState, PROMPT_METADATA, DEFAULT_PROMPT, CONTEXT_RULES } from './prompts.js';
 import { AIConfig } from './models.js';
 import { search } from './rag/search.js';
+import { logRetrieval } from './rag/retrievalLog.js';
 
 const DEFAULT_SUGGESTIONS = [
     "security issue related to this topic",
@@ -131,8 +132,9 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
             ? (await englishKeywords(groq, message)) ?? message
             : message;
         // Search only documents this user may read; the user comes from auth, never the request.
-        const chunks = (await search(req.user, query, CONTEXT_CHUNKS))
-            .filter((c) => c.score >= MIN_SIMILARITY);
+        const results = await search(req.user, query, CONTEXT_CHUNKS);
+        const chunks = results.filter((c) => c.score >= MIN_SIMILARITY);
+        await logRetrieval(results, { noInfo: !chunks.length, minSimilarity: MIN_SIMILARITY });
 
         // Nothing close enough: answer without calling the model, so it cannot guess.
         if (!chunks.length) {

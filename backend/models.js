@@ -52,6 +52,24 @@ const chunkSchema = new mongoose.Schema({
 
 chunkSchema.index({ docId: 1, index: 1 }, { unique: true });
 
+// One record per chat question, for measuring retrieval in production.
+// Holds IDs and scores only: never the question, chunk text, or the user.
+export const RETRIEVAL_LOG_TTL_SECONDS = 30 * 24 * 60 * 60;
+
+const retrievalLogSchema = new mongoose.Schema({
+    createdAt: { type: Date, default: Date.now, expires: RETRIEVAL_LOG_TTL_SECONDS },
+    // Every chunk the search returned, best first, before the similarity threshold.
+    results: [new mongoose.Schema({
+        docId: { type: mongoose.Schema.Types.ObjectId, required: true },
+        index: { type: Number, required: true },
+        score: { type: Number, required: true },
+    }, { _id: false, strict: 'throw' })],
+    // True when no chunk passed the threshold and the answer was "no information".
+    noInfo: { type: Boolean, required: true },
+    chunkSize: { type: Number, required: true },
+    minSimilarity: { type: Number, required: true },
+}, { strict: 'throw', versionKey: false });
+
 const aiConfigSchema = new mongoose.Schema({
     _id: { type: String, default: 'ai' },
     systemPrompt: { type: String, default: '' },
@@ -62,3 +80,4 @@ export const User = mongoose.model('User', userSchema);
 export const Document = mongoose.model('Document', documentSchema);
 export const AIConfig = mongoose.model('AIConfig', aiConfigSchema);
 export const Chunk = mongoose.model('Chunk', chunkSchema);
+export const RetrievalLog = mongoose.model('RetrievalLog', retrievalLogSchema);

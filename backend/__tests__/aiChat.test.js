@@ -18,7 +18,7 @@ vi.mock("groq-sdk", () => ({
 vi.mock("../rag/embed.js", () => ({ embed: vi.fn(async () => [1, 0, 0]) }));
 
 import { embed } from "../rag/embed.js";
-import { User, Document, Chunk } from "../models.js";
+import { User, Document, Chunk, RetrievalLog } from "../models.js";
 import aiRouter, { NO_INFO_ANSWER } from "../ai.js";
 
 // Runs against a real in-memory MongoDB and the real auth middleware.
@@ -197,6 +197,42 @@ describe("POST /api/ai/chat", () => {
     expect(res.status).toBe(200);
     expect(promptSent()).toContain("REAL: ignore this");
     expect(promptSent()).not.toContain("20 vacation days");
+  });
+
+  it("logs each question's retrieval with IDs and scores only, never user text", async () => {
+    await RetrievalLog.deleteMany({});
+    const question = "How many vacation days do I get this year?";
+
+    const res = await chatAs(viewer, { message: question });
+
+    expect(res.status).toBe(200);
+    const logs = await RetrievalLog.find().lean();
+    expect(logs).toHaveLength(1);
+    expect(logs[0].noInfo).toBe(false);
+    expect(logs[0].results.map((r) => r.index)).toEqual([0, 1]);
+    expect(logs[0].results[0].score).toBeCloseTo(1);
+    const stored = JSON.stringify(logs[0]);
+    expect(stored).not.toContain(question);
+    expect(stored).not.toContain("vacation");
+    expect(stored).not.toContain("REAL");
+    expect(stored).not.toContain(String(viewer._id));
+    expect(stored).not.toContain(viewer.email);
+  });
+
+  it("logs a \"no information\" answer", async () => {
+    await RetrievalLog.deleteMany({});
+    embed.mockResolvedValueOnce([0, 0, 1]);
+
+    await chatAs(viewer, { message: "chocolate cake recipe" });
+
+    const [log] = await RetrievalLog.find().lean();
+    expect(log.noInfo).toBe(true);
+    expect(log.results.every((r) => r.score < log.minSimilarity)).toBe(true);
+  });
+
+  it("deletes retrieval logs after 30 days", () => {
+    const ttl = RetrievalLog.schema.indexes().find(([fields]) => fields.createdAt);
+    expect(ttl[1].expireAfterSeconds).toBe(30 * 24 * 60 * 60);
   });
 
   // Last, since it uses up the rate limit for this client.
