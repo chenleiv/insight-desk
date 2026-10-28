@@ -8,7 +8,7 @@ import { Document } from '../models.js';
 import { extractTextFromBuffer } from '../textExtract.js';
 import { getCurrentUser, requireEditor } from '../auth.js';
 import { canAccessDocument, documentScope, isDemoUser, DEMO_LIMITS } from '../access.js';
-import { documentSchema, importBulkSchema } from '../schemas.js';
+import { documentSchema, importBulkSchema, sendValidationError } from '../schemas.js';
 import { syncDocumentChunks, deleteDocumentChunks } from '../rag/syncChunks.js';
 import { embed } from '../rag/embed.js';
 import { scheduleEmbeddingRetry } from '../rag/embedMissing.js';
@@ -31,7 +31,7 @@ function handleMulterUpload(req, res, next) {
 
 function handleZodError(err, res) {
     if (err.name === 'ZodError') {
-        res.status(400).json({ detail: 'Validation failed', errors: err.errors });
+        sendValidationError(res, err);
         return true;
     }
     return false;

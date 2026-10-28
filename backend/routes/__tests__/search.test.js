@@ -86,6 +86,18 @@ describe("GET /api/search", () => {
     expect((await searchAs(demoOne, { q: "leave", k: "21" })).status).toBe(400);
   });
 
+  it("returns the validation message to the client without echoing the query", async () => {
+    const res = await searchAs(demoOne, { q: "SECRET-INPUT ".repeat(40) });
+    const body = await res.text();
+
+    expect(res.status).toBe(400);
+    expect(JSON.parse(body)).toEqual({
+      detail: "Validation failed",
+      errors: [{ path: ["q"], message: expect.stringMatching(/500/) }],
+    });
+    expect(body).not.toContain("SECRET-INPUT");
+  });
+
   // Last, since it uses up the rate limit for this client.
   it("rate limits searches", async () => {
     const statuses = [];

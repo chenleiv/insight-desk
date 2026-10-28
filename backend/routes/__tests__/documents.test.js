@@ -55,6 +55,7 @@ vi.mock("mongodb", () => ({
 }));
 
 import documentsRouter from "../documents.js";
+import { jsonBody } from "../../middleware/setup.js";
 
 const BODY = { title: "Policy", category: "HR", content: "Policy text." };
 
@@ -256,5 +257,37 @@ describe("document routes keep chunks in sync", () => {
 
     expect(res.status).toBe(200);
     expect(scheduleRetry).not.toHaveBeenCalled();
+  });
+});
+
+describe("document validation errors", () => {
+  // The shared app uses express.json()'s 100kb default, which would reject this
+  // body with 413 before the route; the real server parses up to JSON_BODY_LIMIT.
+  let realLimitServer;
+  let realLimitUrl;
+
+  beforeAll(async () => {
+    const app = express();
+    app.use(jsonBody());
+    app.use("/api/documents", documentsRouter);
+    await new Promise((resolve) => {
+      realLimitServer = app.listen(0, resolve);
+    });
+    realLimitUrl = `http://127.0.0.1:${realLimitServer.address().port}/api/documents`;
+  });
+
+  afterAll(() => new Promise((resolve) => realLimitServer.close(resolve)));
+
+  it("returns the schema message to the client when content is over the limit", async () => {
+    const res = await fetch(realLimitUrl, json("POST", { ...BODY, content: "x".repeat(500001) }));
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      detail: "Validation failed",
+      errors: [
+        expect.objectContaining({ path: ["content"], message: "Content must be at most 500,000 characters" }),
+      ],
+    });
+    expect(Document.create).not.toHaveBeenCalled();
   });
 });

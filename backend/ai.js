@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { logger } from './logger.js';
 import Groq from 'groq-sdk';
 import { getCurrentUser, requireAdmin } from './auth.js';
-import { aiChatSchema, aiFeedbackSchema, qualityQuerySchema } from './schemas.js';
+import { aiChatSchema, aiFeedbackSchema, qualityQuerySchema, sendValidationError } from './schemas.js';
 import { promptState, PROMPT_METADATA, DEFAULT_PROMPT, CONTEXT_RULES } from './prompts.js';
 import { AIConfig } from './models.js';
 import { search } from './rag/search.js';
@@ -171,7 +171,7 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
 
     } catch (error) {
         if (error.name === 'ZodError') {
-            return res.status(400).json({ detail: 'Validation failed', errors: error.errors });
+            return sendValidationError(res, error);
         }
         logger.error('Inference error', { message: error?.message ?? String(error) });
         res.status(500).json({ detail: 'Error communicating with AI service. Please try again later.' });
@@ -191,7 +191,7 @@ const feedbackLimiter = rateLimit({
 router.post('/api/ai/feedback', getCurrentUser, feedbackLimiter, async (req, res) => {
     const parsed = aiFeedbackSchema.safeParse(req.body);
     if (!parsed.success) {
-        return res.status(400).json({ detail: 'Validation failed', errors: parsed.error.errors });
+        return sendValidationError(res, parsed.error);
     }
     try {
         const { answerId, rating } = parsed.data;
@@ -224,7 +224,7 @@ router.get('/api/ai/quality', getCurrentUser, qualityLimiter, async (req, res) =
     }
     const parsed = qualityQuerySchema.safeParse(req.query);
     if (!parsed.success) {
-        return res.status(400).json({ detail: 'Validation failed', errors: parsed.error.issues });
+        return sendValidationError(res, parsed.error);
     }
     try {
         const { days } = parsed.data;

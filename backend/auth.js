@@ -8,7 +8,7 @@ import { User } from './models.js';
 import { canEditDocuments, isDemoUser } from './access.js';
 import { createDemoWorkspace } from './demo.js';
 
-import { loginSchema, registerSchema } from './schemas.js';
+import { loginSchema, registerSchema, sendValidationError } from './schemas.js';
 
 const router = express.Router();
 
@@ -59,7 +59,7 @@ function formatUser(user) {
 
 function handleZodError(err, res) {
     if (err.name === 'ZodError') {
-        res.status(400).json({ detail: 'Validation failed', errors: err.errors });
+        sendValidationError(res, err);
         return true;
     }
     return false;
