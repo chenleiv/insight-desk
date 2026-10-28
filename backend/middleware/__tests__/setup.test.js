@@ -135,12 +135,12 @@ describe("jsonBody", () => {
     });
   }
 
-  it("rejects a body over the limit with a generic 413", async () => {
+  it("rejects a body over the limit with a 413 that names the limit", async () => {
     const baseUrl = await startEchoApp();
     const res = await post(baseUrl, "x".repeat(2 * 1024 * 1024 + 1));
 
     expect(res.status).toBe(413);
-    expect(await res.json()).toEqual({ detail: "Request body too large" });
+    expect(await res.json()).toEqual({ detail: "Request body is too large. The maximum size is 2mb." });
   });
 
   it("accepts a body under the limit", async () => {

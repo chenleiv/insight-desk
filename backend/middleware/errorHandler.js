@@ -1,7 +1,8 @@
 import { logger } from '../logger.js';
+import { JSON_BODY_LIMIT } from './setup.js';
 
 const GENERIC_DETAIL = {
-    413: 'Request body too large',
+    413: `Request body is too large. The maximum size is ${JSON_BODY_LIMIT}.`,
     500: 'Internal server error',
 };
 

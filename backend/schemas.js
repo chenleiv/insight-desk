@@ -16,7 +16,7 @@ export const registerSchema = z.object({
 export const documentSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   category: z.string().min(1, 'Category is required').max(100),
-  content: z.string().min(1, 'Content is required').max(500000),
+  content: z.string().min(1, 'Content is required').max(500000, 'Content must be at most 500,000 characters'),
 });
 
 // AI Schemas
