@@ -2,43 +2,141 @@
   {
     "id": "q01",
     "question": "Which severity level covers ransomware, and who is it escalated to?",
-    "expected": "P1 (Critical); escalated to CISO, Legal, CEO",
+    "expected": "P1 (Critical); escalated to the CISO",
     "type": "fact",
-    "target": "Security Incident Response (attachment)"
+    "expectedDoc": "Security Incident Response"
   },
   {
     "id": "q02",
-    "question": "What is the phone number of the security team?",
-    "expected": "I couldn't find this information in your documents. Please upload a relevant document and try again.",
-    "type": "not-in-docs",
-    "target": null
+    "question": "Why should SMS codes only be a temporary fallback for MFA?",
+    "expected": "Phone numbers can be hijacked through SIM swapping",
+    "type": "fact",
+    "expectedDoc": "Password Management and Multi-Factor Authentication"
   },
   {
     "id": "q03",
     "question": "When is the IT help desk open?",
     "expected": "Sunday to Thursday, 08:00 to 18:00",
     "type": "long-doc-start",
-    "target": "northwind-employee-handbook.md"
+    "expectedDoc": "Northwind Employee Handbook"
   },
   {
     "id": "q04",
     "question": "How far in advance must remote work days be requested?",
     "expected": "At least five working days",
     "type": "long-doc-middle",
-    "target": "northwind-employee-handbook.md"
+    "expectedDoc": "Northwind Employee Handbook"
   },
   {
     "id": "q05",
     "question": "When is the backup power generator tested?",
     "expected": "Every second Tuesday of the month at 06:30",
     "type": "long-doc-end",
-    "target": "northwind-employee-handbook.md"
+    "expectedDoc": "Northwind Employee Handbook"
   },
   {
     "id": "q06",
     "question": "How early do I need to ask to work from home?",
     "expected": "At least five working days",
     "type": "paraphrase",
-    "target": "northwind-employee-handbook.md"
+    "expectedDoc": "Northwind Employee Handbook"
+  },
+  {
+    "id": "q07",
+    "question": "What are the three parts of a JWT?",
+    "expected": "Header, payload, and signature",
+    "type": "fact",
+    "expectedDoc": "JWT Authentication Deep Dive"
+  },
+  {
+    "id": "q08",
+    "question": "Where is it safer to keep a login token than in localStorage?",
+    "expected": "In HttpOnly cookies with CSRF defenses",
+    "type": "paraphrase",
+    "expectedDoc": "JWT Authentication Deep Dive"
+  },
+  {
+    "id": "q09",
+    "question": "Why is GraphQL harder to cache than REST?",
+    "expected": "Many queries go to the same endpoint, so transport-layer HTTP caching does not work well",
+    "type": "fact",
+    "expectedDoc": "REST vs GraphQL APIs"
+  },
+  {
+    "id": "q10",
+    "question": "Why shouldn't I use the array index as the key when rendering a list?",
+    "expected": "It can cause incorrect UI behavior on insert or reorder and break component state",
+    "type": "paraphrase",
+    "expectedDoc": "React Rendering and Performance Optimization"
+  },
+  {
+    "id": "q11",
+    "question": "How do containers differ from virtual machines?",
+    "expected": "Containers share the host OS kernel; VMs include a full guest OS",
+    "type": "fact",
+    "expectedDoc": "Docker Containers Explained"
+  },
+  {
+    "id": "q12",
+    "question": "Which login flow should a single-page app use?",
+    "expected": "Authorization Code with PKCE",
+    "type": "paraphrase",
+    "expectedDoc": "OAuth 2.0 Authorization Flows"
+  },
+  {
+    "id": "q13",
+    "question": "Which signal stops a program immediately and cannot be caught?",
+    "expected": "SIGKILL",
+    "type": "fact",
+    "expectedDoc": "Linux Process Management Basics"
+  },
+  {
+    "id": "q14",
+    "question": "How should I treat a document if I'm not sure how sensitive it is?",
+    "expected": "Treat it as Confidential until confirmed otherwise",
+    "type": "paraphrase",
+    "expectedDoc": "Organizational Information Security Policy"
+  },
+  {
+    "id": "q15",
+    "question": "Someone calls pretending to be IT support and asks for my password. What is this attack called?",
+    "expected": "Vishing (voice phishing)",
+    "type": "paraphrase",
+    "expectedDoc": "Phishing and Social Engineering Defense"
+  },
+  {
+    "id": "q16",
+    "question": "What is the minimum password length?",
+    "expected": "At least 14 characters",
+    "type": "fact",
+    "expectedDoc": "Password Management and Multi-Factor Authentication"
+  },
+  {
+    "id": "q17",
+    "question": "Who is responsible for securing our data and configurations in the cloud?",
+    "expected": "The organization; the provider secures only the underlying infrastructure",
+    "type": "paraphrase",
+    "expectedDoc": "Cloud Security and SaaS Protection"
+  },
+  {
+    "id": "q18",
+    "question": "Which security checks should run on every pull request?",
+    "expected": "SAST, SCA, and secrets detection",
+    "type": "fact",
+    "expectedDoc": "Secure Code and Secure SDLC"
+  },
+  {
+    "id": "q19",
+    "question": "My laptop looks hacked. Should I reboot it before telling anyone?",
+    "expected": "No; report to the security team first, rebooting can destroy forensic evidence",
+    "type": "paraphrase",
+    "expectedDoc": "Security Incident Response"
+  },
+  {
+    "id": "q20",
+    "question": "How long do we have to answer a customer's request to see their personal data?",
+    "expected": "Within 30 days",
+    "type": "paraphrase",
+    "expectedDoc": "Data Privacy, GDPR and CCPA"
   }
 ]
