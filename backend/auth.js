@@ -71,32 +71,20 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:8000';
 const FRONTEND_URL = process.env.FRONTEND_URL || APP_BASE_URL;
 
-// Seed initial users — always ensures demo accounts exist
+// Seed the first admin into an empty database. There are no hard-coded accounts
+// in any environment: the admin comes from ADMIN_EMAIL / ADMIN_PASSWORD, or is not created at all.
 export async function seedUsersIfEmpty() {
     const count = await User.countDocuments();
-    if (count === 0) {
-        // Production never gets a hard-coded admin: the first admin comes from
-        // SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD, or is not created at all.
-        if (process.env.NODE_ENV === 'production') {
-            const email = process.env.SEED_ADMIN_EMAIL;
-            const password = process.env.SEED_ADMIN_PASSWORD;
-            if (!email || !password) {
-                logger.error('No users and SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD not set; no admin created');
-                return;
-            }
-            await User.create({ email, password_hash: await bcrypt.hash(password, 10), role: 'admin' });
-            logger.info('Seeded initial admin from environment');
-            return;
-        }
-        logger.info('Seeding initial users');
-        const adminHash = await bcrypt.hash('admin123', 10);
-        const viewerHash = await bcrypt.hash('viewer123', 10);
-        await User.create([
-            { email: 'admin@demo.com', password_hash: adminHash, role: 'admin' },
-            { email: 'viewer@demo.com', password_hash: viewerHash, role: 'viewer' }
-        ]);
-        logger.info('Users seeded successfully');
+    if (count > 0) return;
+
+    const email = process.env.ADMIN_EMAIL;
+    const password = process.env.ADMIN_PASSWORD;
+    if (!email || !password) {
+        logger.error('No users and ADMIN_EMAIL / ADMIN_PASSWORD not set; no admin created');
+        return;
     }
+    await User.create({ email, password_hash: await bcrypt.hash(password, 10), role: 'admin' });
+    logger.info('Seeded initial admin from environment');
 }
 
 /** Keyed hash of a value with the server secret: cannot be reversed or recomputed without it. */
@@ -166,6 +154,10 @@ router.post('/login', passwordAttemptLimiter, async (req, res) => {
         const user = await User.findOne({ email });
         if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
             return res.status(401).json({ detail: 'Invalid credentials' });
+        }
+        // Checked after the password, so the account status is revealed only to its owner.
+        if (user.status === 'inactive') {
+            return res.status(403).json({ detail: 'This account is not active' });
         }
 
         const token = createAccessToken(user.email, user.role);
@@ -259,6 +251,9 @@ router.get('/google/callback', async (req, res) => {
         let user = await User.findOne({ email: profile.email });
         if (!user) {
             user = await User.create({ email: profile.email, role: 'viewer' });
+        }
+        if (user.status === 'inactive') {
+            return res.redirect(`${FRONTEND_URL}/login?error=account_inactive`);
         }
 
         const token = createAccessToken(user.email, user.role);

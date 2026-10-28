@@ -8,7 +8,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 import { logger } from './logger.js';
-import { applyMiddleware, apiNotFound } from './middleware/setup.js';
+import { applyMiddleware, apiNotFound, jsonBody } from './middleware/setup.js';
+import { errorHandler } from './middleware/errorHandler.js';
 import authRouter, { seedUsersIfEmpty } from './auth.js';
 import aiRouter, { loadAIConfig } from './ai.js';
 import documentsRouter from './routes/documents.js';
@@ -60,7 +61,7 @@ if (!process.env.MONGODB_URI) {
         });
 }
 
-app.use(express.json({ limit: '2mb' }));
+app.use(jsonBody());
 app.use(cookieParser());
 
 // Routes
@@ -89,6 +90,9 @@ app.get('*', (req, res) => {
         }
     });
 });
+
+// Last, after every route: turns any unhandled error into a generic response.
+app.use(errorHandler);
 
 const server = app.listen(PORT, () => {
     logger.info(`Server running on port ${PORT}`);
