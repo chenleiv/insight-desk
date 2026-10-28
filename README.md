@@ -145,7 +145,6 @@ ai-workspace/
 1. **Install dependencies**
    ```bash
    npm install
-   cd backend && npm install
    ```
 
 2. **Configure environment** — create `backend/.env`:
