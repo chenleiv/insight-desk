@@ -15,6 +15,7 @@ import documentsRouter from './routes/documents.js';
 import usersRouter from './routes/users.js';
 import searchRouter from './routes/search.js';
 import healthRouter from './routes/health.js';
+import { repairMissingEmbeddings } from './rag/embedMissing.js';
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -51,6 +52,8 @@ if (!process.env.MONGODB_URI) {
             logger.info('Connected to MongoDB');
             seedUsersIfEmpty();
             loadAIConfig();
+            // Fills in chunks left without an embedding by a failed save; one query when none are.
+            void repairMissingEmbeddings();
         })
         .catch(err => {
             logger.error('MongoDB connection failed', { message: err.message });

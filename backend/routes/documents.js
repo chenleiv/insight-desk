@@ -11,6 +11,7 @@ import { canAccessDocument, documentScope, isDemoUser, DEMO_LIMITS } from '../ac
 import { documentSchema, importBulkSchema } from '../schemas.js';
 import { syncDocumentChunks, deleteDocumentChunks } from '../rag/syncChunks.js';
 import { embed } from '../rag/embed.js';
+import { scheduleEmbeddingRetry } from '../rag/embedMissing.js';
 
 const router = Router();
 
@@ -39,14 +40,21 @@ function handleZodError(err, res) {
 // Each chunk gets an embedding so semantic search can find it right after the save;
 // unchanged chunks keep theirs, so autosave after a small edit stays cheap.
 // The document change is already saved, so a chunk failure is logged rather
-// than failing the request. `npm run reindex` repairs any stale chunks.
+// than failing the request. If embedding fails, the chunks are saved without
+// embeddings so search never serves the old text, and a retry fills them in.
 async function refreshChunks(docs) {
-    try {
-        for (const doc of [].concat(docs)) {
+    for (const doc of [].concat(docs)) {
+        try {
             await syncDocumentChunks(doc, undefined, { embed, reuseEmbeddings: true });
+        } catch (err) {
+            logger.error('Rebuilding chunks with embeddings failed', { message: err.message });
+            try {
+                await syncDocumentChunks(doc);
+                scheduleEmbeddingRetry();
+            } catch (fallbackErr) {
+                logger.error('Rebuilding chunks failed', { message: fallbackErr.message });
+            }
         }
-    } catch (err) {
-        logger.error('Rebuilding chunks failed', { message: err.message });
     }
 }
 

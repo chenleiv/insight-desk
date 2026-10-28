@@ -176,6 +176,19 @@ ai-workspace/
    npm test
    ```
 
+### Embeddings
+
+Every chunk gets an embedding when its document is saved. If embedding fails, the
+chunks are saved without one and the server fills them in: once a minute after the
+failure, and again on every start. No manual step is needed.
+
+After changing the embedding model, re-embed everything against each database:
+
+```bash
+npm run reindex
+npm run embed:demo   # regenerate the demo sample vectors, then commit them
+```
+
 ---
 
 ## 🔑 API Routes
