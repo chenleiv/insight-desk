@@ -54,7 +54,7 @@ vi.mock("mongodb", () => ({
   },
 }));
 
-import documentsRouter from "../documents.js";
+import documentsRouter, { MAX_UPLOAD_BYTES } from "../documents.js";
 import { jsonBody } from "../../middleware/setup.js";
 
 const BODY = { title: "Policy", category: "HR", content: "Policy text." };
@@ -134,6 +134,19 @@ describe("document routes keep chunks in sync", () => {
     expect(doc.save).toHaveBeenCalled();
     expect(sync).toHaveBeenCalledWith(doc, undefined, { embed, reuseEmbeddings: true });
     expect(sync.mock.calls[0][0].attachments[0].extractedText).toBe("Attachment text.");
+  });
+
+  it("rejects an attachment over the upload limit with a 413 that names the limit", async () => {
+    const doc = fakeDoc();
+    Document.findById.mockResolvedValue(doc);
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(MAX_UPLOAD_BYTES + 1)], { type: "text/plain" }), "big.txt");
+
+    const res = await fetch(`${baseUrl}/doc-1/attachments`, { method: "POST", body: form });
+
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ detail: "File is too large. The maximum size is 10MB." });
+    expect(doc.save).not.toHaveBeenCalled();
   });
 
   it("attachment delete rebuilds chunks without the removed attachment", async () => {
