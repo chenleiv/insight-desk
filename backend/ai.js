@@ -174,10 +174,7 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
             return res.status(400).json({ detail: 'Validation failed', errors: error.errors });
         }
         logger.error('Inference error', { message: error?.message ?? String(error) });
-        res.status(500).json({
-            detail: 'Error communicating with AI service. Please try again later.',
-            error: error.message,
-        });
+        res.status(500).json({ detail: 'Error communicating with AI service. Please try again later.' });
     }
 });
 

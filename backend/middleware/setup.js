@@ -1,4 +1,5 @@
 import { logger } from '../logger.js';
+import express from 'express';
 import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -64,6 +65,14 @@ export function applyMiddleware(app) {
         message: { detail: 'Too many requests, please try again later.' }
     });
     app.use('/api/', limiter);
+}
+
+// The largest JSON body the server parses. A bigger one is rejected with 413
+// before any route reads it, so a client cannot make the server buffer huge payloads.
+export const JSON_BODY_LIMIT = '2mb';
+
+export function jsonBody() {
+    return express.json({ limit: JSON_BODY_LIMIT });
 }
 
 // Mounted after all API routers: an unknown /api path is a client error, not a

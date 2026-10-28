@@ -111,6 +111,30 @@ describe("POST /api/ai/chat", () => {
     expect(groqCreate).not.toHaveBeenCalled();
   });
 
+  it("rejects a message over 2000 characters without calling the model", async () => {
+    const res = await chatAs(demoOne, { message: "a".repeat(2001) });
+
+    expect(res.status).toBe(400);
+    expect(groqCreate).not.toHaveBeenCalled();
+  });
+
+  it("accepts a message of exactly 2000 characters", async () => {
+    const res = await chatAs(demoOne, { message: "a".repeat(2000) });
+
+    expect(res.status).toBe(200);
+  });
+
+  it("returns a generic 500 without the internal error message when the model call fails", async () => {
+    groqCreate.mockRejectedValueOnce(new Error("groq upstream 10.0.0.5 key=gsk_secret"));
+
+    const res = await chatAs(demoOne, { message: "vacation" });
+    const body = await res.text();
+
+    expect(res.status).toBe(500);
+    expect(JSON.parse(body)).toEqual({ detail: "Error communicating with AI service. Please try again later." });
+    expect(body).not.toContain("gsk_secret");
+  });
+
   it("sends the model only the signed-in user's chunks, each inside its own delimiter", async () => {
     const res = await chatAs(demoOne, { message: "vacation" });
 

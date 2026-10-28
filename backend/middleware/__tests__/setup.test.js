@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { describe, it, expect, afterEach } from "vitest";
 import express from "express";
-import { applyMiddleware, apiNotFound, parseTrustProxyHops } from "../setup.js";
+import { applyMiddleware, apiNotFound, jsonBody, parseTrustProxyHops } from "../setup.js";
+import { errorHandler } from "../errorHandler.js";
 
 let server;
 
@@ -90,5 +91,42 @@ describe("apiNotFound", () => {
     const page = await fetch(`${baseUrl}/hub`);
     expect(page.status).toBe(200);
     expect(page.headers.get("content-type")).toMatch(/html/);
+  });
+});
+
+describe("jsonBody", () => {
+  // Same order as backend/index.js: the body parser before the routes, errorHandler last.
+  async function startEchoApp() {
+    const app = express();
+    app.use(jsonBody());
+    app.post("/api/echo", (req, res) => res.json({ size: JSON.stringify(req.body).length }));
+    app.use(errorHandler);
+    await new Promise((resolve) => {
+      server = app.listen(0, resolve);
+    });
+    return `http://127.0.0.1:${server.address().port}`;
+  }
+
+  function post(baseUrl, text) {
+    return fetch(`${baseUrl}/api/echo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+  }
+
+  it("rejects a body over the limit with a generic 413", async () => {
+    const baseUrl = await startEchoApp();
+    const res = await post(baseUrl, "x".repeat(2 * 1024 * 1024 + 1));
+
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ detail: "Request body too large" });
+  });
+
+  it("accepts a body under the limit", async () => {
+    const baseUrl = await startEchoApp();
+    const res = await post(baseUrl, "x".repeat(1024 * 1024));
+
+    expect(res.status).toBe(200);
   });
 });
