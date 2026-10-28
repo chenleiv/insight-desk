@@ -56,3 +56,28 @@ export async function updateSuggestions(questions: string[]): Promise<{ question
     body: JSON.stringify({ questions }),
   });
 }
+
+export type QualityDays = 7 | 30;
+
+export interface FeedbackCounts {
+  answers: number;
+  rated: number;
+  up: number;
+  down: number;
+}
+
+// Aggregate answer-quality metrics for the last `days` days; admin only.
+export interface QualitySummary {
+  days: QualityDays;
+  questions: number;
+  noInfo: number;
+  // Questions that retrieved no chunk at all, so they have no top score.
+  noResults: number;
+  meanTopScore: number | null;
+  buckets: { label: string; count: number }[];
+  feedback: { regular: FeedbackCounts; noInfo: FeedbackCounts; all: FeedbackCounts };
+}
+
+export async function getQualitySummary(days: QualityDays): Promise<QualitySummary> {
+  return await apiFetch<QualitySummary>(`/api/ai/quality?days=${days}`);
+}

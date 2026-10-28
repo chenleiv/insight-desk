@@ -17,6 +17,10 @@ describe("viewFromParams", () => {
     expect(parse("view=settings")).toEqual({ kind: "settings" });
   });
 
+  it("reads the quality view", () => {
+    expect(parse("view=quality")).toEqual({ kind: "quality" });
+  });
+
   it("falls back to the AI assistant for unknown or empty values", () => {
     expect(parse("view=creating")).toEqual({ kind: "ai" });
     expect(parse("view=admin")).toEqual({ kind: "ai" });
@@ -30,6 +34,7 @@ describe("paramsForView", () => {
       { kind: "ai" },
       { kind: "dashboard" },
       { kind: "settings" },
+      { kind: "quality" },
       { kind: "doc", id: "abc123" },
     ];
     for (const view of views) {

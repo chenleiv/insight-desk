@@ -21,6 +21,7 @@ import { embed } from "../rag/embed.js";
 import { User, Document, Chunk, RetrievalLog } from "../models.js";
 import aiRouter, { NO_INFO_ANSWER } from "../ai.js";
 import { logRetrieval } from "../rag/retrievalLog.js";
+import { getRetrievalSummary } from "../rag/retrievalStats.js";
 
 // Runs against a real in-memory MongoDB and the real auth middleware.
 let mongo;
@@ -81,6 +82,12 @@ function postAs(user, path, body) {
   const headers = { "Content-Type": "application/json" };
   if (user) headers.Cookie = `access_token=${jwt.sign({ sub: user.email, role: user.role }, "dev-secret-change-me")}`;
   return fetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
+}
+
+function getAs(user, path) {
+  const headers = {};
+  if (user) headers.Cookie = `access_token=${jwt.sign({ sub: user.email, role: user.role }, "dev-secret-change-me")}`;
+  return fetch(`${base}${path}`, { headers });
 }
 
 const chatAs = (user, body) => postAs(user, "/api/ai/chat", body);
@@ -316,6 +323,85 @@ describe("POST /api/ai/feedback", () => {
     const answerId = await answerOf(demoOne);
     const statuses = [];
     for (let i = 0; i < 31; i++) statuses.push((await feedbackAs(demoOne, { answerId, rating: "up" })).status);
+    expect(statuses).toContain(429);
+  });
+});
+
+describe("GET /api/ai/quality", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  let admin;
+
+  beforeAll(async () => {
+    admin = await User.create({ email: "admin@corp.example", role: "admin" });
+    await RetrievalLog.deleteMany({});
+    const docId = demoOneDoc._id;
+    const log = (daysAgo, score, noInfo, feedback) => ({
+      createdAt: new Date(Date.now() - daysAgo * DAY),
+      results: [{ docId, index: 0, score }],
+      noInfo,
+      chunkSize: 600,
+      minSimilarity: 0.3,
+      ownerTag: "tag",
+      feedback,
+    });
+    await RetrievalLog.create([
+      log(1, 0.62, false, "up"),
+      log(2, 0.45, false, "down"),
+      log(3, 0.2, true, null),
+      log(10, 0.35, false, "up"),
+    ]);
+  });
+
+  const qualityAs = (user, days) => getAs(user, `/api/ai/quality?days=${days}`);
+
+  it("returns 403 to a viewer", async () => {
+    expect((await qualityAs(viewer, 7)).status).toBe(403);
+  });
+
+  // Demo visitors see the same aggregates as admins, so the dashboard can be shown in the demo.
+  it("lets a demo user read the same aggregates as an admin", async () => {
+    const res = await qualityAs(demoOne, 7);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(await (await qualityAs(admin, 7)).json());
+  });
+
+  it("requires a signed-in user", async () => {
+    expect((await qualityAs(null, 7)).status).toBe(401);
+  });
+
+  it.each(["1", "abc", ""])("rejects days=%s", async (days) => {
+    expect((await qualityAs(admin, days)).status).toBe(400);
+  });
+
+  it("returns only aggregates for the chosen range", async () => {
+    const week = await (await qualityAs(admin, 7)).json();
+    const month = await (await qualityAs(admin, 30)).json();
+
+    expect(week).toMatchObject({ days: 7, questions: 3, noInfo: 1, noResults: 0 });
+    expect(week.feedback.all).toEqual({ answers: 3, rated: 2, up: 1, down: 1 });
+    expect(month).toMatchObject({ days: 30, questions: 4 });
+
+    // No records, document ids or owner tags: only these top-level fields.
+    expect(Object.keys(week).sort()).toEqual(["buckets", "days", "feedback", "meanTopScore", "noInfo", "noResults", "questions"]);
+    const body = JSON.stringify(month);
+    for (const field of ["_id", "docId", "ownerTag", "results", "createdAt", String(demoOneDoc._id)]) {
+      expect(body).not.toContain(field);
+    }
+  });
+
+  it("matches the summary that npm run eval:prod prints", async () => {
+    for (const days of [7, 30]) {
+      const { days: _, ...fromEndpoint } = await (await qualityAs(admin, days)).json();
+
+      expect(fromEndpoint).toEqual(await getRetrievalSummary({ days }));
+    }
+  });
+
+  // Last, since it uses up the rate limit for this client.
+  it("rate limits requests", async () => {
+    const statuses = [];
+    for (let i = 0; i < 31; i++) statuses.push((await qualityAs(demoOne, 7)).status);
     expect(statuses).toContain(429);
   });
 });

@@ -31,6 +31,11 @@ export const aiFeedbackSchema = z.strictObject({
   rating: z.enum(['up', 'down']),
 });
 
+// Quality dashboard range: the last 7 or 30 days (query string values arrive as strings).
+export const qualityQuerySchema = z.object({
+  days: z.enum(['7', '30']).transform(Number),
+});
+
 // Search Schema (query string values arrive as strings)
 export const searchQuerySchema = z.object({
   q: z.string().trim().min(1, 'Query is required').max(500),

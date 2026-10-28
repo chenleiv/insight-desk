@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BrainCircuit, FileText, LayoutDashboard, LogOut, Menu, Moon, Settings, Sun } from "lucide-react";
+import { BarChart3, BrainCircuit, FileText, LayoutDashboard, LogOut, Menu, Moon, Settings, Sun } from "lucide-react";
 import { useAuth } from "../../../../auth/useAuth";
 import { useTheme } from "../../../../hooks/useTheme";
 import { getInitials } from "../../../../utils/initials";
@@ -8,6 +8,8 @@ type Props = {
   activeView: string;
   onOpenDashboard: () => void;
   onOpenSettings: () => void;
+  // Shown only to users who may read the quality metrics.
+  onOpenQuality?: () => void;
   onOpenAI: () => void;
   onOpenDocPicker?: () => void;
   isMobile: boolean;
@@ -15,7 +17,7 @@ type Props = {
   onSignOut: () => void;
 };
 
-export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, onOpenAI, onOpenDocPicker, isMobile, onMenuClick, onSignOut }: Props) {
+export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, onOpenQuality, onOpenAI, onOpenDocPicker, isMobile, onMenuClick, onSignOut }: Props) {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
@@ -33,6 +35,8 @@ export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, on
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [menuOpen]);
 
+  const isSecondaryView = activeView === "dashboard" || activeView === "settings" || activeView === "quality";
+
   return (
     <header className="hub-topbar">
 
@@ -46,7 +50,7 @@ export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, on
 
         {!isMobile && (
           <>
-            {(activeView === "dashboard" || activeView === "settings") && (
+            {isSecondaryView && (
               <button
                 type="button"
                 className="topbar-ask-brainy-btn"
@@ -65,6 +69,16 @@ export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, on
                 <LayoutDashboard size={14} />
                 <span className="topbar-nav-label">Dashboard</span>
               </button>
+              {onOpenQuality && (
+                <button
+                  type="button"
+                  className={`topbar-nav-btn${activeView === "quality" ? " active" : ""}`}
+                  onClick={onOpenQuality}
+                >
+                  <BarChart3 size={14} />
+                  <span className="topbar-nav-label">Quality</span>
+                </button>
+              )}
               <button
                 type="button"
                 className={`topbar-nav-btn${activeView === "settings" ? " active" : ""}`}
@@ -80,7 +94,7 @@ export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, on
       </div>
 
       <div className="topbar-actions">
-        {isMobile && (activeView === "dashboard" || activeView === "settings") && (
+        {isMobile && isSecondaryView && (
           <button
             type="button"
             className="topbar-icon-btn"

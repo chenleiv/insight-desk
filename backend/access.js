@@ -18,6 +18,12 @@ export function canEditDocuments(user) {
     return user?.role === 'admin' || isDemoUser(user);
 }
 
+// Admins and demo visitors may read the aggregate quality metrics. They hold
+// counts and scores only, so a demo visitor learns nothing about other users.
+export function canViewQuality(user) {
+    return user?.role === 'admin' || isDemoUser(user);
+}
+
 // Mongo filter for the documents a user may see.
 export function documentScope(user) {
     return isDemoUser(user) ? { ownerId: user._id } : { demo: { $ne: true } };
