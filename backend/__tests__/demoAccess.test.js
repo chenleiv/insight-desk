@@ -30,6 +30,7 @@ const { User, Document, groqCreate } = vi.hoisted(() => ({
     findById: vi.fn(),
     findByIdAndUpdate: vi.fn(),
     findByIdAndDelete: vi.fn(),
+    countDocuments: vi.fn(),
     create: vi.fn(),
     insertMany: vi.fn(),
     deleteMany: vi.fn(),
@@ -79,6 +80,7 @@ beforeEach(() => {
   User.findOne.mockImplementation(async ({ email }) => USERS[email] ?? null);
   Document.findById.mockImplementation((id) => query(DOCS[id] ?? null));
   Document.find.mockImplementation(() => Object.assign(query([]), { sort: async () => [] }));
+  Document.countDocuments.mockResolvedValue(0);
   groqCreate.mockResolvedValue({ choices: [{ message: { content: "ok" } }] });
 });
 
@@ -134,18 +136,6 @@ describe("demo workspace isolation", () => {
       title: "Mine", category: "Test", content: "Body.", ownerId: "demo-1", demo: true,
     });
   });
-
-  it("replace-mode import by a demo user only replaces their own documents", async () => {
-    Document.find.mockImplementation(async () => [{ _id: "own-1" }]);
-    Document.insertMany.mockResolvedValue([]);
-    const res = await demo("/api/documents/import-bulk", {
-      method: "POST",
-      body: JSON.stringify({ mode: "replace", documents: [{ title: "T", category: "C", content: "B" }] }),
-    });
-    expect(res.status).toBe(200);
-    expect(Document.find).toHaveBeenCalledWith({ ownerId: "demo-1" }, "_id", { session: "tx" });
-    expect(Document.deleteMany).toHaveBeenCalledWith({ _id: { $in: ["own-1"] } }, { session: "tx" });
-  });
 });
 
 describe("demo users cannot change system-wide settings", () => {
@@ -169,6 +159,65 @@ describe("demo users cannot change system-wide settings", () => {
     expect(res.status).toBe(200);
     expect((await res.json())[0].email).toBe("dana.levi@northwind.example");
     expect(User.find).not.toHaveBeenCalled();
+  });
+});
+
+describe("demo write limits", () => {
+  const doc = (content = "Body.") => JSON.stringify({ title: "T", category: "C", content });
+
+  it("blocks import for demo users before touching the database", async () => {
+    const res = await demo("/api/documents/import-bulk", {
+      method: "POST",
+      body: JSON.stringify({ mode: "append", documents: [{ title: "T", category: "C", content: "B" }] }),
+    });
+    expect(res.status).toBe(403);
+    expect(Document.db.transaction).not.toHaveBeenCalled();
+  });
+
+  it("blocks creating a document once the demo workspace is full, counting existing ones", async () => {
+    Document.countDocuments.mockResolvedValue(20);
+    const res = await demo("/api/documents", { method: "POST", body: doc() });
+    expect(res.status).toBe(403);
+    expect(Document.countDocuments).toHaveBeenCalledWith({ ownerId: "demo-1" });
+    expect(Document.create).not.toHaveBeenCalled();
+  });
+
+  it("allows creating a document below the demo document limit", async () => {
+    Document.countDocuments.mockResolvedValue(19);
+    Document.create.mockImplementation(async (d) => ({ _id: "new-1", ...d }));
+    expect((await demo("/api/documents", { method: "POST", body: doc() })).status).toBe(200);
+  });
+
+  it("rejects demo content over the length limit on create and edit", async () => {
+    const long = "a".repeat(20001);
+    expect((await demo("/api/documents", { method: "POST", body: doc(long) })).status).toBe(400);
+    expect((await demo("/api/documents/own-1", { method: "PUT", body: doc(long) })).status).toBe(400);
+    expect(Document.create).not.toHaveBeenCalled();
+    expect(Document.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it("blocks a second attachment on a demo document", async () => {
+    const form = new FormData();
+    form.append("file", new Blob(["hello"], { type: "text/plain" }), "notes.txt");
+    const token = jwt.sign({ sub: "demo@demo.invalid", role: "demo" }, "dev-secret-change-me");
+
+    // own-1 already has one attachment.
+    const res = await fetch(`${base}/api/documents/own-1/attachments`, {
+      method: "POST",
+      body: form,
+      headers: { Cookie: `access_token=${token}` },
+    });
+
+    expect(res.status).toBe(403);
+    expect(DOCS["own-1"].attachments).toHaveLength(1);
+  });
+
+  it("does not apply demo limits to admins", async () => {
+    Document.countDocuments.mockResolvedValue(100);
+    Document.create.mockImplementation(async (d) => ({ _id: "new-1", ...d }));
+    const res = await admin("/api/documents", { method: "POST", body: doc("a".repeat(20001)) });
+    expect(res.status).toBe(200);
+    expect(Document.countDocuments).not.toHaveBeenCalled();
   });
 });
 

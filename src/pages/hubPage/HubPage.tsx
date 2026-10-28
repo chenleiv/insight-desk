@@ -11,6 +11,7 @@ import DocPanel from "./components/documents/DocPanel";
 
 import { useDocuments, useSetDocs } from "../../context/DocumentsContext";
 import { useAuth } from "../../auth/useAuth";
+import { DEMO_LIMITS } from "../../auth/demoLimits";
 import { useStatus } from "../../components/statusBar/useStatus";
 import useConfirm from "../../hooks/useConfirm";
 
@@ -50,6 +51,12 @@ export default function HubPage() {
 
   const { docs, loading: docsLoading, error: docsError } = useDocuments();
   const setDocs = useSetDocs();
+
+  const demoWorkspaceFull = isDemo && docs.length >= DEMO_LIMITS.documents;
+  const canCreateDocs = canEditDocs && !demoWorkspaceFull;
+  const createDisabledLabel = demoWorkspaceFull
+    ? `Demo limit: ${DEMO_LIMITS.documents} documents`
+    : "Admin only";
 
   const { orderedDocs, setOrder } = useDocumentOrdering(docs, orderKey);
   const { handleExport, handleImport, importPreview, setImportPreview, doImport } = useImportExport();
@@ -280,7 +287,8 @@ export default function HubPage() {
     activeDocId,
     onOpenDocument: goToDocument,
     onNew: goToCreate,
-    canCreate: canEditDocs,
+    canCreate: canCreateDocs,
+    createDisabledLabel,
     onToggleFavorite: toggleFavorite,
     loading: docsLoading,
   };
@@ -348,6 +356,9 @@ export default function HubPage() {
                 onExport={handleExport}
                 onImport={handleImport}
                 canEdit={canEditDocs}
+                canCreate={canCreateDocs}
+                createDisabledLabel={createDisabledLabel}
+                canImport={isAdmin}
               />
             </div>
           )}
@@ -361,6 +372,8 @@ export default function HubPage() {
               key={activeView.kind === "creating" ? "creating" : activeView.id}
               doc={activeDoc}
               canEdit={canEditDocs}
+              maxContentLength={isDemo ? DEMO_LIMITS.contentLength : undefined}
+              maxAttachments={isDemo ? DEMO_LIMITS.attachmentsPerDocument : undefined}
               isCreating={activeView.kind === "creating"}
               onCancelCreate={() => {
                 clearDirty();

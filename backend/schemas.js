@@ -32,7 +32,9 @@ export const searchQuerySchema = z.object({
 });
 
 // Import Bulk Schema
+// Every imported chunk is embedded on the CPU, so one request is capped.
+export const MAX_IMPORT_DOCUMENTS = 50;
 export const importBulkSchema = z.object({
   mode: z.enum(['append', 'replace']),
-  documents: z.array(documentSchema),
+  documents: z.array(documentSchema).max(MAX_IMPORT_DOCUMENTS),
 });

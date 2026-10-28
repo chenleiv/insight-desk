@@ -18,6 +18,8 @@ type Props = {
   onUploadAttachment?: (file: File) => void;
   onDeleteAttachment?: (attachmentId: string) => void;
   onUseAttachmentText?: (text: string) => void;
+  maxContentLength?: number | undefined;
+  maxAttachments?: number | undefined;
 
   initialScrollTop?: number;
 };
@@ -39,6 +41,8 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
   onUploadAttachment,
   onDeleteAttachment,
   onUseAttachmentText,
+  maxContentLength,
+  maxAttachments,
 
   initialScrollTop = 0,
 }, ref) => {
@@ -49,8 +53,12 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
     bodyRef.current?.scrollTo({ top: initialScrollTop });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const existingAttachments = doc?.attachments ?? [];
+  const attachLimitReached =
+    maxAttachments !== undefined && existingAttachments.length + pendingFiles.length >= maxAttachments;
+
   useImperativeHandle(ref, () => ({
-    triggerAttach: () => fileInputRef.current?.click(),
+    triggerAttach: () => { if (!attachLimitReached) fileInputRef.current?.click(); },
   }));
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -63,7 +71,6 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
     [isCreating, updatedAt],
   );
 
-  const existingAttachments = doc?.attachments ?? [];
 
   return (
     <div ref={bodyRef} className="notion-doc-body notion-doc-body--edit">
@@ -163,6 +170,8 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
               type="button"
               className="notion-att-chip notion-att-chip--add"
               onClick={() => fileInputRef.current?.click()}
+              disabled={attachLimitReached}
+              title={attachLimitReached ? `Demo limit: ${maxAttachments} file per document` : undefined}
             >
               <Plus size={11} aria-hidden />
               Add file
@@ -181,6 +190,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
         placeholder="Start writing…"
         rows={8}
         readOnly={!canEdit}
+        maxLength={maxContentLength}
         aria-label="Content"
       />
 

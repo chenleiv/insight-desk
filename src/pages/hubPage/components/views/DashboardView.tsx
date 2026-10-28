@@ -16,6 +16,9 @@ type Props = {
   onExport?: () => void;
   onImport?: (mode: "append" | "replace", fileType: "json" | "text") => void;
   canEdit?: boolean;
+  canCreate?: boolean;
+  createDisabledLabel?: string;
+  canImport?: boolean;
 };
 
 function docTime(doc: DocumentItem): number {
@@ -31,6 +34,9 @@ export default function DashboardView({
   onExport,
   onImport,
   canEdit,
+  canCreate = canEdit,
+  createDisabledLabel = "Admin only",
+  canImport = canEdit,
 }: Props) {
   const [showImportMenu, setShowImportMenu] = useState(false);
   const importBtnRef = useRef<HTMLButtonElement>(null);
@@ -92,8 +98,8 @@ export default function DashboardView({
             type="button"
             className="action-btn primary"
             onClick={() => void onNewDocument?.()}
-            disabled={!canEdit}
-            title={canEdit ? undefined : "Admin only"}
+            disabled={!canCreate}
+            title={canCreate ? undefined : createDisabledLabel}
           >
             + New Document
           </button>
@@ -109,6 +115,8 @@ export default function DashboardView({
                 className="action-btn secondary"
                 ref={importBtnRef}
                 onClick={() => setShowImportMenu(true)}
+                disabled={!canImport}
+                title={canImport ? undefined : "Not available in the demo"}
               >
                 <Upload size={15} /> Import
               </button>

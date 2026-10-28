@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto';
 import { Document } from '../models.js';
 import { extractTextFromBuffer } from '../textExtract.js';
 import { getCurrentUser, requireEditor } from '../auth.js';
-import { canAccessDocument, documentScope, isDemoUser } from '../access.js';
+import { canAccessDocument, documentScope, isDemoUser, DEMO_LIMITS } from '../access.js';
 import { documentSchema, importBulkSchema } from '../schemas.js';
 import { syncDocumentChunks, deleteDocumentChunks } from '../rag/syncChunks.js';
 import { embed } from '../rag/embed.js';
@@ -15,6 +15,8 @@ import { embed } from '../rag/embed.js';
 const router = Router();
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+const DEMO_CONTENT_LIMIT_MESSAGE =
+    `Demo documents are limited to ${DEMO_LIMITS.contentLength.toLocaleString('en-US')} characters`;
 
 function handleMulterUpload(req, res, next) {
     upload.single('file')(req, res, (err) => {
@@ -34,12 +36,15 @@ function handleZodError(err, res) {
     return false;
 }
 
-// Each chunk gets an embedding so semantic search can find it right after the save.
+// Each chunk gets an embedding so semantic search can find it right after the save;
+// unchanged chunks keep theirs, so autosave after a small edit stays cheap.
 // The document change is already saved, so a chunk failure is logged rather
 // than failing the request. `npm run reindex` repairs any stale chunks.
 async function refreshChunks(docs) {
     try {
-        for (const doc of [].concat(docs)) await syncDocumentChunks(doc, undefined, { embed });
+        for (const doc of [].concat(docs)) {
+            await syncDocumentChunks(doc, undefined, { embed, reuseEmbeddings: true });
+        }
     } catch (err) {
         logger.error('Rebuilding chunks failed', { message: err.message });
     }
@@ -107,6 +112,9 @@ router.get('/export', requireEditor, async (req, res) => {
 
 // Bulk import (editors). Replace mode only replaces the documents the user can see.
 router.post('/import-bulk', requireEditor, async (req, res) => {
+    if (isDemoUser(req.user)) {
+        return res.status(403).json({ detail: 'Import is not available in the demo' });
+    }
     try {
         const { mode, documents } = importBulkSchema.parse(req.body);
         const demoFlag = isDemoUser(req.user) ? { demo: true } : {};
@@ -161,6 +169,16 @@ router.get('/:id', getCurrentUser, async (req, res) => {
 router.post('/', requireEditor, async (req, res) => {
     try {
         const validated = documentSchema.parse(req.body);
+        if (isDemoUser(req.user)) {
+            if (validated.content.length > DEMO_LIMITS.contentLength) {
+                return res.status(400).json({ detail: DEMO_CONTENT_LIMIT_MESSAGE });
+            }
+            if (await Document.countDocuments(documentScope(req.user)) >= DEMO_LIMITS.documents) {
+                return res.status(403).json({
+                    detail: `Demo workspaces are limited to ${DEMO_LIMITS.documents} documents`,
+                });
+            }
+        }
         const newDoc = await Document.create({
             ...validated,
             ownerId: req.user._id,
@@ -181,6 +199,9 @@ router.put('/:id', requireEditor, async (req, res) => {
         const validated = documentSchema.parse(req.body);
         if (!canAccessDocument(req.user, await Document.findById(req.params.id))) {
             return res.status(404).json({ detail: 'Not found' });
+        }
+        if (isDemoUser(req.user) && validated.content.length > DEMO_LIMITS.contentLength) {
+            return res.status(400).json({ detail: DEMO_CONTENT_LIMIT_MESSAGE });
         }
         const updated = await Document.findByIdAndUpdate(req.params.id, validated, { new: true });
         if (!updated) {
@@ -274,6 +295,11 @@ router.post('/:id/attachments', requireEditor, handleMulterUpload, async (req, r
     try {
         const doc = await Document.findById(req.params.id);
         if (!canAccessDocument(req.user, doc)) return res.status(404).json({ detail: 'Not found' });
+        if (isDemoUser(req.user) && doc.attachments.length >= DEMO_LIMITS.attachmentsPerDocument) {
+            return res.status(403).json({
+                detail: `Demo documents are limited to ${DEMO_LIMITS.attachmentsPerDocument} attachment`,
+            });
+        }
 
         const file = req.file;
         if (!file) return res.status(400).json({ detail: 'No file uploaded' });

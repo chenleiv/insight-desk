@@ -6,6 +6,14 @@ export function isDemoUser(user) {
     return user?.role === 'demo';
 }
 
+// Anyone can open a demo workspace, and every saved chunk is embedded on the
+// CPU, so demo writes are bounded. Keep in sync with src/auth/demoLimits.ts.
+export const DEMO_LIMITS = {
+    documents: 20,
+    contentLength: 20000,
+    attachmentsPerDocument: 1,
+};
+
 export function canEditDocuments(user) {
     return user?.role === 'admin' || isDemoUser(user);
 }
