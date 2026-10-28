@@ -1,6 +1,6 @@
 import "./notionEditor.scss";
 import React, { useMemo, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
-import { Clock, Paperclip, ExternalLink, X, Plus, ClipboardCopy, Lock } from "lucide-react";
+import { Clock, Paperclip, ExternalLink, X, Plus, Lock } from "lucide-react";
 import type { DocumentInput, DocumentItem } from "../../../../api/documentsClient";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
 import { attachmentHref } from "../../utils/attachmentLink";
@@ -17,7 +17,6 @@ type Props = {
   pendingFiles?: File[];
   onUploadAttachment?: (file: File) => void;
   onDeleteAttachment?: (attachmentId: string) => void;
-  onUseAttachmentText?: (text: string) => void;
   maxContentLength?: number | undefined;
   maxAttachments?: number | undefined;
 
@@ -40,7 +39,6 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
   pendingFiles = [],
   onUploadAttachment,
   onDeleteAttachment,
-  onUseAttachmentText,
   maxContentLength,
   maxAttachments,
 
@@ -123,16 +121,6 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
               <span key={att._id} className="notion-att-chip">
                 <Paperclip size={11} aria-hidden />
                 <span className="notion-att-chip-name">{att.fileName}</span>
-                {att.extractedText && onUseAttachmentText && (
-                  <button
-                    type="button"
-                    className="notion-att-chip-action"
-                    title="Use text as content"
-                    onClick={() => onUseAttachmentText(att.extractedText!)}
-                  >
-                    <ClipboardCopy size={11} />
-                  </button>
-                )}
                 {href && (
                   <a href={href} target="_blank" rel="noopener noreferrer" className="notion-att-chip-action" title="Open">
                     <ExternalLink size={11} />
