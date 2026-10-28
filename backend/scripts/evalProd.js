@@ -11,7 +11,7 @@ async function evalProd() {
     }
     await mongoose.connect(process.env.MONGODB_URI);
 
-    const logs = await RetrievalLog.find({}, 'createdAt results.score noInfo').sort({ createdAt: 1 }).lean();
+    const logs = await RetrievalLog.find({}, 'createdAt results.score noInfo feedback').sort({ createdAt: 1 }).lean();
     if (logs.length) {
         console.log(`Retrieval logs from ${logs[0].createdAt.toISOString()} to ${logs.at(-1).createdAt.toISOString()}\n`);
     }

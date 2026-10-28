@@ -2,6 +2,7 @@ import express from 'express';
 import { logger } from './logger.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { createHmac } from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { User } from './models.js';
 import { canEditDocuments, isDemoUser } from './access.js';
@@ -96,6 +97,11 @@ export async function seedUsersIfEmpty() {
         ]);
         logger.info('Users seeded successfully');
     }
+}
+
+/** Keyed hash of a value with the server secret: cannot be reversed or recomputed without it. */
+export function keyedHash(value) {
+    return createHmac('sha256', JWT_SECRET).update(value).digest('hex');
 }
 
 function createAccessToken(email, role) {

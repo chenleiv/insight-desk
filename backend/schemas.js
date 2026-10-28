@@ -25,6 +25,12 @@ export const aiChatSchema = z.strictObject({
   message: z.string().trim().min(1, 'Message is required').max(2000),
 });
 
+// A rating only, never free text, so feedback cannot hold user content.
+export const aiFeedbackSchema = z.strictObject({
+  answerId: z.string().regex(/^[0-9a-f]{24}$/i, 'Invalid answer id'),
+  rating: z.enum(['up', 'down']),
+});
+
 // Search Schema (query string values arrive as strings)
 export const searchQuerySchema = z.object({
   q: z.string().trim().min(1, 'Query is required').max(500),

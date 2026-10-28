@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import "./aiAssistant.scss";
-import { BrainCircuit, Send, Bot, ChevronDown, SlidersHorizontal } from "lucide-react";
-import { chatWithAI, getSuggestions, getSystemPrompt } from "../../../../api/aiClient";
+import { BrainCircuit, Send, Bot, ChevronDown, SlidersHorizontal, ThumbsUp, ThumbsDown } from "lucide-react";
+import { chatWithAI, getSuggestions, getSystemPrompt, sendFeedback, type FeedbackRating } from "../../../../api/aiClient";
 import { citedSources, formatCitations, uid, CHAT_KEY } from "../../utils/assistantUtils";
 import { loadJson, saveJson, scopedKey } from "../../../../utils/storage";
 import type { ChatMessage } from "./assistantTypes";
@@ -84,6 +84,7 @@ export default function AIAssistantView() {
           // Only documents the answer actually cites, as checked by the server.
           sources: citedSources(response.citations),
           isTyped: false,
+          ...(response.answerId && { answerId: response.answerId }),
         },
       ]);
       const key = scopedKey(AI_QUERY_COUNT_BASE_KEY, user?.email);
@@ -102,6 +103,20 @@ export default function AIAssistantView() {
       ]);
     } finally {
       setIsSending(false);
+    }
+  }
+
+  async function rateAnswer(m: ChatMessage, rating: FeedbackRating) {
+    if (!m.answerId || m.feedback === rating) return;
+    const setFeedback = (feedback?: FeedbackRating) =>
+      setMessages((prev) => prev.map((msg) => (msg.id === m.id ? { ...msg, feedback } : msg)));
+
+    // Show the choice at once, and undo it if the server did not save it.
+    setFeedback(rating);
+    try {
+      await sendFeedback(m.answerId, rating);
+    } catch {
+      setFeedback(m.feedback);
     }
   }
 
@@ -225,6 +240,26 @@ export default function AIAssistantView() {
                         <ul>
                           {m.sources.map((s) => <li key={s.id}>{s.title}</li>)}
                         </ul>
+                      </div>
+                    )}
+                    {m.role === "assistant" && m.answerId && (
+                      <div className="ai-message-feedback">
+                        <button
+                          type="button"
+                          aria-label="Helpful answer"
+                          aria-pressed={m.feedback === "up"}
+                          onClick={() => rateAnswer(m, "up")}
+                        >
+                          <ThumbsUp size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Unhelpful answer"
+                          aria-pressed={m.feedback === "down"}
+                          onClick={() => rateAnswer(m, "down")}
+                        >
+                          <ThumbsDown size={14} />
+                        </button>
                       </div>
                     )}
                     {m.role === "assistant" && <div className="ai-message-time">{timeString}</div>}

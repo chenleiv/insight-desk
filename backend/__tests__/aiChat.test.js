@@ -20,6 +20,7 @@ vi.mock("../rag/embed.js", () => ({ embed: vi.fn(async () => [1, 0, 0]) }));
 import { embed } from "../rag/embed.js";
 import { User, Document, Chunk, RetrievalLog } from "../models.js";
 import aiRouter, { NO_INFO_ANSWER } from "../ai.js";
+import { logRetrieval } from "../rag/retrievalLog.js";
 
 // Runs against a real in-memory MongoDB and the real auth middleware.
 let mongo;
@@ -76,14 +77,14 @@ beforeEach(() => {
   groqCreate.mockResolvedValue({ choices: [{ message: { content: "ok" } }] });
 });
 
-function chatAs(user, body) {
-  const token = jwt.sign({ sub: user.email, role: user.role }, "dev-secret-change-me");
-  return fetch(`${base}/api/ai/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Cookie: `access_token=${token}` },
-    body: JSON.stringify(body),
-  });
+function postAs(user, path, body) {
+  const headers = { "Content-Type": "application/json" };
+  if (user) headers.Cookie = `access_token=${jwt.sign({ sub: user.email, role: user.role }, "dev-secret-change-me")}`;
+  return fetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
 }
+
+const chatAs = (user, body) => postAs(user, "/api/ai/chat", body);
+const feedbackAs = (user, body) => postAs(user, "/api/ai/feedback", body);
 
 // The answer is always the last model call.
 const promptSent = () => groqCreate.mock.calls.at(-1)[0].messages[1].content;
@@ -184,7 +185,9 @@ describe("POST /api/ai/chat", () => {
     const res = await chatAs(viewer, { message: "chocolate cake recipe" });
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ answer: NO_INFO_ANSWER, citations: [], sources: [] });
+    expect(await res.json()).toEqual({
+      answer: NO_INFO_ANSWER, citations: [], sources: [], answerId: expect.any(String),
+    });
     expect(groqCreate).not.toHaveBeenCalled();
   });
 
@@ -230,6 +233,16 @@ describe("POST /api/ai/chat", () => {
     expect(log.results.every((r) => r.score < log.minSimilarity)).toBe(true);
   });
 
+  it("returns an answer id with each chat answer, linked to its retrieval log", async () => {
+    await RetrievalLog.deleteMany({});
+    embed.mockResolvedValueOnce([0, 0, 1]);
+
+    const { answerId } = await (await chatAs(viewer, { message: "chocolate cake recipe" })).json();
+
+    const [log] = await RetrievalLog.find().lean();
+    expect(answerId).toBe(String(log._id));
+  });
+
   it("deletes retrieval logs after 30 days", () => {
     const ttl = RetrievalLog.schema.indexes().find(([fields]) => fields.createdAt);
     expect(ttl[1].expireAfterSeconds).toBe(30 * 24 * 60 * 60);
@@ -239,6 +252,70 @@ describe("POST /api/ai/chat", () => {
   it("rate limits chats", async () => {
     const statuses = [];
     for (let i = 0; i < 21; i++) statuses.push((await chatAs(demoOne, { message: "vacation" })).status);
+    expect(statuses).toContain(429);
+  });
+});
+
+describe("POST /api/ai/feedback", () => {
+  // Logged directly, so these tests do not use up the chat rate limit.
+  const answerOf = (user) => logRetrieval(user, [], { noInfo: true, minSimilarity: 0.3 });
+  const feedbackOf = async (answerId) => (await RetrievalLog.findById(answerId).lean()).feedback;
+
+  it("saves the user's rating, and a second rating replaces the first", async () => {
+    const answerId = await answerOf(demoOne);
+
+    const res = await feedbackAs(demoOne, { answerId, rating: "up" });
+    expect(res.status).toBe(200);
+    expect(await feedbackOf(answerId)).toBe("up");
+
+    await feedbackAs(demoOne, { answerId, rating: "down" });
+    expect(await feedbackOf(answerId)).toBe("down");
+  });
+
+  it("does not let a user rate another user's answer", async () => {
+    const answerId = await answerOf(demoOne);
+    await feedbackAs(demoOne, { answerId, rating: "up" });
+
+    const res = await feedbackAs(demoTwo, { answerId, rating: "down" });
+
+    expect(res.status).toBe(404);
+    expect(await feedbackOf(answerId)).toBe("up");
+  });
+
+  it("returns 404 for an answer that does not exist", async () => {
+    const res = await feedbackAs(demoOne, { answerId: String(new mongoose.Types.ObjectId()), rating: "up" });
+
+    expect(res.status).toBe(404);
+  });
+
+  it.each([
+    ["an unknown rating", { rating: "great" }],
+    ["a missing rating", { rating: undefined }],
+    ["free text", { rating: "up", comment: "my salary is 10k" }],
+    ["a malformed answer id", { answerId: "not-an-id", rating: "up" }],
+  ])("rejects %s", async (_, override) => {
+    const answerId = await answerOf(demoOne);
+
+    const res = await feedbackAs(demoOne, { answerId, ...override });
+
+    expect(res.status).toBe(400);
+    expect(await feedbackOf(answerId)).toBeNull();
+  });
+
+  it("requires a signed-in user", async () => {
+    const answerId = await answerOf(demoOne);
+
+    const res = await feedbackAs(null, { answerId, rating: "up" });
+
+    expect(res.status).toBe(401);
+    expect(await feedbackOf(answerId)).toBeNull();
+  });
+
+  // Last, since it uses up the rate limit for this client.
+  it("rate limits feedback", async () => {
+    const answerId = await answerOf(demoOne);
+    const statuses = [];
+    for (let i = 0; i < 31; i++) statuses.push((await feedbackAs(demoOne, { answerId, rating: "up" })).status);
     expect(statuses).toContain(429);
   });
 });
