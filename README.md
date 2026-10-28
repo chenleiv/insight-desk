@@ -18,7 +18,7 @@ An AI-powered document workspace for teams. Upload PDF, DOCX, and Excel files �
 ### 🤖 AI Assistant ("Brainy")
 - **Contextual chat** — select documents to inject as context for the AI
 - **Attachment-aware** — AI can read the extracted text from attached PDF/DOCX/Excel files
-- **Groq-powered** — uses `llama-3.1-8b-instant` via the Groq SDK for fast inference
+- **Groq-powered** — uses `openai/gpt-oss-20b` via the Groq SDK for fast inference
 - **Customizable system prompt** — admins can configure the AI's behavior from the Settings view
 - **Example questions** — admins can set suggested prompts shown to users
 
