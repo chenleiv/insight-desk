@@ -104,7 +104,7 @@ describe("document routes keep chunks in sync", () => {
 
     expect(res.status).toBe(200);
     expect(Document.create).toHaveBeenCalledWith({ ...BODY, ownerId: USER._id });
-    expect(sync).toHaveBeenCalledWith(created, undefined, { embed });
+    expect(sync).toHaveBeenCalledWith(created, undefined, { embed, reuseEmbeddings: true });
   });
 
   it("edit rebuilds chunks with embeddings and does not change the owner", async () => {
@@ -116,7 +116,7 @@ describe("document routes keep chunks in sync", () => {
 
     expect(res.status).toBe(200);
     expect(Document.findByIdAndUpdate).toHaveBeenCalledWith("doc-1", BODY, { new: true });
-    expect(sync).toHaveBeenCalledWith(updated, undefined, { embed });
+    expect(sync).toHaveBeenCalledWith(updated, undefined, { embed, reuseEmbeddings: true });
   });
 
   it("attachment add rebuilds chunks including the extracted text", async () => {
@@ -129,7 +129,7 @@ describe("document routes keep chunks in sync", () => {
 
     expect(res.status).toBe(200);
     expect(doc.save).toHaveBeenCalled();
-    expect(sync).toHaveBeenCalledWith(doc, undefined, { embed });
+    expect(sync).toHaveBeenCalledWith(doc, undefined, { embed, reuseEmbeddings: true });
     expect(sync.mock.calls[0][0].attachments[0].extractedText).toBe("Attachment text.");
   });
 
@@ -140,7 +140,7 @@ describe("document routes keep chunks in sync", () => {
     const res = await fetch(`${baseUrl}/doc-1/attachments/att-1`, { method: "DELETE" });
 
     expect(res.status).toBe(204);
-    expect(sync).toHaveBeenCalledWith(doc, undefined, { embed });
+    expect(sync).toHaveBeenCalledWith(doc, undefined, { embed, reuseEmbeddings: true });
     expect(sync.mock.calls[0][0].attachments).toHaveLength(0);
   });
 
@@ -190,7 +190,7 @@ describe("document routes keep chunks in sync", () => {
     Document.insertMany.mockResolvedValue(inserted);
     Document.db.transaction.mockImplementationOnce(async (fn) => {
       await fn("tx-session");
-      expect(sync).not.toHaveBeenCalledWith(expect.anything(), undefined, { embed });
+      expect(sync).not.toHaveBeenCalledWith(expect.anything(), undefined, { embed, reuseEmbeddings: true });
     });
 
     const res = await fetch(`${baseUrl}/import-bulk`, json("POST", { mode: "append", documents: [BODY] }));
@@ -198,7 +198,7 @@ describe("document routes keep chunks in sync", () => {
     expect(res.status).toBe(200);
     expect(sync.mock.calls).toEqual([
       [inserted[0], "tx-session"],
-      [inserted[0], undefined, { embed }],
+      [inserted[0], undefined, { embed, reuseEmbeddings: true }],
     ]);
   });
 
@@ -209,6 +209,16 @@ describe("document routes keep chunks in sync", () => {
     const res = await fetch(`${baseUrl}/import-bulk`, json("POST", { mode: "append", documents: [BODY] }));
 
     expect(res.status).toBe(500);
+  });
+
+  it("bulk import rejects more than the maximum number of documents before touching the database", async () => {
+    const documents = Array.from({ length: 51 }, () => BODY);
+
+    const res = await fetch(`${baseUrl}/import-bulk`, json("POST", { mode: "append", documents }));
+
+    expect(res.status).toBe(400);
+    expect(Document.db.transaction).not.toHaveBeenCalled();
+    expect(sync).not.toHaveBeenCalled();
   });
 
   it("still succeeds when rebuilding chunks fails after the document is saved", async () => {

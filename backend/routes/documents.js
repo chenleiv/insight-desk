@@ -34,12 +34,15 @@ function handleZodError(err, res) {
     return false;
 }
 
-// Each chunk gets an embedding so semantic search can find it right after the save.
+// Each chunk gets an embedding so semantic search can find it right after the save;
+// unchanged chunks keep theirs, so autosave after a small edit stays cheap.
 // The document change is already saved, so a chunk failure is logged rather
 // than failing the request. `npm run reindex` repairs any stale chunks.
 async function refreshChunks(docs) {
     try {
-        for (const doc of [].concat(docs)) await syncDocumentChunks(doc, undefined, { embed });
+        for (const doc of [].concat(docs)) {
+            await syncDocumentChunks(doc, undefined, { embed, reuseEmbeddings: true });
+        }
     } catch (err) {
         logger.error('Rebuilding chunks failed', { message: err.message });
     }

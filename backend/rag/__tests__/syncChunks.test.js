@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { Chunk } = vi.hoisted(() => ({
   Chunk: {
+    find: vi.fn(),
     deleteMany: vi.fn(),
     insertMany: vi.fn(),
     db: { transaction: vi.fn((fn) => fn("tx-session")) },
@@ -58,6 +59,48 @@ describe("syncDocumentChunks", () => {
     );
     expect(embed.mock.invocationCallOrder[0])
       .toBeLessThan(Chunk.db.transaction.mock.invocationCallOrder[0]);
+  });
+
+  it("with reuseEmbeddings, embeds only chunks whose text changed", async () => {
+    const embed = vi.fn(async () => [9, 9]);
+    Chunk.find.mockReturnValue({
+      lean: async () => [
+        { text: "Unchanged.", embedding: [1, 1] },
+        { text: "Old text.", embedding: [2, 2] },
+      ],
+    });
+    const doc = { _id: "doc-1", content: "New text.", attachments: [{ extractedText: "Unchanged." }] };
+
+    await syncDocumentChunks(doc, undefined, { embed, reuseEmbeddings: true });
+
+    expect(Chunk.find).toHaveBeenCalledWith({ docId: "doc-1" }, "text embedding");
+    expect(embed).toHaveBeenCalledOnce();
+    expect(embed).toHaveBeenCalledWith("New text.");
+    expect(Chunk.insertMany).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({ text: "New text.", embedding: [9, 9] }),
+        expect.objectContaining({ text: "Unchanged.", embedding: [1, 1] }),
+      ],
+      { session: "tx-session" },
+    );
+  });
+
+  it("with reuseEmbeddings, embeds a chunk whose stored copy has no embedding", async () => {
+    const embed = vi.fn(async () => [9, 9]);
+    Chunk.find.mockReturnValue({ lean: async () => [{ text: "Some text." }] });
+
+    await syncDocumentChunks({ _id: "doc-1", content: "Some text." }, undefined, { embed, reuseEmbeddings: true });
+
+    expect(embed).toHaveBeenCalledWith("Some text.");
+  });
+
+  it("without reuseEmbeddings, re-embeds every chunk and never reads stored ones", async () => {
+    const embed = vi.fn(async () => [9, 9]);
+
+    await syncDocumentChunks({ _id: "doc-1", content: "Some text." }, undefined, { embed });
+
+    expect(Chunk.find).not.toHaveBeenCalled();
+    expect(embed).toHaveBeenCalledWith("Some text.");
   });
 
   it("only deletes when the document has no text", async () => {
