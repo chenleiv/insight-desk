@@ -57,7 +57,7 @@ An AI-powered document workspace for teams. Upload PDF, DOCX, and Excel files �
 |------|---------|------|
 | **Node.js + Express** | — | API server |
 | **MongoDB + Mongoose** | 9.x | Data persistence |
-| **Groq SDK** | — | AI inference (`llama-3.1-8b-instant`) |
+| **Groq SDK** | — | AI inference (`openai/gpt-oss-20b`) |
 | **MongoDB GridFS** | — | File storage for attachments |
 | **multer** | — | File upload handling |
 | **pdf-parse** | — | PDF text extraction |
@@ -274,7 +274,7 @@ A build + test hook runs automatically after each Claude session.
 
 - [x] React 19 + React Compiler
 - [x] TanStack Query v5 for server state
-- [x] Groq AI integration (llama-3.1-8b-instant)
+- [x] Groq AI integration (openai/gpt-oss-20b)
 - [x] File attachments with PDF/DOCX/Excel text extraction
 - [x] Role-based access control (admin / viewer)
 - [x] Resizable sidebar with auto-collapse
