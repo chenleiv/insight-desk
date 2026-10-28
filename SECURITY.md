@@ -48,6 +48,18 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
   - stops after 10 seconds and rejects bodies over 5 MB, whether or not `Content-Length` is sent.
   Test: `backend/__tests__/extractTextFromUrl.test.js`.
 
+## Browser
+
+- **The CSP allows no inline scripts.** `script-src` is `'self'` only, and `script-src-attr` is `'none'`
+  (helmet's default), so an injected `<script>` or `onclick=` handler does not run. The theme script that used
+  to be inline in `index.html` now lives in `public/theme-init.js` and still runs in `<head>`, before the first paint.
+  Test: `backend/middleware/__tests__/setup.test.js` checks the header.
+  Checked by hand: `dist/index.html` from `npm run build` has no inline `<script>`. Under the real middleware,
+  headless Chromium renders the login page with the theme set, and an inline script on a probe page is blocked.
+- **Known gap, accepted:** `style-src` still includes `'unsafe-inline'`, helmet's default, kept on purpose.
+  Injected CSS cannot run code; at worst it restyles the page or, in rare cases, leaks a value from it.
+  We have not checked whether removing it would break a dependency that injects `<style>` tags.
+
 ## Data integrity
 
 - **Chunk replacement is atomic.** `syncDocumentChunks` deletes a document's old chunks and inserts the new ones

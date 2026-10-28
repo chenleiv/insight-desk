@@ -29,7 +29,8 @@ export function applyMiddleware(app) {
         contentSecurityPolicy: {
             directives: {
                 ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-                "script-src": ["'self'", "'unsafe-inline'"],
+                // No 'unsafe-inline': an injected <script> or onclick= handler will not run.
+                "script-src": ["'self'"],
                 "connect-src": ["'self'", "https://*"],
                 "img-src": ["'self'", "data:", "https://*"],
             },
