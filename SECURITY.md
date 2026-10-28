@@ -31,6 +31,18 @@ Security controls in Insight Desk and the tests that guard them.
 
 Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.test.js`.
 
+## Outbound requests
+
+- **Fetching a user-supplied URL is guarded against SSRF.** `extractTextFromUrl` in `backend/textExtract.js`:
+  - accepts only `http:` and `https:`;
+  - resolves the host and rejects it if any address is loopback, private, link-local, shared (CGNAT), reserved,
+    or multicast, including IPv4-mapped IPv6;
+  - checks the address again when the socket connects (undici `Agent` with a guarded `lookup`), so DNS rebinding
+    cannot swap in an internal address after the first check;
+  - follows at most 3 redirects by hand and checks every hop;
+  - stops after 10 seconds and rejects bodies over 5 MB, whether or not `Content-Length` is sent.
+  Test: `backend/__tests__/extractTextFromUrl.test.js`.
+
 ## Data integrity
 
 - **Chunk replacement is atomic.** `syncDocumentChunks` deletes a document's old chunks and inserts the new ones
