@@ -63,6 +63,26 @@ describe("client IP behind a proxy", () => {
   });
 });
 
+describe("Content-Security-Policy", () => {
+  async function cspDirectives() {
+    const baseUrl = await startApp(undefined);
+    const header = (await fetch(`${baseUrl}/api/ip`)).headers.get("content-security-policy");
+    return Object.fromEntries(
+      header.split(";").map((d) => d.trim().split(/\s+/)).map(([name, ...values]) => [name, values]),
+    );
+  }
+
+  it("allows only same-origin scripts, with no 'unsafe-inline'", async () => {
+    const directives = await cspDirectives();
+    expect(directives["script-src"]).toEqual(["'self'"]);
+  });
+
+  it("blocks inline event handlers", async () => {
+    const directives = await cspDirectives();
+    expect(directives["script-src-attr"]).toEqual(["'none'"]);
+  });
+});
+
 describe("apiNotFound", () => {
   // Same order as backend/index.js: API routes, then apiNotFound, then the SPA fallback.
   async function startSpaApp() {

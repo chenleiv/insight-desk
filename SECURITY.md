@@ -9,6 +9,11 @@ Security controls in Insight Desk and the tests that guard them.
   Test: `backend/__tests__/authHardening.test.js`, `backend/__tests__/seedUsers.test.js`.
 - **Inactive accounts cannot sign in.** Password and Google login both reject a user whose status is `inactive`.
   The status is checked after the password, so it is revealed only to the account owner.
+- **Google login checks an OAuth `state`.** `GET /api/auth/google` sends a random 256-bit state to Google and
+  stores it in an HttpOnly, `SameSite=Lax` cookie scoped to `/api/auth/google` for 10 minutes. The callback
+  compares it in constant time, clears the cookie whatever the outcome, and on a missing or wrong state
+  redirects to `/login?error=google_state_mismatch` without exchanging the code. This blocks login CSRF.
+  Test: `backend/__tests__/googleOAuthState.test.js`.
 
 ## Errors
 
@@ -30,6 +35,30 @@ Security controls in Insight Desk and the tests that guard them.
 | Bulk import | 50 documents | 400 |
 
 Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.test.js`.
+
+## Outbound requests
+
+- **Fetching a user-supplied URL is guarded against SSRF.** `extractTextFromUrl` in `backend/textExtract.js`:
+  - accepts only `http:` and `https:`;
+  - resolves the host and rejects it if any address is loopback, private, link-local, shared (CGNAT), reserved,
+    or multicast, including IPv4-mapped IPv6;
+  - checks the address again when the socket connects (undici `Agent` with a guarded `lookup`), so DNS rebinding
+    cannot swap in an internal address after the first check;
+  - follows at most 3 redirects by hand and checks every hop;
+  - stops after 10 seconds and rejects bodies over 5 MB, whether or not `Content-Length` is sent.
+  Test: `backend/__tests__/extractTextFromUrl.test.js`.
+
+## Browser
+
+- **The CSP allows no inline scripts.** `script-src` is `'self'` only, and `script-src-attr` is `'none'`
+  (helmet's default), so an injected `<script>` or `onclick=` handler does not run. The theme script that used
+  to be inline in `index.html` now lives in `public/theme-init.js` and still runs in `<head>`, before the first paint.
+  Test: `backend/middleware/__tests__/setup.test.js` checks the header.
+  Checked by hand: `dist/index.html` from `npm run build` has no inline `<script>`. Under the real middleware,
+  headless Chromium renders the login page with the theme set, and an inline script on a probe page is blocked.
+- **Known gap, accepted:** `style-src` still includes `'unsafe-inline'`, helmet's default, kept on purpose.
+  Injected CSS cannot run code; at worst it restyles the page or, in rare cases, leaks a value from it.
+  We have not checked whether removing it would break a dependency that injects `<style>` tags.
 
 ## Data integrity
 

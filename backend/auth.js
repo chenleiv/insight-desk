@@ -2,7 +2,7 @@ import express from 'express';
 import { logger } from './logger.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { createHmac } from 'crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { User } from './models.js';
 import { canEditDocuments, isDemoUser } from './access.js';
@@ -192,11 +192,32 @@ router.post('/register', async (req, res) => {
 
 // --- Google OAuth (redirect flow) ---
 // Requires env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APP_BASE_URL
+
+// The state ties the callback to the browser that started the login (login CSRF).
+// Lax lets the cookie ride the top-level redirect back from Google.
+const OAUTH_STATE_COOKIE = 'oauth_state';
+const OAUTH_STATE_COOKIE_OPTIONS = {
+    httpOnly: true,
+    secure: ENV === 'prod' || process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/api/auth/google',
+};
+
+function isValidOAuthState(returned, expected) {
+    if (typeof returned !== 'string' || typeof expected !== 'string') return false;
+    const a = Buffer.from(returned);
+    const b = Buffer.from(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
+}
+
 router.get('/google', (req, res) => {
     if (!GOOGLE_CLIENT_ID) {
         return res.status(503).json({ detail: 'Google OAuth is not configured' });
     }
+    const state = randomBytes(32).toString('base64url');
+    res.cookie(OAUTH_STATE_COOKIE, state, { ...OAUTH_STATE_COOKIE_OPTIONS, maxAge: 10 * 60 * 1000 });
     const params = new URLSearchParams({
+        state,
         client_id: GOOGLE_CLIENT_ID,
         redirect_uri: `${APP_BASE_URL}/api/auth/google/callback`,
         response_type: 'code',
@@ -208,10 +229,16 @@ router.get('/google', (req, res) => {
 });
 
 router.get('/google/callback', async (req, res) => {
-    const { code, error } = req.query;
+    const { code, error, state } = req.query;
+    const expectedState = req.cookies?.[OAUTH_STATE_COOKIE];
+    // One use only: the state is cleared whatever the outcome.
+    res.clearCookie(OAUTH_STATE_COOKIE, OAUTH_STATE_COOKIE_OPTIONS);
 
     if (error || !code) {
         return res.redirect(`${FRONTEND_URL}/login?error=google_cancelled`);
+    }
+    if (!isValidOAuthState(state, expectedState)) {
+        return res.redirect(`${FRONTEND_URL}/login?error=google_state_mismatch`);
     }
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
         return res.redirect(`${FRONTEND_URL}/login?error=google_not_configured`);
