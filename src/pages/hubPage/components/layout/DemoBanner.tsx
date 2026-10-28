@@ -6,7 +6,7 @@ export default function DemoBanner() {
       <FlaskConical size={14} aria-hidden />
       <span>
         Demo workspace: a private copy of the sample documents. Edit, add, delete and chat freely;
-        changes reset after 24 hours. Admin settings are view only.
+        changes reset after 24 hours. Some actions are limited in the demo.
       </span>
     </div>
   );

@@ -23,6 +23,8 @@ import { useDocumentAttachments } from "../../hooks/useDocumentAttachments";
 type Props = {
   doc: DocumentItem | null;
   canEdit: boolean;
+  maxContentLength?: number | undefined;
+  maxAttachments?: number | undefined;
   isCreating: boolean;
   variant?: "default" | "drawer";
   onClose?: () => void;
@@ -43,6 +45,8 @@ type Props = {
 export default function DocumentPane({
   doc,
   canEdit,
+  maxContentLength,
+  maxAttachments,
   isCreating,
   variant = "default",
   onClose,
@@ -315,6 +319,8 @@ export default function DocumentPane({
         updatedAt={doc?.updatedAt}
         doc={effectiveDoc ?? undefined}
         canEdit={canEdit}
+        maxContentLength={maxContentLength}
+        maxAttachments={maxAttachments}
         isUploading={isUploading}
         deletingAttachmentId={deletingAttachmentId}
         pendingFiles={pendingFiles}
