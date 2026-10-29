@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from "vitest";
 import mongoose from "mongoose";
-import { MongoMemoryReplSet } from "mongodb-memory-server";
+import { startMongoReplSet } from "../../__tests__/mongoMemory.js";
 
 import { Chunk } from "../../models.js";
 import { syncDocumentChunks } from "../syncChunks.js";
@@ -10,7 +10,7 @@ import { syncDocumentChunks } from "../syncChunks.js";
 let replSet;
 
 beforeAll(async () => {
-  replSet = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
+  replSet = await startMongoReplSet({ count: 1, storageEngine: "wiredTiger" });
   await mongoose.connect(replSet.getUri());
   await Chunk.init();
 }, 120_000);
