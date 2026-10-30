@@ -217,23 +217,23 @@ a Render static site for the frontend and the existing web service as an API onl
 
 **Frontend static site** — defined in `render.yaml`. In Render, create a Blueprint
 from the repo; it adds only the static site and leaves the API service untouched.
-Set `VITE_API_BASE` to the API's public URL (no trailing slash) when prompted. It is
-read at build time, so changing it needs a redeploy. The Blueprint also adds the
-SPA rewrite (`/*` → `/index.html`) and the security headers helmet used to send.
+The site proxies `/api/*` to the API service, so the browser sees a single site: the
+auth cookie is first-party (it works in browsers that block third-party cookies) and
+no CORS is involved. Leave `VITE_API_BASE` unset so the SPA calls `/api` on its own
+origin. The Blueprint also adds the SPA rewrite (`/*` → `/index.html`) and the
+security headers helmet used to send. If the API's URL changes, update the proxy
+destination in `render.yaml`.
 
 **API web service** — set these environment variables:
 
 | Variable | Value |
 | --- | --- |
-| `FRONTEND_URL` | The static site's URL, e.g. `https://insight-desk-web.onrender.com`. CORS allows only this origin, and Google login redirects back to it. |
-| `APP_BASE_URL` | The API's own URL. The Google OAuth redirect URI is `${APP_BASE_URL}/api/auth/google/callback`. |
-| `AUTH_COOKIE_CROSS_SITE` | `true`. The two sites are on different domains (`onrender.com` subdomains count as separate sites), so the auth cookie must be `SameSite=None; Secure`. This also turns on an `Origin` check that refuses state-changing requests from any origin except `FRONTEND_URL`. |
+| `FRONTEND_URL` | The static site's URL, e.g. `https://insight-desk-web.onrender.com`. Google login redirects back to it. |
+| `APP_BASE_URL` | Also the static site's URL, so the Google OAuth callback (`${APP_BASE_URL}/api/auth/google/callback`) goes through the proxy and its cookies land on the site. |
+| `TRUST_PROXY_HOPS` | The number of proxies in front of the API, which grows by the static site's proxy. Verify it against the `X-Forwarded-For` chain after switching. |
 
 Optionally change the API build command to `npm ci` (no frontend build). Without
 `dist/`, the service serves only the API and unknown non-API paths return 404.
-
-Order of the switch: deploy the static site and check it works against the API
-first, then set the API variables, then point users to the new URL.
 
 ---
 
