@@ -67,9 +67,7 @@ function handleZodError(err, res) {
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-// The API's own public URL (Google redirects back here) and the URL the SPA is served from.
-// They are the same when the API serves the SPA, and also when a static site proxies /api to it.
-// In dev set FRONTEND_URL=http://localhost:5173
+// In production this is the same as the app URL. In dev set FRONTEND_URL=http://localhost:5173
 const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:8000';
 const FRONTEND_URL = process.env.FRONTEND_URL || APP_BASE_URL;
 
@@ -139,19 +137,12 @@ export function requireEditor(req, res, next) {
     });
 }
 
-// Clearing the cookie must use the same attributes it was set with, or the browser ignores it.
-function authCookieOptions() {
-    return {
+function setAuthCookie(res, token) {
+    res.cookie(COOKIE_NAME, token, {
         httpOnly: true,
         secure: ENV === 'prod' || process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-    };
-}
-
-function setAuthCookie(res, token) {
-    res.cookie(COOKIE_NAME, token, {
-        ...authCookieOptions(),
         maxAge: ACCESS_TOKEN_MINUTES * 60 * 1000,
     });
 }
@@ -314,7 +305,7 @@ router.post('/demo', demoCreationLimiter, async (req, res) => {
 });
 
 router.post('/logout', (req, res) => {
-    res.clearCookie(COOKIE_NAME, authCookieOptions());
+    res.clearCookie(COOKIE_NAME, { path: '/' });
     res.json({ ok: true });
 });
 
