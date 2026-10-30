@@ -12,6 +12,9 @@ type Props = {
   updatedAt?: string | undefined;
   doc?: DocumentItem | undefined;
   canEdit?: boolean;
+  // Read mode for a user who may edit: fields locked. Attachments can still be added and
+  // removed, since each is saved on its own and not with the form.
+  readOnly?: boolean;
   isUploading?: boolean;
   deletingAttachmentId?: string | null;
   pendingFiles?: File[];
@@ -34,6 +37,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
   updatedAt,
   doc,
   canEdit,
+  readOnly = false,
   isUploading = false,
   deletingAttachmentId = null,
   pendingFiles = [],
@@ -51,6 +55,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
     bodyRef.current?.scrollTo({ top: initialScrollTop });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const editable = !!canEdit && !readOnly;
   const existingAttachments = doc?.attachments ?? [];
   const attachLimitReached =
     maxAttachments !== undefined && existingAttachments.length + pendingFiles.length >= maxAttachments;
@@ -80,7 +85,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
         onChange={handleChange}
         placeholder="Untitled…"
         autoFocus={isCreating}
-        readOnly={!canEdit}
+        readOnly={!editable}
         aria-label="Title"
         title={form.title || undefined}
       />
@@ -95,7 +100,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
             value={form.category}
             onChange={handleChange}
             placeholder="Category…"
-            readOnly={!canEdit}
+            readOnly={!editable}
             aria-label="Category"
             maxLength={60}
           />
@@ -111,6 +116,26 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
           </span>
         )}
       </div>
+
+      {!canEdit && existingAttachments.length > 0 && (
+        <div className="notion-att-chips">
+          {existingAttachments.map((att) => {
+            const href = doc ? attachmentHref(doc.id, att) : null;
+            return (
+              <span key={att._id} className="notion-att-chip">
+                <Paperclip size={11} aria-hidden />
+                {href ? (
+                  <a href={href} target="_blank" rel="noopener noreferrer" className="notion-att-chip-name" title={`Open ${att.fileName}`}>
+                    {att.fileName}
+                  </a>
+                ) : (
+                  <span className="notion-att-chip-name">{att.fileName}</span>
+                )}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {canEdit && (
         <div className="notion-att-chips">
@@ -177,7 +202,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
         onChange={handleChange}
         placeholder="Start writing…"
         rows={8}
-        readOnly={!canEdit}
+        readOnly={!editable}
         maxLength={maxContentLength}
         aria-label="Content"
       />

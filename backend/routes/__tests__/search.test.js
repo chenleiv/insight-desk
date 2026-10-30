@@ -4,7 +4,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { startMongoServer } from "../../__tests__/mongoMemory.js";
 
 // A fixed query vector, so the test does not load the real model.
 vi.mock("../../rag/embed.js", () => ({ embed: vi.fn(async () => [1, 0, 0]) }));
@@ -20,7 +20,7 @@ let demoOne;
 let demoTwo;
 
 beforeAll(async () => {
-  mongo = await MongoMemoryServer.create();
+  mongo = await startMongoServer();
   await mongoose.connect(mongo.getUri());
 
   const future = new Date(Date.now() + 60 * 60 * 1000);

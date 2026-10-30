@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import mongoose from "mongoose";
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { startMongoServer } from "../../__tests__/mongoMemory.js";
 
 // Fixed query vectors, so the test does not load the real model.
 const { QUERY_VECTORS } = vi.hoisted(() => ({
@@ -21,7 +21,7 @@ let demoTwo;
 let viewer;
 
 beforeAll(async () => {
-  mongo = await MongoMemoryServer.create();
+  mongo = await startMongoServer();
   await mongoose.connect(mongo.getUri());
 
   const future = new Date(Date.now() + 60 * 60 * 1000);

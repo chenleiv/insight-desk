@@ -6,8 +6,21 @@ import {
   X,
   FileUp,
   Download,
+  Pencil,
 } from "lucide-react";
 import { getCategoryChipStyle } from "../../utils/docs";
+import type { SaveStatus } from "../../hooks/useDocumentSave";
+
+// "unsaved": edits not saved yet.
+type HeaderSaveStatus = SaveStatus | "unsaved";
+
+// Shown in place of the Edit button while editing.
+type EditActions = {
+  onSave: () => void;
+  onCancel: () => void;
+  canSave: boolean;
+  isSaving: boolean;
+};
 
 type Props = {
   title: string;
@@ -20,7 +33,9 @@ type Props = {
   isMaximized?: boolean;
   onToggleMaximize?: () => void;
   onMinimize?: () => void;
-  saveStatus?: "idle" | "saving" | "saved" | "error" | undefined;
+  saveStatus?: HeaderSaveStatus | undefined;
+  onEdit?: () => void;
+  editActions?: EditActions;
   onImportClick?: () => void;
   onExport?: () => void;
 };
@@ -46,11 +61,42 @@ function CloseBtn({ size = 16, className = "", onClick }: { size?: number; class
   );
 }
 
-function SaveStatusChip({ status }: { status?: "idle" | "saving" | "saved" | "error" | undefined }) {
-  if (!status || status === "idle") return null;
-  const label = status === "saving" ? "Saving…" : status === "saved" ? "Saved" : "Error";
+const SAVE_STATUS_LABELS: Record<HeaderSaveStatus, string> = {
+  idle: "",
+  unsaved: "Unsaved changes",
+  saving: "Saving…",
+  saved: "Saved",
+  error: "Save failed",
+};
+
+// Always rendered, so screen readers announce each change of the live region.
+function SaveStatusChip({ status }: { status?: HeaderSaveStatus | undefined }) {
+  if (!status) return null;
   const className = `doc-pane-save-status doc-pane-save-status--${status}`;
-  return <span className={className}>{label}</span>;
+  return <span className={className} role="status" aria-live="polite">{SAVE_STATUS_LABELS[status]}</span>;
+}
+
+function EditBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="doc-pane-mode-btn doc-pane-edit-btn" onClick={onClick} title="Edit document">
+      <Pencil size={14} aria-hidden />
+      Edit
+    </button>
+  );
+}
+
+function SaveCancelBtns({ onSave, onCancel, canSave, isSaving }: EditActions) {
+  return (
+    <>
+      <button type="button" className="doc-pane-mode-btn doc-pane-cancel-edit-btn" onClick={onCancel} disabled={isSaving}>
+        Cancel
+      </button>
+      <button type="button" className="doc-pane-mode-btn doc-pane-mode-btn--primary doc-pane-save-edit-btn"
+        onClick={onSave} disabled={!canSave || isSaving}>
+        Save
+      </button>
+    </>
+  );
 }
 
 function MinimizeBtn({ onClick }: { onClick: () => void }) {
@@ -77,24 +123,33 @@ export function DocumentHeader({
   onToggleMaximize,
   onMinimize,
   saveStatus,
+  onEdit,
+  editActions,
   onImportClick,
   onExport,
 }: Props) {
   const isDrawer = variant === "drawer";
+  // Export would take unsaved text and delete would drop the edit, so both wait for Save or Cancel.
+  const isEditing = !!editActions;
+  const editingHint = "Save or cancel your changes first";
 
   // ── Default variant: delete btn + window controls ──
   const defaultActions = (
     <>
       <SaveStatusChip status={saveStatus} />
+      {editActions && !isCreating && <SaveCancelBtns {...editActions} />}
+      {onEdit && !isCreating && <EditBtn onClick={onEdit} />}
       {onExport && !isCreating && (
         <button type="button" className="icon-btn doc-pane-header-tool-btn"
-          onClick={onExport} data-tooltip="Export as Markdown" data-tooltip-pos="bottom" aria-label="Export document">
+          onClick={onExport} disabled={isEditing}
+          data-tooltip={isEditing ? editingHint : "Export as Markdown"} data-tooltip-pos="bottom" aria-label="Export document">
           <Download size={16} />
         </button>
       )}
       {onDelete && !isCreating && (
         <button type="button" className="icon-btn doc-pane-delete-btn"
-          onClick={onDelete} data-tooltip="Delete" data-tooltip-pos="bottom" aria-label="Delete">
+          onClick={onDelete} disabled={isEditing}
+          data-tooltip={isEditing ? editingHint : "Delete"} data-tooltip-pos="bottom" aria-label="Delete">
           <Trash2 size={16} />
         </button>
       )}

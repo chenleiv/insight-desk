@@ -40,6 +40,26 @@
       "Read(**/.env.*)",
       "Edit(**/.env)",
       "Edit(**/.env.*)"
-    ]
+    ],
+    "blockReadsOutsideWorkingDirectories": true
+  },
+  "sandbox": {
+    "enabled": true,
+    "filesystem": {
+      "denyRead": [
+        "./backend/.env",
+        "./.env",
+        "~/.ssh",
+        "~/.aws",
+        "~/.kube",
+        "~/.npmrc"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "registry.npmjs.org"
+      ],
+      "allowLocalBinding": true
+    }
   }
 }

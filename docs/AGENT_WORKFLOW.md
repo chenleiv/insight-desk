@@ -12,7 +12,15 @@ How I work with Claude Code on this repo: the agent builds, I approve and review
 
 - **What can go wrong:** a secret from an env file ends up in the chat, which means it reaches the model provider and the local transcript, or it ends up in a log or a commit. The agent can cause this by reading the file, and a person can cause it by pasting the file into the chat.
 - **What prevents it:** env files are in `.gitignore` and have never been committed; `settings.json` hard-denies the agent's `Read` tool on them; `CLAUDE.md` forbids reading them or asking for their contents.
-- **What is still open:** the deny rule does not cover `Bash`, so `cat backend/.env` is stopped only by the soft rule in `CLAUDE.md`. To limit the damage of any leak, development and production use different secrets.
+- **What is still open:** the deny rules cover the `Read` and `Edit` tools. `Bash` reads of the env files (for example `cat backend/.env`) are now blocked by the sandbox, which I verified in practice. That protection depends on the sandbox being enabled; with it off, only the soft rule in `CLAUDE.md` stops them. To limit the damage of any leak, development and production use different secrets.
+
+## Sandbox
+
+I run Claude Code with its sandbox enabled. It denies reads of `.env` files and home credential folders (`~/.ssh`, `~/.aws`, `~/.kube`, `~/.npmrc`), blocks reads outside the project, and limits network access to `registry.npmjs.org`.
+
+Making the tests pass inside it took two fixes: the in-memory MongoDB binary now lives in the project (`tools/mongodb`, git-ignored) instead of the home cache, and `mongod` starts with `--nounixsocket` because the sandbox blocks its default socket in `/tmp`. If the binary is missing, the tests fall back to the library default.
+
+I enable it because the agent works on a project with real secrets and reads untrusted content (documents, URLs). The `.env` deny rules stay in place in any case.
 
 ## The loop
 
@@ -54,5 +62,5 @@ router.get('/health', (req, res) => {
 ## Reflection
 
 - **What I learned:** a soft rule in CLAUDE.md is not enough on its own; a hard deny rule in settings.json, plus a plan-then-approve loop, is what keeps the agent scoped and away from secrets.
-- **What is still unclear:** how to close the Bash gap (`cat backend/.env`) without blocking the commands the agent legitimately needs.
+- **What is still unclear:** the Bash gap (`cat backend/.env`) is now partly closed: the sandbox blocks these reads while test, lint, and build still run inside it. It stays open whenever the sandbox is disabled, or when a single command is approved to run outside it.
 - **Next step:** fix the 4 existing lint errors in `TourOverlay.tsx` as a separate task, so "done" can mean a clean lint.
