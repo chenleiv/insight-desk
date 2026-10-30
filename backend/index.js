@@ -3,7 +3,6 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cookieParser from 'cookie-parser';
 import path from 'path';
-import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,12 +22,8 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 const distPath = path.resolve(__dirname, '../dist');
 
-// The SPA is served from here only when it was built into dist/. When the frontend is
-// deployed as its own static site, the API service skips the build and serves only the API.
-const serveFrontend = existsSync(path.join(distPath, 'index.html'));
-
 // Static file serving
-if (serveFrontend) app.use(express.static(distPath, {
+app.use(express.static(distPath, {
     setHeaders: (res, filePath) => {
         if (filePath.includes('/assets/')) {
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
@@ -87,7 +82,7 @@ app.get('/robots.txt', (req, res) => {
 app.use('/api', apiNotFound);
 
 // SPA fallback
-if (serveFrontend) app.get('*', (req, res) => {
+app.get('*', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'), (err) => {
         if (err) {
             logger.error('Error sending index.html', { message: err.message });
