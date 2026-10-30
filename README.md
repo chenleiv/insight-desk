@@ -18,7 +18,7 @@ An AI-powered document workspace for teams. Upload PDF, DOCX, and Excel files �
 ### 🤖 AI Assistant ("Brainy")
 - **Contextual chat** — select documents to inject as context for the AI
 - **Attachment-aware** — AI can read the extracted text from attached PDF/DOCX/Excel files
-- **Groq-powered** — uses `llama-3.1-8b-instant` via the Groq SDK for fast inference
+- **Groq-powered** — uses `openai/gpt-oss-20b` via the Groq SDK for fast inference
 - **Customizable system prompt** — admins can configure the AI's behavior from the Settings view
 - **Example questions** — admins can set suggested prompts shown to users
 
@@ -57,7 +57,7 @@ An AI-powered document workspace for teams. Upload PDF, DOCX, and Excel files �
 |------|---------|------|
 | **Node.js + Express** | — | API server |
 | **MongoDB + Mongoose** | 9.x | Data persistence |
-| **Groq SDK** | — | AI inference (`llama-3.1-8b-instant`) |
+| **Groq SDK** | — | AI inference (`openai/gpt-oss-20b`) |
 | **MongoDB GridFS** | — | File storage for attachments |
 | **multer** | — | File upload handling |
 | **pdf-parse** | — | PDF text extraction |
@@ -94,31 +94,45 @@ ai-workspace/
 │   │       ├── HubPage.tsx         # Root layout + panel resize logic
 │   │       ├── components/
 │   │       │   ├── documents/      # DocPanel, DocumentPane, DocumentEdit, DocumentHeader
-│   │       │   ├── views/          # AIAssistantView, DashboardView, SettingsView
-│   │       │   ├── dialogs/        # ImportPreviewDialog, EmptyPane
-│   │       │   └── layout/         # TopBar, MobileDrawer, TypewriterText
+│   │       │   ├── views/          # AIAssistantView, DashboardView, QualityView, SettingsView
+│   │       │   ├── dialogs/        # ImportPreviewDialog, EmptyPane, TourOverlay, WelcomeModal
+│   │       │   └── layout/         # TopBar, MobileDrawer, DemoBanner, TypewriterText
 │   │       ├── hooks/              # useDocumentAttachments, useDocumentAutosave,
-│   │       │                       # useDocumentOrdering, useImportExport
+│   │       │                       # useDocumentOrdering, useImportExport,
+│   │       │                       # useQualitySummary, useUnsavedChangesGuard
 │   │       └── utils/              # documentForm, ordering, parseImportFile,
-│   │                               # assistantUtils, categoryColorStore
-│   └── styles/                     # globals.scss, theme.scss, layout.scss
+│   │                               # assistantUtils, attachmentLink, categoryColorStore,
+│   │                               # docs, hubView
+│   ├── styles/                     # globals.scss, theme.scss, layout.scss
+│   └── utils/                      # initials, relativeTime, storage
 │
 ├── backend/                        # Backend (Node.js + Express)
 │   ├── index.js                    # Server entry — Express setup, MongoDB connect
-│   ├── auth.js                     # JWT middleware, login/logout routes, user seeding
-│   ├── ai.js                       # Groq chat, system prompt CRUD, suggestions
-│   ├── models.js                   # Mongoose models: User, Document, AIConfig
+│   ├── auth.js                     # JWT middleware, login, Google OAuth, demo sign-in, user seeding
+│   ├── access.js                   # Who may see and change which documents
+│   ├── demo.js                     # Private demo workspaces and their cleanup
+│   ├── ai.js                       # Groq chat, feedback, quality summary, system prompt, suggestions
+│   ├── models.js                   # Mongoose models: User, Document, AIConfig, Chunk, RetrievalLog
 │   ├── schemas.js                  # Zod validation schemas
 │   ├── prompts.js                  # Default system prompt + metadata
 │   ├── textExtract.js              # PDF / DOCX / Excel text extraction
 │   ├── logger.js                   # Structured logger
 │   ├── loadEnv.js                  # .env loader
+│   ├── demo/                       # Demo sample documents and precomputed embeddings
 │   ├── middleware/
-│   │   └── setup.js                # helmet, CORS, rate limiting, compression
-│   └── routes/
-│       ├── documents.js            # CRUD + attachment upload/delete
-│       └── users.js                # Admin user management
+│   │   ├── setup.js                # helmet, CORS, rate limiting, compression
+│   │   └── errorHandler.js         # Central error handler
+│   ├── rag/                        # Retrieval: chunking, embeddings, chunk sync,
+│   │                               # semantic search, retrieval logs and stats
+│   ├── routes/
+│   │   ├── documents.js            # CRUD, attachments, import/export, text extraction
+│   │   ├── users.js                # Admin user management
+│   │   ├── search.js               # Semantic search over readable documents
+│   │   └── health.js               # Health check
+│   └── scripts/                    # reindex, embed:demo, eval:prod, one-off migrations
 │
+├── eval/                           # Retrieval eval (npm run eval) and its results
+├── docs/                           # EVAL.md, AGENT_WORKFLOW.md
 ├── Procfile                        # Heroku-style start command
 └── .claude/                        # Claude Code project configuration
     ├── CLAUDE.md                   # Project context for Claude
@@ -145,7 +159,6 @@ ai-workspace/
 1. **Install dependencies**
    ```bash
    npm install
-   cd backend && npm install
    ```
 
 2. **Configure environment** — create `backend/.env`:
@@ -201,24 +214,42 @@ Render service shell, or locally with the production connection string set:
 
 ## 🔑 API Routes
 
+"Editor" means an admin, or a demo visitor inside their own demo workspace.
+
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `POST` | `/api/auth/login` | — | Login, returns JWT cookie |
-| `POST` | `/api/auth/logout` | ✓ | Clear session |
-| `GET` | `/api/documents` | ✓ | List all documents |
-| `POST` | `/api/documents` | admin | Create document |
-| `PATCH` | `/api/documents/:id` | admin | Update document |
-| `DELETE` | `/api/documents/:id` | admin | Delete document |
-| `POST` | `/api/documents/:id/attachments` | admin | Upload file attachment |
-| `DELETE` | `/api/documents/:id/attachments/:attId` | admin | Remove attachment |
+| `POST` | `/api/auth/register` | — | Create an account |
+| `POST` | `/api/auth/demo` | — | Start a private demo workspace |
+| `GET` | `/api/auth/google` | — | Start Google sign-in (503 if not configured) |
+| `GET` | `/api/auth/google/callback` | — | Google sign-in callback |
+| `POST` | `/api/auth/logout` | — | Clear session |
+| `GET` | `/api/auth/me` | ✓ | Current user |
+| `PATCH` | `/api/auth/profile` | ✓ | Update display name and job title |
+| `PATCH` | `/api/auth/password` | ✓ | Change password |
+| `GET` | `/api/documents` | ✓ | List readable documents |
+| `GET` | `/api/documents/:id` | ✓ | Get one document |
+| `POST` | `/api/documents` | editor | Create document |
+| `PUT` | `/api/documents/:id` | editor | Update document |
+| `DELETE` | `/api/documents/:id` | editor | Delete document |
+| `POST` | `/api/documents/:id/toggle-favorite` | ✓ | Add or remove a favorite |
+| `GET` | `/api/documents/export` | editor | Export documents as JSON |
+| `POST` | `/api/documents/import-bulk` | editor | Import documents (append or replace) |
+| `POST` | `/api/documents/extract-text` | editor | Extract text from an uploaded file |
+| `POST` | `/api/documents/:id/attachments` | editor | Upload file attachment |
+| `GET` | `/api/documents/:id/attachments/:attId/file` | ✓ | Download attachment |
+| `DELETE` | `/api/documents/:id/attachments/:attId` | editor | Remove attachment |
+| `GET` | `/api/search` | ✓ | Semantic search over readable documents |
 | `POST` | `/api/ai/chat` | ✓ | AI chat with document context |
+| `POST` | `/api/ai/feedback` | ✓ | Rate a chat answer |
+| `GET` | `/api/ai/quality` | admin, demo | Answer-quality summary |
 | `GET` | `/api/ai/prompt` | ✓ | Get current system prompt |
 | `PATCH` | `/api/ai/prompt` | admin | Update system prompt |
 | `GET` | `/api/ai/suggestions` | ✓ | Get example questions |
 | `PATCH` | `/api/ai/suggestions` | admin | Update example questions |
-| `GET` | `/api/users` | admin | List users |
-| `POST` | `/api/users` | admin | Create user |
+| `GET` | `/api/users` | admin | List users (demo visitors get sample users) |
 | `PATCH` | `/api/users/:id` | admin | Update user |
+| `DELETE` | `/api/users/:id` | admin | Delete user |
 | `GET` | `/health` | — | Health check |
 
 ---
@@ -243,7 +274,7 @@ A build + test hook runs automatically after each Claude session.
 
 - [x] React 19 + React Compiler
 - [x] TanStack Query v5 for server state
-- [x] Groq AI integration (llama-3.1-8b-instant)
+- [x] Groq AI integration (openai/gpt-oss-20b)
 - [x] File attachments with PDF/DOCX/Excel text extraction
 - [x] Role-based access control (admin / viewer)
 - [x] Resizable sidebar with auto-collapse
@@ -251,5 +282,6 @@ A build + test hook runs automatically after each Claude session.
 - [x] Customizable AI system prompt + example questions
 - [x] Vitest unit tests
 - [x] React Compiler lint compliance (`react-hooks/set-state-in-effect`, `react-hooks/refs`)
-- [ ] Vector embeddings & semantic search (RAG)
+- [x] Vector embeddings & semantic search (RAG)
+- [x] Retrieval eval and answer-quality dashboard
 - [ ] Real-time collaboration

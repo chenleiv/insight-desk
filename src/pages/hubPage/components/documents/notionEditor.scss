@@ -403,6 +403,15 @@
         text-overflow: ellipsis;
         white-space: nowrap;
         max-width: 140px;
+
+        &:is(a) {
+            color: inherit;
+            text-decoration: none;
+
+            &:hover {
+                text-decoration: underline;
+            }
+        }
     }
 
     .notion-att-chip-badge {

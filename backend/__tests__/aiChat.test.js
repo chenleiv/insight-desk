@@ -4,7 +4,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { startMongoServer } from "./mongoMemory.js";
 
 process.env.GROQ_API_KEY = "test-key";
 
@@ -33,7 +33,7 @@ let viewer;
 let demoOneDoc;
 
 beforeAll(async () => {
-  mongo = await MongoMemoryServer.create();
+  mongo = await startMongoServer();
   await mongoose.connect(mongo.getUri());
 
   const future = new Date(Date.now() + 60 * 60 * 1000);

@@ -39,3 +39,6 @@ backend/storage/documents.json
 
 # Dev artifacts
 design-preview.html
+
+# Local mongod binary for mongodb-memory-server
+tools/mongodb/

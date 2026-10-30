@@ -17,7 +17,7 @@ import { toInput, emptyInput, isSameInput, isInputValid } from "../../utils/docu
 import { DocumentDetailSkeleton } from "../../../../components/skeleton/Skeleton";
 import { Loader } from "../../../../components/loader/Loader";
 import { Maximize2, Save, Paperclip } from "lucide-react";
-import { useDocumentAutosave } from "../../hooks/useDocumentAutosave";
+import { useDocumentSave } from "../../hooks/useDocumentSave";
 import { useDocumentAttachments } from "../../hooks/useDocumentAttachments";
 
 type Props = {
@@ -72,7 +72,7 @@ export default function DocumentPane({
     isCreating && !localStorage.getItem("insight-desk:new-doc-toured")
   );
   const editRef = useRef<DocumentEditHandle>(null);
-  const cancelRef = useRef<() => Promise<void>>(async () => {});
+  const escapeRef = useRef<(e: KeyboardEvent) => void>(() => {});
   const importFileRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<DocumentInput>(() => {
@@ -87,10 +87,14 @@ export default function DocumentPane({
     return emptyInput();
   }, [isCreating, doc]);
 
+  // An existing document always opens read-only; Edit switches to edit mode.
+  const [isEditing, setIsEditing] = useState(false);
+
   // Reset form when navigating to a different document (avoids setState in useEffect)
   const [prevDocId, setPrevDocId] = useState(doc?.id);
   if (doc?.id !== prevDocId) {
     setPrevDocId(doc?.id);
+    setIsEditing(false);
     if (!isCreating && doc) setForm(toInput(doc));
   }
 
@@ -107,12 +111,9 @@ export default function DocumentPane({
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isDirty]);
 
-  const { saveStatus, setSaveStatus } = useDocumentAutosave({
+  const { saveStatus, setSaveStatus, save } = useDocumentSave({
     doc,
-    isCreating,
     form,
-    isDirty,
-    isValid,
     onSaved,
     onFormSync: setForm,
   });
@@ -210,6 +211,7 @@ export default function DocumentPane({
     }
     if (isCreating) { onCancelCreate(); return; }
     setForm(baseline);
+    setIsEditing(false);
     onMinimize?.();
   };
 
@@ -226,9 +228,26 @@ export default function DocumentPane({
     }
     if (isCreating) { onCancelCreate(); return; }
     setForm(baseline);
+    setIsEditing(false);
   };
 
-  useLayoutEffect(() => { cancelRef.current = handleCancel; });
+  // Back to read mode only when the save holds everything, so text typed meanwhile stays editable.
+  async function handleSave() {
+    if (await save()) setIsEditing(false);
+  }
+
+  // Escape cancels editing without also closing the pane; in read mode it is left to
+  // the hub, which closes the pane.
+  useLayoutEffect(() => {
+    escapeRef.current = (e) => {
+      if (!isCreating) {
+        if (!isEditing) return;
+        e.stopImmediatePropagation();
+        if (saveStatus === "saving") return;
+      }
+      void handleCancel();
+    };
+  });
 
   function handleExport() {
     if (!doc) return;
@@ -244,9 +263,10 @@ export default function DocumentPane({
 
   useEffect(() => {
     if (!canEdit) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") void cancelRef.current(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Capture phase, so it runs before the hub's own Escape handler on window.
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") escapeRef.current(e); };
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, [canEdit]);
 
   if (isMinimized) {
@@ -278,6 +298,11 @@ export default function DocumentPane({
   }
 
   const isDrawer = variant === "drawer";
+  const isSaving = saveStatus === "saving" && !isCreating;
+  const headerStatus =
+    saveStatus === "saving" || saveStatus === "error" ? saveStatus
+    : isEditing && isDirty ? "unsaved"
+    : saveStatus;
 
   return (
     <>
@@ -291,7 +316,16 @@ export default function DocumentPane({
         isCreating={isCreating}
         variant={variant}
         onCancel={handleCancel}
-        saveStatus={isCreating ? undefined : saveStatus}
+        saveStatus={isCreating ? undefined : headerStatus}
+        {...(canEdit && !isCreating && doc && !isEditing && { onEdit: () => setIsEditing(true) })}
+        {...(canEdit && !isCreating && doc && isEditing && {
+          editActions: {
+            onSave: () => void handleSave(),
+            onCancel: () => void handleCancel(),
+            canSave: isDirty && isValid,
+            isSaving,
+          },
+        })}
         {...(isCreating && { onImportClick: () => importFileRef.current?.click() })}
         {...(!isCreating && doc && { onExport: handleExport })}
         {...(onClose ? { onClose } : {})}
@@ -319,6 +353,7 @@ export default function DocumentPane({
         updatedAt={doc?.updatedAt}
         doc={effectiveDoc ?? undefined}
         canEdit={canEdit}
+        readOnly={!isCreating && !isEditing}
         maxContentLength={maxContentLength}
         maxAttachments={maxAttachments}
         isUploading={isUploading}

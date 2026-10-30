@@ -26,10 +26,11 @@ export const HUB_TOUR_STEPS: TourStep[] = [
 
 export const DOC_TOUR_STEPS: TourStep[] = [
   {
-    selector: ".notion-content-input",
-    title: "✏️ Auto-saved",
-    description: "Everything you write here is saved automatically.",
-    placement: "left",
+    selector: ".doc-pane-edit-btn",
+    title: "✏️ Edit",
+    description:
+      "Documents open read-only. Click Edit to make changes, then Save or Cancel.",
+    placement: "bottom",
   },
   {
     selector: ".notion-att-chips",
