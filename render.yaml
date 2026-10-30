@@ -1,0 +1,49 @@
+# Render Blueprint for the frontend static site.
+#
+# Only the static site is defined here. The existing API web service is managed in the
+# Render dashboard and is intentionally left out, so applying this Blueprint never
+# changes it. See "Deployment" in README.md for the API-side settings.
+services:
+  - type: web
+    runtime: static
+    name: insight-desk-web
+    branch: main
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: false
+    envVars:
+      # Public URL of the API service, no trailing slash. Read by Vite at build time,
+      # so changing it requires a new deploy.
+      - key: VITE_API_BASE
+        sync: false
+      - key: NODE_VERSION
+        value: "22"
+      # The frontend build does not need the MongoDB test binary.
+      - key: MONGOMS_DISABLE_POSTINSTALL
+        value: "1"
+    # Client-side routing: any path that is not a built file serves the SPA.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    # The same security headers helmet set when the API served the SPA.
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; base-uri 'self'; font-src 'self' https: data:; form-action 'self'; frame-ancestors 'self'; img-src 'self' data: https://*; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self' https: 'unsafe-inline'; connect-src 'self' https://*; upgrade-insecure-requests"
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains
+      # Vite fingerprints everything under /assets, so it can be cached forever.
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
