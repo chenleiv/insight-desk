@@ -51,6 +51,8 @@ Never:
 - Never read `backend/.env` and never ask for its contents.
 - Write all code, comments, and repo content in English.
 - Never edit a test just to make it pass. If a test fails, alert me first, then propose a fix and wait for my approval before changing anything.
+- Run commands inside the sandbox. Before running any command outside the sandbox (for example with the sandbox disabled), tell me what the command is and why it is needed, and wait for my approval, even if it is read-only.
+- Do not raise a test timeout to make a flaky test pass; find the cause first. If the cause cannot be found, report it instead of guessing.
 
 ---
 
