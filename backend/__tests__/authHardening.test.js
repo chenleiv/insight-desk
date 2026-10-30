@@ -108,3 +108,20 @@ describe("inactive users", () => {
     expect((await login("former@example.com", "wrong-password")).status).toBe(401);
   });
 });
+
+describe("login validation errors", () => {
+  it("returns the validation messages to the client without echoing the input", async () => {
+    const res = await login("SECR-EMAIL", "SECR");
+    const body = await res.text();
+
+    expect(res.status).toBe(400);
+    expect(JSON.parse(body)).toEqual({
+      detail: "Validation failed",
+      errors: [
+        { path: ["email"], message: "Invalid email format" },
+        { path: ["password"], message: "Password must be at least 6 characters" },
+      ],
+    });
+    expect(body).not.toContain("SECR");
+  });
+});

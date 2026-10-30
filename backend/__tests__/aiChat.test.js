@@ -118,6 +118,18 @@ describe("POST /api/ai/chat", () => {
     expect(groqCreate).not.toHaveBeenCalled();
   });
 
+  it("returns the validation message to the client without echoing the message", async () => {
+    const res = await chatAs(demoOne, { message: "SECRET-INPUT ".repeat(200) });
+    const body = await res.text();
+
+    expect(res.status).toBe(400);
+    expect(JSON.parse(body)).toEqual({
+      detail: "Validation failed",
+      errors: [{ path: ["message"], message: expect.stringMatching(/2000/) }],
+    });
+    expect(body).not.toContain("SECRET-INPUT");
+  });
+
   it("accepts a message of exactly 2000 characters", async () => {
     const res = await chatAs(demoOne, { message: "a".repeat(2000) });
 
@@ -301,6 +313,18 @@ describe("POST /api/ai/feedback", () => {
 
     await feedbackAs(demoOne, { answerId, rating: "down" });
     expect(await feedbackOf(answerId)).toBe("down");
+  });
+
+  it("returns the validation message to the client without echoing the answer id", async () => {
+    const res = await feedbackAs(demoOne, { answerId: "SECRET-INPUT", rating: "up" });
+    const body = await res.text();
+
+    expect(res.status).toBe(400);
+    expect(JSON.parse(body)).toEqual({
+      detail: "Validation failed",
+      errors: [{ path: ["answerId"], message: "Invalid answer id" }],
+    });
+    expect(body).not.toContain("SECRET-INPUT");
   });
 
   it("does not let a user rate another user's answer", async () => {

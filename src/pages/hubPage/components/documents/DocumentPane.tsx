@@ -365,7 +365,6 @@ export default function DocumentPane({
         onDeleteAttachment={isCreating
           ? (name) => setPendingFiles((prev) => prev.filter((f) => f.name !== name))
           : handleDeleteAttachment}
-        {...(canEdit && { onUseAttachmentText: (text: string) => setForm((prev) => ({ ...prev, content: text })) })}
         initialScrollTop={0}
       />
 

@@ -54,7 +54,8 @@ vi.mock("mongodb", () => ({
   },
 }));
 
-import documentsRouter from "../documents.js";
+import documentsRouter, { MAX_UPLOAD_BYTES } from "../documents.js";
+import { jsonBody } from "../../middleware/setup.js";
 
 const BODY = { title: "Policy", category: "HR", content: "Policy text." };
 
@@ -133,6 +134,19 @@ describe("document routes keep chunks in sync", () => {
     expect(doc.save).toHaveBeenCalled();
     expect(sync).toHaveBeenCalledWith(doc, undefined, { embed, reuseEmbeddings: true });
     expect(sync.mock.calls[0][0].attachments[0].extractedText).toBe("Attachment text.");
+  });
+
+  it("rejects an attachment over the upload limit with a 413 that names the limit", async () => {
+    const doc = fakeDoc();
+    Document.findById.mockResolvedValue(doc);
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(MAX_UPLOAD_BYTES + 1)], { type: "text/plain" }), "big.txt");
+
+    const res = await fetch(`${baseUrl}/doc-1/attachments`, { method: "POST", body: form });
+
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ detail: "File is too large. The maximum size is 10MB." });
+    expect(doc.save).not.toHaveBeenCalled();
   });
 
   it("attachment delete rebuilds chunks without the removed attachment", async () => {
@@ -256,5 +270,37 @@ describe("document routes keep chunks in sync", () => {
 
     expect(res.status).toBe(200);
     expect(scheduleRetry).not.toHaveBeenCalled();
+  });
+});
+
+describe("document validation errors", () => {
+  // The shared app uses express.json()'s 100kb default, which would reject this
+  // body with 413 before the route; the real server parses up to JSON_BODY_LIMIT.
+  let realLimitServer;
+  let realLimitUrl;
+
+  beforeAll(async () => {
+    const app = express();
+    app.use(jsonBody());
+    app.use("/api/documents", documentsRouter);
+    await new Promise((resolve) => {
+      realLimitServer = app.listen(0, resolve);
+    });
+    realLimitUrl = `http://127.0.0.1:${realLimitServer.address().port}/api/documents`;
+  });
+
+  afterAll(() => new Promise((resolve) => realLimitServer.close(resolve)));
+
+  it("returns the schema message to the client when content is over the limit", async () => {
+    const res = await fetch(realLimitUrl, json("POST", { ...BODY, content: "x".repeat(500001) }));
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      detail: "Validation failed",
+      errors: [
+        expect.objectContaining({ path: ["content"], message: "Content must be at most 500,000 characters" }),
+      ],
+    });
+    expect(Document.create).not.toHaveBeenCalled();
   });
 });

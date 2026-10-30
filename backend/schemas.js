@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+// Sends a 400 with each issue's path and message only. Zod 4 keeps the list on
+// `issues`, and other issue fields (such as the input, when reported) never reach the client.
+export function sendValidationError(res, zodError) {
+  res.status(400).json({
+    detail: 'Validation failed',
+    errors: zodError.issues.map(({ path, message }) => ({ path, message })),
+  });
+}
+
 // Auth Schemas
 export const loginSchema = z.object({
   email: z.string().email('Invalid email format'),
@@ -16,7 +25,7 @@ export const registerSchema = z.object({
 export const documentSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   category: z.string().min(1, 'Category is required').max(100),
-  content: z.string().min(1, 'Content is required').max(500000),
+  content: z.string().min(1, 'Content is required').max(500000, 'Content must be at most 500,000 characters'),
 });
 
 // AI Schemas

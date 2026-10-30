@@ -2,7 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { logger } from '../logger.js';
 import { getCurrentUser } from '../auth.js';
-import { searchQuerySchema } from '../schemas.js';
+import { searchQuerySchema, sendValidationError } from '../schemas.js';
 import { search } from '../rag/search.js';
 
 const router = Router();
@@ -19,7 +19,7 @@ const searchLimiter = rateLimit({
 router.get('/api/search', getCurrentUser, searchLimiter, async (req, res) => {
     const parsed = searchQuerySchema.safeParse(req.query);
     if (!parsed.success) {
-        return res.status(400).json({ detail: 'Validation failed', errors: parsed.error.issues });
+        return sendValidationError(res, parsed.error);
     }
 
     try {

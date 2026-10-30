@@ -103,7 +103,6 @@ function type(value: string) {
 
 const saveBtn = () => document.querySelector<HTMLButtonElement>(".doc-pane-save-edit-btn");
 const cancelBtn = () => document.querySelector<HTMLButtonElement>(".doc-pane-cancel-edit-btn");
-const useTextBtn = () => document.querySelector('.notion-att-chips button[title="Use text as content"]');
 
 async function click(button: HTMLButtonElement | null) {
   await act(async () => button!.click());
@@ -192,13 +191,6 @@ describe("DocumentPane read and edit modes", () => {
     expect(open.getAttribute("href")).toContain("/api/documents/a/attachments/att-1/file");
     expect(document.querySelector('.notion-att-chips button[title="Remove"]')).not.toBeNull();
     expect(document.querySelector(".notion-att-chip--add")).not.toBeNull();
-  });
-
-  it("offers an attachment's text as content only in edit mode", async () => {
-    render(<Harness initial={DOC_A} />);
-    expect(useTextBtn()).toBeNull();
-    await click(editBtn());
-    expect(useTextBtn()).not.toBeNull();
   });
 
   it("uploads a file in read mode without switching to edit mode", async () => {

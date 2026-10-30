@@ -8,7 +8,7 @@ import { Document } from '../models.js';
 import { extractTextFromBuffer } from '../textExtract.js';
 import { getCurrentUser, requireEditor } from '../auth.js';
 import { canAccessDocument, documentScope, isDemoUser, DEMO_LIMITS } from '../access.js';
-import { documentSchema, importBulkSchema } from '../schemas.js';
+import { documentSchema, importBulkSchema, sendValidationError } from '../schemas.js';
 import { syncDocumentChunks, deleteDocumentChunks } from '../rag/syncChunks.js';
 import { embed } from '../rag/embed.js';
 import { scheduleEmbeddingRetry } from '../rag/embedMissing.js';
@@ -22,8 +22,10 @@ const DEMO_CONTENT_LIMIT_MESSAGE =
 function handleMulterUpload(req, res, next) {
     upload.single('file')(req, res, (err) => {
         if (err) {
-            const status = err.status || (err.code === 'LIMIT_FILE_SIZE' ? 413 : 400);
-            return res.status(status).json({ detail: err.message });
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(413).json({ detail: FILE_TOO_LARGE_MESSAGE });
+            }
+            return res.status(err.status || 400).json({ detail: err.message });
         }
         next();
     });
@@ -31,7 +33,7 @@ function handleMulterUpload(req, res, next) {
 
 function handleZodError(err, res) {
     if (err.name === 'ZodError') {
-        res.status(400).json({ detail: 'Validation failed', errors: err.errors });
+        sendValidationError(res, err);
         return true;
     }
     return false;
@@ -81,9 +83,14 @@ const ALLOWED_ATTACHMENT_MIMES = new Set([
     'text/rtf',
 ]);
 
+// The largest file multer accepts. A bigger one is rejected with 413 and a message naming the limit.
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const FILE_TOO_LARGE_MESSAGE =
+    `File is too large. The maximum size is ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB.`;
+
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 },
+    limits: { fileSize: MAX_UPLOAD_BYTES },
     fileFilter: (_req, file, cb) => {
         if (ALLOWED_ATTACHMENT_MIMES.has(file.mimetype)) {
             cb(null, true);
