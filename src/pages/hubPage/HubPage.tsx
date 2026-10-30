@@ -407,7 +407,7 @@ export default function HubPage() {
             />
           )}
 
-          {activeView.kind === "doc" && !isPaneDirty && (
+          {activeView.kind === "doc" && (
             <div className="brainy-fab-wrap">
               <button
                 type="button"
