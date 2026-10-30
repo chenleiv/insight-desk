@@ -36,18 +36,6 @@ Security controls in Insight Desk and the tests that guard them.
 
 Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.test.js`.
 
-## Outbound requests
-
-- **Fetching a user-supplied URL is guarded against SSRF.** `extractTextFromUrl` in `backend/textExtract.js`:
-  - accepts only `http:` and `https:`;
-  - resolves the host and rejects it if any address is loopback, private, link-local, shared (CGNAT), reserved,
-    or multicast, including IPv4-mapped IPv6;
-  - checks the address again when the socket connects (undici `Agent` with a guarded `lookup`), so DNS rebinding
-    cannot swap in an internal address after the first check;
-  - follows at most 3 redirects by hand and checks every hop;
-  - stops after 10 seconds and rejects bodies over 5 MB, whether or not `Content-Length` is sent.
-  Test: `backend/__tests__/extractTextFromUrl.test.js`.
-
 ## Browser
 
 - **The CSP allows no inline scripts.** `script-src` is `'self'` only, and `script-src-attr` is `'none'`
@@ -66,6 +54,17 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
   in one MongoDB transaction (Atlas runs as a replica set, which transactions require). If the insert fails
   midway, the delete is rolled back and the document keeps its old chunks.
   Test: `backend/rag/__tests__/syncChunks.integration.test.js`, against an in-memory replica set.
+
+## Considered and not built
+
+- **Adding a document from a URL.** Evaluated and not shipped; the server does not fetch user-supplied URLs.
+  - Risks: SSRF, the server fetching attacker-chosen addresses, including through redirects and DNS rebinding;
+    and indirect prompt injection, untrusted page text entering the shared index and steering chat answers.
+  - Mitigations that were designed: blocking private, loopback and metadata address ranges, re-checking every
+    redirect, size and timeout limits, admin-only access, and human review of the text before it is indexed.
+  - Why it was not shipped: demo accounts are open to anyone without a password, regular documents are shared by
+    every admin and viewer, which widens the exposure of one poisoned page, and the benefit over importing a file
+    is small.
 
 ## Reporting a vulnerability
 
