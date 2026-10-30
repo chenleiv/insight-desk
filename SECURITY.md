@@ -55,6 +55,21 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
   midway, the delete is rolled back and the document keeps its old chunks.
   Test: `backend/rag/__tests__/syncChunks.integration.test.js`, against an in-memory replica set.
 
+## Dependencies
+
+- **CI audit.** The `Dependency audit` job in `.github/workflows/ci.yml` runs on pushes to `main` and on every pull request.
+  `npm audit --omit=dev --audit-level=high` fails it on a high or critical advisory in a production dependency;
+  a full `npm audit` including dev dependencies is reported but does not fail it.
+- **CodeQL.** `.github/workflows/codeql.yml` scans the JavaScript and TypeScript code on pushes and pull requests
+  to `main` and weekly.
+- **xlsx is not covered by npm audit.** The npm registry release of `xlsx` stopped at 0.18.5, which has known
+  advisories. SheetJS publishes fixed versions only on `cdn.sheetjs.com`, so `xlsx` 0.20.3 is installed from the
+  local tarball `vendor/xlsx-0.20.3.tgz` (`"xlsx": "file:vendor/xlsx-0.20.3.tgz"` in `package.json`), and
+  `npm audit` does not check it. 0.20.3 is not affected by the known SheetJS advisories in the GitHub Advisory
+  Database; the most recent, a ReDoS (CVE-2024-22363), was fixed in 0.20.2.
+  There is no automated check for new SheetJS releases or advisories. Check `cdn.sheetjs.com` and the GitHub
+  Advisory Database by hand, and replace the tarball when a fix is released.
+
 ## Considered and not built
 
 - **Adding a document from a URL.** Evaluated and not shipped; the server does not fetch user-supplied URLs.

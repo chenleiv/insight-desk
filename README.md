@@ -1,5 +1,7 @@
 # InsightDesk
 
+[![CI](https://github.com/chenleiv/insight-desk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/chenleiv/insight-desk/actions/workflows/ci.yml)
+
 An AI-powered document workspace for teams. Upload PDF, DOCX, and Excel files — Insight Desk extracts the text, organizes your knowledge base, and lets you chat with an AI assistant (powered by Groq) that can read and reason over your documents.
 
 ---
@@ -209,6 +211,29 @@ npm run embed:demo   # regenerate the demo sample vectors, then commit them
 over `backend/.env`. To rebuild production after the deploy, run it from the
 Render service shell, or locally with the production connection string set:
 `MONGODB_URI="<production connection string>" npm run reindex`.
+
+---
+
+## 🔁 Continuous Integration
+
+GitHub Actions runs two workflows. They use no secrets. The workflow token can only read the repository;
+the CodeQL job can also upload its scan results (`security-events: write`).
+
+- **CI** (`.github/workflows/ci.yml`), on pushes to `main` and on every pull request:
+  - `Lint, test, build`: `npm ci`, `npm run lint`, `npm test`, `npm run build` on Node 24.
+    The backend tests run MongoDB in memory. `npm ci` downloads the `mongod` binary from
+    `fastdl.mongodb.org` (mongodb-memory-server's default version), and the workflow caches it.
+  - `Dependency audit`: `npm audit --omit=dev --audit-level=high` fails the check on a high or
+    critical advisory in a production dependency. A full `npm audit`, including dev dependencies,
+    is reported but does not fail. `xlsx` is not covered by npm audit; see [SECURITY.md](SECURITY.md).
+- **CodeQL** (`.github/workflows/codeql.yml`), on pushes and pull requests to `main` and weekly:
+  - `Analyze`: CodeQL code scanning for JavaScript and TypeScript. Results appear under the Security tab.
+
+Status checks to require in branch protection for `main`, after the workflows have run once:
+
+- `Lint, test, build`
+- `Dependency audit`
+- `Analyze`
 
 ---
 
