@@ -12,17 +12,20 @@ services:
     staticPublishPath: ./dist
     pullRequestPreviewsEnabled: false
     envVars:
-      # Public URL of the API service, no trailing slash. Read by Vite at build time,
-      # so changing it requires a new deploy.
-      - key: VITE_API_BASE
-        sync: false
       - key: NODE_VERSION
         value: "22"
       # The frontend build does not need the MongoDB test binary.
       - key: MONGOMS_DISABLE_POSTINSTALL
         value: "1"
-    # Client-side routing: any path that is not a built file serves the SPA.
+    # The site proxies /api to the API service, so the browser sees one site: the auth
+    # cookie stays first-party (browsers that block third-party cookies still log in)
+    # and no CORS is involved. VITE_API_BASE stays unset so the SPA calls /api on its own origin.
+    # Rules apply in order, so the proxy must come before the SPA rewrite.
     routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://insight-desk-bwji.onrender.com/api/*
+      # Client-side routing: any path that is not a built file serves the SPA.
       - type: rewrite
         source: /*
         destination: /index.html

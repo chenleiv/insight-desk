@@ -20,36 +20,6 @@ export function parseTrustProxyHops(value) {
     return hops;
 }
 
-// The frontend runs on its own origin (a separate static site), so the auth cookie
-// must be sent on cross-site requests: SameSite=None instead of Lax.
-// Off by default, which keeps the single-service deploy (API serves the SPA) unchanged.
-export function isCrossSiteAuth() {
-    return process.env.AUTH_COOKIE_CROSS_SITE === 'true';
-}
-
-export function allowedOrigins() {
-    return [
-        'http://localhost:5173',
-        'http://localhost:5174',
-        process.env.FRONTEND_URL,
-    ].filter(Boolean);
-}
-
-const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-
-// With a SameSite=None cookie, any site can make the browser send it on a form POST
-// (CORS only hides the response). Browsers always send Origin on cross-site POSTs,
-// so a state-changing request from an origin that is not allowed is refused.
-// Requests without Origin (curl, server-to-server) carry no browser cookie risk.
-export function rejectForeignOrigin(req, res, next) {
-    const origin = req.get('Origin');
-    if (SAFE_METHODS.has(req.method) || !origin || allowedOrigins().includes(origin)) {
-        return next();
-    }
-    logger.warn('Blocked state-changing request from unauthorized origin', { origin, method: req.method });
-    res.status(403).json({ detail: 'Origin not allowed' });
-}
-
 export function applyMiddleware(app) {
     app.set('trust proxy', parseTrustProxyHops(process.env.TRUST_PROXY_HOPS));
 
@@ -68,7 +38,11 @@ export function applyMiddleware(app) {
     }));
 
     // CORS must run BEFORE rate limiter so error responses (429) include CORS headers
-    const allowOrigins = allowedOrigins();
+    const allowOrigins = [
+        'http://localhost:5173',
+        'http://localhost:5174',
+        process.env.FRONTEND_URL,
+    ].filter(Boolean);
 
     app.use(cors({
         origin: (origin, callback) => {
@@ -83,10 +57,6 @@ export function applyMiddleware(app) {
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization']
     }));
-
-    if (isCrossSiteAuth()) {
-        app.use(rejectForeignOrigin);
-    }
 
     const limiter = rateLimit({
         windowMs: 15 * 60 * 1000,
