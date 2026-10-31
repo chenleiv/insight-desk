@@ -17,6 +17,7 @@ import usersRouter from './routes/users.js';
 import searchRouter from './routes/search.js';
 import healthRouter from './routes/health.js';
 import { repairMissingEmbeddings } from './rag/embedMissing.js';
+import { startDemoCleanup } from './demo.js';
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -55,6 +56,8 @@ if (!process.env.MONGODB_URI) {
             loadAIConfig();
             // Fills in chunks left without an embedding by a failed save; one query when none are.
             void repairMissingEmbeddings();
+            // Removes expired demo workspaces on start and every hour, independent of sign-ups.
+            startDemoCleanup();
         })
         .catch(err => {
             logger.error('MongoDB connection failed', { message: err.message });

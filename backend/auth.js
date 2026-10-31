@@ -6,7 +6,7 @@ import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { User } from './models.js';
 import { canEditDocuments, isDemoUser } from './access.js';
-import { createDemoWorkspace } from './demo.js';
+import { createDemoWorkspace, removeDemoWorkspace } from './demo.js';
 
 import { loginSchema, registerSchema, sendValidationError } from './schemas.js';
 
@@ -304,7 +304,32 @@ router.post('/demo', demoCreationLimiter, async (req, res) => {
     }
 });
 
-router.post('/logout', (req, res) => {
+// A demo user has no password, so once the cookie is gone the workspace can never
+// be reached again: remove it now instead of keeping it until expiry.
+async function removeDemoWorkspaceOnLogout(token) {
+    let email;
+    try {
+        email = jwt.verify(token, JWT_SECRET).sub;
+    } catch {
+        return;
+    }
+    const user = await User.findOne({ email });
+    if (!isDemoUser(user)) return;
+    await removeDemoWorkspace(user._id);
+    logger.info('Removed demo workspace on logout');
+}
+
+// Always succeeds and clears the cookie; if removing a demo workspace fails,
+// the scheduled cleanup removes it at expiry.
+router.post('/logout', async (req, res) => {
+    const token = req.cookies[COOKIE_NAME];
+    if (token) {
+        try {
+            await removeDemoWorkspaceOnLogout(token);
+        } catch (err) {
+            logger.error('Demo removal on logout failed', { message: err.message });
+        }
+    }
     res.clearCookie(COOKIE_NAME, { path: '/' });
     res.json({ ok: true });
 });
