@@ -15,6 +15,16 @@ Security controls in Insight Desk and the tests that guard them.
   redirects to `/login?error=google_state_mismatch` without exchanging the code. This blocks login CSRF.
   Test: `backend/__tests__/googleOAuthState.test.js`.
 
+## Data retention
+
+- **Demo workspaces are temporary.** A demo account and everything it owns (documents, chunks, uploaded files)
+  are deleted on logout, since a demo account has no password and cannot be reached again. If the visitor never
+  logs out, they are deleted after 24 hours by a cleanup that runs when the server starts and every hour after,
+  so data can outlive its expiry by up to an hour, or until the next start if the server is asleep.
+  Only accounts with the `demo` role are ever matched, and the logs record only how many were removed.
+  Tests: `backend/__tests__/demoCleanup.integration.test.js`, `backend/__tests__/demoCleanup.test.js`,
+  `backend/__tests__/demoLogout.test.js`.
+
 ## Errors
 
 - **Generic error responses.** `backend/middleware/errorHandler.js` is mounted last and turns any unhandled error

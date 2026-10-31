@@ -93,22 +93,4 @@ describe("createDemoWorkspace", () => {
       expect(chunk.embedding).toHaveLength(384);
     }
   });
-
-  it("does not wait for the cleanup of old workspaces", async () => {
-    User.find.mockReturnValue({ lean: () => new Promise(() => {}) });
-    User.create.mockImplementation(async (u) => ({ _id: "demo-new", ...u }));
-    Document.insertMany.mockImplementation(async (docs) => docs);
-
-    await expect(createDemoWorkspace(NOW)).resolves.toMatchObject({ role: "demo" });
-  });
-
-  it("still creates the workspace when cleanup of old ones fails", async () => {
-    User.find.mockImplementation(() => {
-      throw new Error("db hiccup");
-    });
-    User.create.mockImplementation(async (u) => ({ _id: "demo-new", ...u }));
-    Document.insertMany.mockImplementation(async (docs) => docs);
-
-    await expect(createDemoWorkspace(NOW)).resolves.toMatchObject({ role: "demo" });
-  });
 });
