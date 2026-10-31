@@ -59,6 +59,38 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
   Injected CSS cannot run code; at worst it restyles the page or, in rare cases, leaks a value from it.
   We have not checked whether removing it would break a dependency that injects `<style>` tags.
 
+## Cross-site requests (CSRF)
+
+The app authenticates with cookies, and frontend and API are one site (a single Render service), so two layers
+stop another site from acting as the user.
+
+- **Both cookies are `SameSite=Lax`.** The browser does not send them on a POST, PUT, PATCH or DELETE from another
+  site, so such a request reaches the API unauthenticated. The value is explicit, so Chrome's two-minute exception
+  for cookies without a `SameSite` attribute does not apply.
+  - `oauth_state` must be Lax: Google's redirect to `/api/auth/google/callback` is a top-level GET navigation
+    from another site. `Strict` would drop the cookie there and every Google login would fail. Lax works only
+    because Google returns with a GET (we do not use `response_mode=form_post`).
+  - `access_token` stays Lax rather than Strict. The SPA's own API calls are same-site either way, so Strict
+    would mainly break links to the API opened from outside, such as a document download link. No GET route
+    changes state, so Strict would add almost nothing.
+- **Origin check on state-changing requests.** `rejectCrossSiteRequests` in `backend/middleware/setup.js` refuses
+  any non-GET/HEAD/OPTIONS request under `/api` whose `Origin` is not ours (403). That covers routes that need no
+  cookie, which Lax cannot protect: without it, a form on another site could start a demo session in the
+  visitor's browser or log them out. Origins are compared after normalizing scheme, host and port. Ours is
+  `FRONTEND_URL` or `APP_BASE_URL` (Render sets only `FRONTEND_URL`), plus the Vite dev servers on localhost.
+  `Origin: null` is refused. A request with no `Origin` passes, since browsers send one on every such request.
+  Blocked requests are logged with the origin host and route only. In production, the server logs an error at
+  startup if neither variable is set, because every state-changing request would then be refused.
+- **CORS does not block requests.** It only decides whether a page on another origin may read the response, so
+  it is not a CSRF control.
+- **No CSRF token.** With one site, Lax plus the Origin check covers the same attacks without a token round trip
+  on every request and upload. CodeQL's "Missing CSRF middleware" rule looks for known CSRF libraries and does
+  not recognize this check, so its alert on `backend/index.js` is dismissed with a reference to this section.
+  Test directories are excluded from CodeQL in `.github/codeql/codeql-config.yml`: test code never runs in
+  production, and its stand-in Express apps raised the same alert.
+
+Test: `backend/__tests__/crossSiteRequests.test.js`.
+
 ## Document download
 
 `GET /api/documents/:id/download?format=md|pdf|docx`, built in `backend/documentExport.js`.
