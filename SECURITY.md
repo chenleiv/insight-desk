@@ -59,6 +59,26 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
   Injected CSS cannot run code; at worst it restyles the page or, in rare cases, leaks a value from it.
   We have not checked whether removing it would break a dependency that injects `<style>` tags.
 
+## Session cookie
+
+- The session is a JWT signed with `JWT_SECRET` (HS256) in the `access_token` cookie: HttpOnly, `SameSite=Lax`,
+  Secure when `ENV=prod` or `NODE_ENV=production`, path `/`, expiry `ACCESS_TOKEN_MINUTES` (60).
+- The JWT is signed, not encrypted: its payload (email and role) is readable by whoever holds the cookie.
+  It holds no password or secret. Accepted; CodeQL's "Clear text storage of sensitive information" alert
+  on `setAuthCookie` is dismissed with a reference to this section.
+- Production must set `NODE_ENV=production` or `ENV=prod`, or both cookies are sent without Secure.
+  The `oauth_state` cookie takes its options through an object spread, which CodeQL does not follow, so its
+  cookie alerts on `backend/auth.js` are dismissed as false positives.
+  Test: `backend/__tests__/googleOAuthState.test.js` checks HttpOnly, `SameSite=Lax`, and Secure in production.
+
+## Rate limiting
+
+- All `/api/` routes share one limit per client IP (100 per 15 minutes in production), plus stricter limits on
+  password attempts (10 failed per 15 minutes) and demo creation (10 per hour).
+- Static files and the SPA fallback (`index.html`) are not rate-limited: they serve fixed files with no user
+  input. CodeQL's "Missing rate limiting" alert on the SPA fallback is dismissed with a reference to this section.
+  Test for the login limit: `backend/__tests__/authRateLimit.test.js`.
+
 ## Cross-site requests (CSRF)
 
 The app authenticates with cookies, and frontend and API are one site (a single Render service), so two layers
@@ -115,6 +135,15 @@ Test: `backend/__tests__/crossSiteRequests.test.js`.
 - **CORS** exposes `Content-Disposition`, so a frontend on another origin can read the file name.
 
 Tests: `backend/routes/__tests__/documentDownload.test.js`, `backend/__tests__/documentExport.test.js`.
+
+## Text extraction
+
+- **RTF parsing runs in linear time and bounded memory.** Uploaded RTF is converted to text in
+  `backend/textExtract.js`. Blanks before line breaks are removed by a single pass, not by the regex
+  `/[ \t]+\n/`, which backtracked quadratically on a long run of spaces: a 10 MB upload, open to any demo
+  visitor, could block the server for hours. Group state is saved for at most 1000 nested `{` groups
+  (`MAX_RTF_DEPTH`); deeper groups are only counted, so a file of nested braces cannot exhaust memory.
+  Test: `backend/__tests__/textExtract.test.js`.
 
 ## Data integrity
 
