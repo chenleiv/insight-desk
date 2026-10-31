@@ -2,8 +2,8 @@ import "./docPane.scss";
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 const CLIENT_SIDE_EXTS = new Set(["json", "txt", "md", "rtf"]);
-import type { DocumentItem, DocumentInput } from "../../../../api/documentsClient";
-import { createDocument, uploadAttachment, extractTextFromFile } from "../../../../api/documentsClient";
+import type { DocumentItem, DocumentInput, DownloadFormat } from "../../../../api/documentsClient";
+import { createDocument, uploadAttachment, extractTextFromFile, downloadDocument } from "../../../../api/documentsClient";
 import { useStatus } from "../../../../components/statusBar/useStatus";
 import { parseImportFile } from "../../utils/parseImportFile";
 import { EmptyPane } from "../dialogs/EmptyPane";
@@ -249,16 +249,19 @@ export default function DocumentPane({
     };
   });
 
-  function handleExport() {
+  async function handleDownload(format: DownloadFormat) {
     if (!doc) return;
-    const md = `# ${doc.title}\n\n${form.content}`;
-    const blob = new Blob([md], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${doc.title.replace(/[^\w\s-]/g, "").trim() || "document"}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const { blob, fileName } = await downloadDocument(doc.id, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      status.show({ kind: "error", title: "Download failed", message: e instanceof Error ? e.message : "Error" });
+    }
   }
 
   useEffect(() => {
@@ -327,7 +330,7 @@ export default function DocumentPane({
           },
         })}
         {...(isCreating && { onImportClick: () => importFileRef.current?.click() })}
-        {...(!isCreating && doc && { onExport: handleExport })}
+        {...(!isCreating && doc && { onDownload: (format: DownloadFormat) => void handleDownload(format) })}
         {...(onClose ? { onClose } : {})}
         {...(canEdit && doc && onDelete && { onDelete: () => onDelete(doc) })}
         {...(isMaximized !== undefined && { isMaximized })}

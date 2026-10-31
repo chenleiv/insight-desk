@@ -33,6 +33,7 @@ Security controls in Insight Desk and the tests that guard them.
 | Search query | 500 characters | 400 |
 | Document content | 500,000 characters | 400 |
 | Bulk import | 50 documents | 400 |
+| Document download as PDF or Word | 200,000 characters of content (`MAX_EXPORT_CHARS`) | 422, suggests Markdown |
 
 Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.test.js`.
 
@@ -47,6 +48,31 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 - **Known gap, accepted:** `style-src` still includes `'unsafe-inline'`, helmet's default, kept on purpose.
   Injected CSS cannot run code; at worst it restyles the page or, in rare cases, leaks a value from it.
   We have not checked whether removing it would break a dependency that injects `<style>` tags.
+
+## Document download
+
+`GET /api/documents/:id/download?format=md|pdf|docx`, built in `backend/documentExport.js`.
+
+- **Same access rule as reading.** The route uses `getCurrentUser` and `canAccessDocument`, like
+  `GET /api/documents/:id`, and answers 404 when the user may not read the document, so a download does not
+  reveal whether it exists.
+- **File name.** `safeFileName` removes control characters (including CR and LF), quotes, `\ / : * ? < > |`,
+  bidi controls that could disguise the extension, and leading or trailing dots, caps the length at 100
+  characters, and falls back to `document`. `res.attachment()` writes `Content-Disposition` with an ASCII
+  `filename` and an encoded `filename*`, so no title can add a header or a path.
+- **Content.** PDF text is drawn by pdfkit as text, and Word text goes into XML-escaped text runs, so content
+  cannot add PDF objects or Word markup. Characters XML does not allow are dropped.
+- **Markdown is not escaped.** The body is the user's own Markdown and is served unchanged; only the title is
+  put on one line. It is served as `text/markdown` with `Content-Disposition: attachment`,
+  `X-Content-Type-Options: nosniff` and `Cache-Control: no-store`, so the browser saves it and never renders
+  it as a page. Escaping it would corrupt code blocks and other legitimate text. A Markdown viewer that renders
+  raw HTML is outside the app and must sanitize on its own, as for any downloaded file.
+- **Build cost.** PDF and Word are built in memory on the request thread, so their content is capped (see
+  Input limits). pdfkit wraps one very long word in time quadratic in its length, so runs over 500 characters
+  are split onto new lines first; a document at the cap builds in about a tenth of a second.
+- **CORS** exposes `Content-Disposition`, so a frontend on another origin can read the file name.
+
+Tests: `backend/routes/__tests__/documentDownload.test.js`, `backend/__tests__/documentExport.test.js`.
 
 ## Data integrity
 

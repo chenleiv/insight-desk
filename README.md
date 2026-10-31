@@ -15,6 +15,11 @@ An AI-powered document workspace for teams. Upload PDF, DOCX, and Excel files �
 - **Persistent ordering** — document order saved per user via localStorage
 - **Favorites** — bookmark documents per user account
 - **Import / Export** — backup and restore your knowledge base as JSON (with preview before import)
+- **Download a document** — save one document as Markdown, PDF, or Word (.docx). Anyone who can read the
+  document can download it. PDF supports Latin text only (Windows-1252, the built-in PDF fonts); a document
+  with other characters, such as Hebrew, gets an error that suggests Markdown or Word, which keep any language
+  (Word lays out Hebrew and Arabic paragraphs right to left). PDF and Word are limited to 200,000 characters
+  of content; Markdown has no extra limit
 - **Safe deletions** — confirmation modal before destructive actions
 
 ### 🤖 AI Assistant ("Brainy")
@@ -64,6 +69,8 @@ An AI-powered document workspace for teams. Upload PDF, DOCX, and Excel files �
 | **multer** | — | File upload handling |
 | **pdf-parse** | — | PDF text extraction |
 | **mammoth** | — | DOCX text extraction |
+| **pdfkit** | 0.20 | PDF generation for document download |
+| **docx** | 9.x | Word (.docx) generation for document download |
 | **xlsx** | — | Excel text extraction |
 | **jsonwebtoken + bcryptjs** | — | Auth (JWT + password hashing) |
 | **helmet** | — | Security headers (CSP, HSTS, etc.) |
@@ -118,6 +125,7 @@ ai-workspace/
 │   ├── schemas.js                  # Zod validation schemas
 │   ├── prompts.js                  # Default system prompt + metadata
 │   ├── textExtract.js              # PDF / DOCX / Excel text extraction
+│   ├── documentExport.js           # Markdown / PDF / Word files for document download
 │   ├── logger.js                   # Structured logger
 │   ├── loadEnv.js                  # .env loader
 │   ├── demo/                       # Demo sample documents and precomputed embeddings
@@ -254,6 +262,7 @@ Status checks to require in branch protection for `main`, after the workflows ha
 | `PATCH` | `/api/auth/password` | ✓ | Change password |
 | `GET` | `/api/documents` | ✓ | List readable documents |
 | `GET` | `/api/documents/:id` | ✓ | Get one document |
+| `GET` | `/api/documents/:id/download?format=md\|pdf\|docx` | ✓ | Download one document as a file |
 | `POST` | `/api/documents` | editor | Create document |
 | `PUT` | `/api/documents/:id` | editor | Update document |
 | `DELETE` | `/api/documents/:id` | editor | Delete document |

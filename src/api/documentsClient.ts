@@ -1,4 +1,5 @@
-import { apiFetch } from "./base";
+import { apiFetch, ApiError } from "./base";
+import { getApiBase } from "./config";
 
 export async function uploadAttachment(docId: string, file: File): Promise<Attachment> {
   const formData = new FormData();
@@ -87,6 +88,39 @@ export function extractTextFromFile(file: File): Promise<{ text: string; fileNam
     method: "POST",
     body: formData,
   });
+}
+
+export type DownloadFormat = "md" | "pdf" | "docx";
+
+// The server cleans the file name; this only reads it back from Content-Disposition.
+export function fileNameFromDisposition(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header)?.[1];
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded);
+    } catch { /* malformed encoding: try the plain name */ }
+  }
+  return /filename="([^"]+)"/i.exec(header)?.[1] ?? fallback;
+}
+
+export async function downloadDocument(id: string, format: DownloadFormat) {
+  const res = await fetch(`${getApiBase()}/api/documents/${id}/download?format=${format}`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = `Download failed: ${res.status}`;
+    try {
+      const body = JSON.parse(text);
+      if (body?.detail) message = body.detail;
+    } catch { /* non-JSON error body */ }
+    throw new ApiError(message, res.status, text || undefined);
+  }
+  return {
+    blob: await res.blob(),
+    fileName: fileNameFromDisposition(res.headers.get("Content-Disposition"), `document.${format}`),
+  };
 }
 
 export function toggleFavorite(id: string) {
