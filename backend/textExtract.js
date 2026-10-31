@@ -29,6 +29,33 @@ const RTF_SYMBOLS = {
 
 const RTF_CONTROL_WORD = /\\([a-zA-Z]+)(-?\d+)? ?/y;
 
+// Real documents nest a few dozen groups. Deeper groups are counted but their
+// state is not saved, so a file of nested braces cannot exhaust memory.
+const MAX_RTF_DEPTH = 1000;
+
+/**
+ * Remove spaces and tabs before each line break, in linear time. The regex
+ * /[ \t]+\n/g backtracks quadratically on a long run of blanks (ReDoS).
+ */
+function trimBlanksBeforeNewlines(text) {
+    let result = '';
+    let copyFrom = 0;
+    let blanksStart = -1;
+    for (let k = 0; k < text.length; k++) {
+        const c = text[k];
+        if (c === ' ' || c === '\t') {
+            if (blanksStart < 0) blanksStart = k;
+        } else {
+            if (c === '\n' && blanksStart >= 0) {
+                result += text.slice(copyFrom, blanksStart);
+                copyFrom = k;
+            }
+            blanksStart = -1;
+        }
+    }
+    return result + text.slice(copyFrom);
+}
+
 /**
  * Convert an RTF document to plain text. Keeps paragraphs as line breaks and
  * decodes escaped characters; drops all formatting.
@@ -40,6 +67,7 @@ export function rtfToText(rtf) {
     let pendingSkip = 0;  // fallback chars still to drop
     let decoder = new TextDecoder('windows-1252');
     const stack = [];
+    let depth = 0;
 
     const emit = (text) => {
         if (skip) return;
@@ -55,10 +83,17 @@ export function rtfToText(rtf) {
         const ch = rtf[i];
 
         if (ch === '{') {
-            stack.push({ skip, ucSkip });
+            if (stack.length < MAX_RTF_DEPTH) stack.push({ skip, ucSkip });
+            depth++;
             i++;
         } else if (ch === '}') {
-            ({ skip, ucSkip } = stack.pop() ?? { skip: false, ucSkip: 1 });
+            // A group past the cap was not saved, so it has no state to restore.
+            if (depth > stack.length) {
+                depth--;
+            } else {
+                ({ skip, ucSkip } = stack.pop() ?? { skip: false, ucSkip: 1 });
+                depth = stack.length;
+            }
             i++;
         } else if (ch === '\r' || ch === '\n') {
             // Raw line breaks are not content in RTF.
@@ -115,9 +150,7 @@ export function rtfToText(rtf) {
         }
     }
 
-    return out
-        .replace(/[ \t]+\n/g, '\n')
-        .replace(/\n{3,}/g, '\n\n');
+    return trimBlanksBeforeNewlines(out).replace(/\n{3,}/g, '\n\n');
 }
 
 function isRtf(mimeType, text) {
