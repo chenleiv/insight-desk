@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { me, logout as apiLogout } from "../api/authClient";
 import { toggleFavorite as apiToggleFavorite } from "../api/documentsClient";
 import type { AuthUser } from "./authTypes";
@@ -8,12 +9,14 @@ import {
   clearUserFromStorage,
 } from "./authStorage";
 import { AuthContext } from "./authContext";
+import { CHAT_KEY } from "../pages/hubPage/utils/assistantUtils";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() =>
     loadUserFromStorage(),
   );
   const [isReady, setIsReady] = useState(false);
+  const queryClient = useQueryClient();
   /** True after loginSuccess() — avoids clearing session when the initial /me (sent before the cookie existed) returns 401 after sign-in. */
   const sessionEstablishedByLogin = useRef(false);
 
@@ -40,6 +43,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  /** Drops data cached for the previous session so the next user in this tab never sees it. */
+  function resetSessionState() {
+    queryClient.clear();
+    localStorage.removeItem(CHAT_KEY);
+  }
+
   async function doLogout() {
     sessionEstablishedByLogin.current = false;
     setUser(null);
@@ -49,6 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await apiLogout();
     } catch (err) {
       console.warn("logout failed", err);
+    } finally {
+      // After the server call, so no refetch with the old cookie can refill the cache.
+      resetSessionState();
     }
   }
 
@@ -92,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         favoritesMap,
         loginSuccess: (u) => {
           sessionEstablishedByLogin.current = true;
+          resetSessionState();
           setUser(u);
           saveUserToStorage(u);
         },

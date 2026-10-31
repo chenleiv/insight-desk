@@ -58,6 +58,11 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 - **Known gap, accepted:** `style-src` still includes `'unsafe-inline'`, helmet's default, kept on purpose.
   Injected CSS cannot run code; at worst it restyles the page or, in rare cases, leaks a value from it.
   We have not checked whether removing it would break a dependency that injects `<style>` tags.
+- **Signing out or in clears the previous session's data.** Before this fix, the cached document list and
+  quality data stayed in memory for the rest of the tab's life, and the AI chat history stayed in
+  `localStorage`, so the next user in the same tab (or, for the chat, the same browser) could see them.
+  `AuthProvider` now clears the TanStack Query cache and the `assistantChat` key after logout and on every
+  sign-in. Test: `src/auth/__tests__/AuthProvider.test.tsx`.
 
 ## Cross-site requests (CSRF)
 
