@@ -1,0 +1,6 @@
+name: Insight Desk CodeQL config
+
+# Test code never runs in production. Its stand-in Express apps (cookie-parser
+# without CSRF middleware) raised alerts that do not apply to the real server.
+paths-ignore:
+  - "**/__tests__/**"
