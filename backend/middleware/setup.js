@@ -55,7 +55,9 @@ export function applyMiddleware(app) {
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization']
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        // Lets a cross-origin frontend read the server's file name on a document download.
+        exposedHeaders: ['Content-Disposition'],
     }));
 
     const limiter = rateLimit({

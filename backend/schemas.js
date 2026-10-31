@@ -28,6 +28,11 @@ export const documentSchema = z.object({
   content: z.string().min(1, 'Content is required').max(500000, 'Content must be at most 500,000 characters'),
 });
 
+// File type for downloading one document (query string)
+export const documentDownloadQuerySchema = z.object({
+  format: z.enum(['md', 'pdf', 'docx']),
+});
+
 // AI Schemas
 // Only the question: the server finds the context itself, so any other field is rejected.
 export const aiChatSchema = z.strictObject({

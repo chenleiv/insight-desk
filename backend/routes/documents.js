@@ -8,7 +8,8 @@ import { Document } from '../models.js';
 import { extractTextFromBuffer } from '../textExtract.js';
 import { getCurrentUser, requireEditor } from '../auth.js';
 import { canAccessDocument, documentScope, isDemoUser, DEMO_LIMITS } from '../access.js';
-import { documentSchema, importBulkSchema, sendValidationError } from '../schemas.js';
+import { documentSchema, documentDownloadQuerySchema, importBulkSchema, sendValidationError } from '../schemas.js';
+import { exportDocument, ExportError } from '../documentExport.js';
 import { syncDocumentChunks, deleteDocumentChunks } from '../rag/syncChunks.js';
 import { embed } from '../rag/embed.js';
 import { scheduleEmbeddingRetry } from '../rag/embedMissing.js';
@@ -177,6 +178,31 @@ router.get('/:id', getCurrentUser, async (req, res) => {
     } catch (err) {
         logger.error('Fetching document by ID', { message: err.message });
         res.status(500).json({ detail: 'Error fetching document' });
+    }
+});
+
+// Download one document as a file. Same access rule as reading it.
+router.get('/:id/download', getCurrentUser, async (req, res) => {
+    try {
+        const { format } = documentDownloadQuerySchema.parse(req.query);
+        const doc = await Document.findById(req.params.id);
+        if (!canAccessDocument(req.user, doc)) {
+            return res.status(404).json({ detail: 'Not found' });
+        }
+        const { body, fileName, contentType } = await exportDocument(doc, format);
+        // attachment() encodes the name for Content-Disposition (ASCII fallback plus filename*).
+        res.attachment(fileName);
+        res.set({
+            'Content-Type': contentType,
+            'X-Content-Type-Options': 'nosniff',
+            'Cache-Control': 'no-store',
+        });
+        res.send(body);
+    } catch (err) {
+        if (handleZodError(err, res)) return;
+        if (err instanceof ExportError) return res.status(err.status).json({ detail: err.message });
+        logger.error('Downloading document', { message: err.message });
+        res.status(500).json({ detail: 'Error downloading document' });
     }
 });
 

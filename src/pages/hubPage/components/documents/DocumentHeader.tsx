@@ -8,8 +8,11 @@ import {
   Download,
   Pencil,
 } from "lucide-react";
+import { useRef, useState } from "react";
+import Menu from "../../../../components/menu/Menu";
 import { getCategoryChipStyle } from "../../utils/docs";
 import type { SaveStatus } from "../../hooks/useDocumentSave";
+import type { DownloadFormat } from "../../../../api/documentsClient";
 
 // "unsaved": edits not saved yet.
 type HeaderSaveStatus = SaveStatus | "unsaved";
@@ -37,7 +40,7 @@ type Props = {
   onEdit?: () => void;
   editActions?: EditActions;
   onImportClick?: () => void;
-  onExport?: () => void;
+  onDownload?: (format: DownloadFormat) => void;
 };
 
 function MaximizeBtn({ isMaximized, className = "", onClick }: { isMaximized: boolean | undefined; className?: string; onClick: () => void }) {
@@ -99,6 +102,33 @@ function SaveCancelBtns({ onSave, onCancel, canSave, isSaving }: EditActions) {
   );
 }
 
+const DOWNLOAD_OPTIONS: { format: DownloadFormat; label: string }[] = [
+  { format: "md", label: "Markdown (.md)" },
+  { format: "pdf", label: "PDF (.pdf)" },
+  { format: "docx", label: "Word (.docx)" },
+];
+
+function DownloadBtn({ onDownload, disabledHint }: { onDownload: (format: DownloadFormat) => void; disabledHint?: string | undefined }) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <button type="button" ref={btnRef} className="icon-btn doc-pane-header-tool-btn"
+        onClick={() => setOpen(true)} disabled={!!disabledHint}
+        aria-haspopup="menu" aria-expanded={open}
+        data-tooltip={disabledHint ?? "Export as Markdown, PDF or Word"} data-tooltip-pos="bottom" aria-label="Export document">
+        <Download size={16} />
+      </button>
+      <Menu
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={btnRef}
+        items={DOWNLOAD_OPTIONS.map(({ format, label }) => ({ label, onClick: () => onDownload(format) }))}
+      />
+    </>
+  );
+}
+
 function MinimizeBtn({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" className="icon-btn doc-pane-header-tool-btn"
@@ -126,10 +156,10 @@ export function DocumentHeader({
   onEdit,
   editActions,
   onImportClick,
-  onExport,
+  onDownload,
 }: Props) {
   const isDrawer = variant === "drawer";
-  // Export would take unsaved text and delete would drop the edit, so both wait for Save or Cancel.
+  // Download would leave out unsaved text and delete would drop the edit, so both wait for Save or Cancel.
   const isEditing = !!editActions;
   const editingHint = "Save or cancel your changes first";
 
@@ -139,12 +169,8 @@ export function DocumentHeader({
       <SaveStatusChip status={saveStatus} />
       {editActions && !isCreating && <SaveCancelBtns {...editActions} />}
       {onEdit && !isCreating && <EditBtn onClick={onEdit} />}
-      {onExport && !isCreating && (
-        <button type="button" className="icon-btn doc-pane-header-tool-btn"
-          onClick={onExport} disabled={isEditing}
-          data-tooltip={isEditing ? editingHint : "Export as Markdown"} data-tooltip-pos="bottom" aria-label="Export document">
-          <Download size={16} />
-        </button>
+      {onDownload && !isCreating && (
+        <DownloadBtn onDownload={onDownload} disabledHint={isEditing ? editingHint : undefined} />
       )}
       {onDelete && !isCreating && (
         <button type="button" className="icon-btn doc-pane-delete-btn"
