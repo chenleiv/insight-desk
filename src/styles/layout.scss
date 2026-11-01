@@ -186,3 +186,9 @@
 .icon-spin {
   @include mixins.icon-spin;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-spin {
+    animation: none;
+  }
+}

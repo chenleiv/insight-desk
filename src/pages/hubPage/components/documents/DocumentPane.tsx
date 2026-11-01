@@ -128,8 +128,12 @@ export default function DocumentPane({
     handleDeleteAttachment,
   } = useDocumentAttachments({ doc, canEdit, onSaved });
 
+  // Blocks a second submit before the pending state has rendered.
+  const createInFlightRef = useRef(false);
+
   const handleCreateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (createInFlightRef.current) return;
     if (!canEdit) {
       status.show({ kind: "error", title: "Forbidden", message: "Admins only." });
       return;
@@ -138,6 +142,7 @@ export default function DocumentPane({
       status.show({ kind: "error", title: "Missing fields", message: "Please fill all fields." });
       return;
     }
+    createInFlightRef.current = true;
     setSaveStatus("saving");
     try {
       const created = await createDocument(form);
@@ -157,6 +162,8 @@ export default function DocumentPane({
       setSaveStatus("error");
       const msg = e instanceof Error ? e.message : "Creation failed.";
       status.show({ kind: "error", title: "Creation failed", message: msg, timeoutMs: 0 });
+    } finally {
+      createInFlightRef.current = false;
     }
   };
 
@@ -244,6 +251,10 @@ export default function DocumentPane({
         if (!isEditing) return;
         e.stopImmediatePropagation();
         if (saveStatus === "saving") return;
+      } else if (isCreationPending) {
+        // The document may already exist on the server; let the request finish.
+        e.stopImmediatePropagation();
+        return;
       }
       void handleCancel();
     };
@@ -312,6 +323,7 @@ export default function DocumentPane({
     <form
       className={`doc-pane doc-pane--editing ${isDrawer ? "doc-pane--drawer" : ""}`}
       onSubmit={isCreating ? handleCreateSubmit : (e) => e.preventDefault()}
+      aria-busy={isCreationPending}
     >
       <DocumentHeader
         title={isCreating ? "New document" : (doc?.title ?? "")}
@@ -329,7 +341,7 @@ export default function DocumentPane({
             isSaving,
           },
         })}
-        {...(isCreating && { onImportClick: () => importFileRef.current?.click() })}
+        {...(isCreating && { onImportClick: () => importFileRef.current?.click(), importDisabled: isCreationPending })}
         {...(!isCreating && doc && { onDownload: (format: DownloadFormat) => void handleDownload(format) })}
         {...(onClose ? { onClose } : {})}
         {...(canEdit && doc && onDelete && { onDelete: () => onDelete(doc) })}
@@ -348,6 +360,22 @@ export default function DocumentPane({
         />
       )}
 
+      {/* Always rendered while creating, so screen readers announce when it fills. */}
+      {isCreating && (
+        <div
+          className={`doc-pane-create-status${isCreationPending ? " doc-pane-create-status--visible" : ""}`}
+          role="status"
+          aria-live="polite"
+        >
+          {isCreationPending && (
+            <>
+              <Loader size={16} />
+              <span>Creating document… Preparing it for search.</span>
+            </>
+          )}
+        </div>
+      )}
+
       <DocumentEdit
         ref={editRef}
         form={form}
@@ -356,7 +384,8 @@ export default function DocumentPane({
         updatedAt={doc?.updatedAt}
         doc={effectiveDoc ?? undefined}
         canEdit={canEdit}
-        readOnly={!isCreating && !isEditing}
+        readOnly={(!isCreating && !isEditing) || isCreationPending}
+        attachmentsDisabled={isCreationPending}
         maxContentLength={maxContentLength}
         maxAttachments={maxAttachments}
         isUploading={isUploading}
@@ -373,12 +402,16 @@ export default function DocumentPane({
 
       {canEdit && isCreating && !isDrawer && (
         <div className={`doc-pane-save-bar${isDirty || isCreating ? " doc-pane-save-bar--visible" : ""}`}>
-          {isCreationPending && <Loader size={16} />}
           <button type="button" className="doc-pane-cancel-btn" onClick={handleCancel} disabled={isCreationPending}>
             Discard
           </button>
-          <button type="submit" className="primary-btn" disabled={!isDirty || !isValid || isCreationPending}>
-            {isCreationPending ? "Creating…" : "Create"}
+          <button
+            type="submit"
+            className="primary-btn doc-pane-create-btn"
+            disabled={!isDirty || !isValid || isCreationPending}
+            aria-busy={isCreationPending}
+          >
+            {isCreationPending ? <><Loader size={16} />Creating document…</> : "Create"}
           </button>
         </div>
       )}
@@ -389,7 +422,7 @@ export default function DocumentPane({
             <button
               type="button"
               className="footer-attach-btn"
-              disabled={isUploading}
+              disabled={isUploading || isCreationPending}
               onClick={() => editRef.current?.triggerAttach()}
               title="Attach a file"
             >
@@ -403,11 +436,12 @@ export default function DocumentPane({
             </button>
             <button
               type="submit"
-              className="primary-btn doc-pane-save-btn--drawer"
+              className="primary-btn doc-pane-save-btn--drawer doc-pane-create-btn"
               disabled={!isDirty || !isValid || isCreationPending}
+              aria-busy={isCreationPending}
             >
-              <Save size={15} strokeWidth={2} aria-hidden />
-              {isCreationPending ? "Creating…" : "Create"}
+              {isCreationPending ? <Loader size={15} /> : <Save size={15} strokeWidth={2} aria-hidden />}
+              {isCreationPending ? "Creating document…" : "Create"}
             </button>
           </div>
         </div>

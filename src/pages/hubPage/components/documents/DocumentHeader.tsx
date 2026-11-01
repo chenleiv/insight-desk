@@ -40,6 +40,7 @@ type Props = {
   onEdit?: () => void;
   editActions?: EditActions;
   onImportClick?: () => void;
+  importDisabled?: boolean;
   onDownload?: (format: DownloadFormat) => void;
 };
 
@@ -156,6 +157,7 @@ export function DocumentHeader({
   onEdit,
   editActions,
   onImportClick,
+  importDisabled = false,
   onDownload,
 }: Props) {
   const isDrawer = variant === "drawer";
@@ -212,7 +214,8 @@ export function DocumentHeader({
               type="button"
               className="doc-pane-import-btn"
               onClick={onImportClick}
-              data-tooltip="Supported: .txt .md .json .rtf .csv"
+              disabled={importDisabled}
+              data-tooltip="Supported: .txt .md .json .rtf .pdf .docx .xlsx .xls"
               data-tooltip-pos="bottom"
             >
               <FileUp size={13} aria-hidden />
