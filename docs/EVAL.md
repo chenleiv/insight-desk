@@ -58,6 +58,18 @@ A "did you mean" answer was considered for questions whose best chunk is just un
 - There is no clean separation: any lower bound that includes q14 (0.27 or lower) also includes the unrelated u11 (0.287, "How does garbage collection work in Java?"), which would be pointed to "Linux Process Management Basics". Lower bounds add more wrong suggestions (u08 at 0.248, u09 at 0.227, u13 at 0.200).
 - At every useful bound, at least half of the suggestions would be wrong, on a very small sample. The suggestion was not built. Revisit it with more questions and documents.
 
+## Comparing prompt wordings
+
+`npm run eval:answers` compares two prompt wordings, `eval/prompts/old.txt` and `eval/prompts/new.txt`, by sending the same questions to Groq with each one. It sends the same model, settings, context and appended rules (`CONTEXT_RULES`) as the chat, and it never uses production data.
+
+- **Sets:** `related` (questions whose best chunk reaches `MIN_SIMILARITY`), `forced` (the unrelated questions plus related ones below the threshold, sent with their top chunks on purpose, to test refusals on unhelpful context) and `hebrew` (five questions translated to Hebrew by the model at the start of the run; both wordings get the same translation).
+- **Runs:** each question is sent 3 times per wording (`--runs`), since answers vary between calls.
+- **Free tier:** requests run one at a time with a delay (`--delay`, default 2000 ms). After a rate limit (429), the script waits for the `retry-after` header or backs off, up to 5 retries. `--sets` runs only some of the sets, to split the run over time.
+- **Key:** `GROQ_API_KEY` is read from the environment only; the script loads no `.env` file. `--dry-run` lists the questions and the number of calls without a key.
+- **Output:** a summary table on the terminal, and the full results (summary, translations and every answer with an empty "correct?" column for manual grading) in a file outside the repository, by default under the system temp folder. `--out` picks another file outside the repository.
+
+Correctness is graded by hand from the file. The script only counts what it can check: refusals, empty answers, citations, forbidden Markdown, document titles in brackets, and the answer language for the Hebrew set.
+
 ## Measuring in production
 
 In production there is no known "right document" for a question, so hit@k cannot be computed. Instead, every chat question leaves a small record of what retrieval found, and a script summarizes those records as indirect quality signals.

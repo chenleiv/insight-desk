@@ -33,7 +33,10 @@ function getGroq() {
     return _groq;
 }
 
-const CHAT_MODEL = 'openai/gpt-oss-20b';
+export const CHAT_MODEL = 'openai/gpt-oss-20b';
+
+// Settings of the answer call, shared with eval/answers.js so it asks exactly as the chat does.
+export const CHAT_ANSWER_SETTINGS = { max_tokens: 300, temperature: 0.3 };
 
 /**
  * Turn a question into English search keywords, so a question in another
@@ -58,7 +61,7 @@ async function englishKeywords(groq, question) {
     }
 }
 
-const CONTEXT_CHUNKS = 5;
+export const CONTEXT_CHUNKS = 5;
 
 // Chunks scoring below this are not sent to the model. Calibrated on the demo
 // documents (eval/threshold-results.md): unrelated questions top out at 0.287,
@@ -85,6 +88,16 @@ function buildContext(chunks) {
         return `<chunk id="c${i + 1}" title="${title}">\n${neutralizeTags(c.text)}\n</chunk>`;
     });
     return `<context>\n${blocks.join('\n\n')}\n</context>`;
+}
+
+/** The system message: a prompt, then the rules the chat always appends. */
+export function systemContent(prompt) {
+    return `${prompt}\n\n${CONTEXT_RULES}`;
+}
+
+/** The user message: the retrieved chunks, then the question. */
+export function userContent(chunks, message) {
+    return `${buildContext(chunks)}\n\nQuestion: ${neutralizeTags(message)}`;
 }
 
 /**
@@ -180,18 +193,15 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
             return res.json({ answer: NO_INFO_ANSWER, citations: [], answerId: await log(true) });
         }
 
-        const userContent = `${buildContext(chunks)}\n\nQuestion: ${neutralizeTags(message)}`;
-
         const messages = [
-            { role: 'system', content: `${promptState.prompt}\n\n${CONTEXT_RULES}` },
-            { role: 'user', content: userContent },
+            { role: 'system', content: systemContent(promptState.prompt) },
+            { role: 'user', content: userContent(chunks, message) },
         ];
 
         const response = await groq.chat.completions.create({
             model: CHAT_MODEL,
             messages,
-            max_tokens: 300,
-            temperature: 0.3,
+            ...CHAT_ANSWER_SETTINGS,
         });
 
         const choice = response.choices?.[0];
