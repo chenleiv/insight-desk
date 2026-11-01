@@ -42,12 +42,6 @@
         align-items: center;
         padding: 40px 24px;
         min-height: 0;
-
-        &:has(.doc-detail-skeleton) {
-            align-items: stretch;
-            justify-content: flex-start;
-            padding-top: 32px;
-        }
     }
 
     .doc-pane-empty-title {

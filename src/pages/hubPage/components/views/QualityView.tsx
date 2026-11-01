@@ -2,15 +2,86 @@ import "./quality.scss";
 import { useState } from "react";
 import type { FeedbackCounts, QualityDays } from "../../../../api/aiClient";
 import { useQualitySummary } from "../../hooks/useQualitySummary";
+import { Skeleton, SkeletonLine, SkeletonRegion } from "../../../../components/skeleton/Skeleton";
 
 const RANGES: QualityDays[] = [7, 30];
 
 const pct = (n: number, total: number) => (total ? `${Math.round((n / total) * 100)}%` : "-");
 
+// Matches the score buckets the server returns, so the loaded chart takes the same space.
+const SKELETON_BUCKETS = 5;
+const SKELETON_FEEDBACK_ROWS = ["Regular answers", '"No information" answers', "All"];
+const SKELETON_CARDS: { label: string; hasNote: boolean }[] = [
+  { label: "Questions", hasNote: false },
+  { label: '"No information"', hasNote: true },
+  { label: "Mean top-chunk score", hasNote: true },
+  { label: "Rated helpful", hasNote: true },
+];
+
+// Same classes as the loaded body; only the numbers are placeholders.
+function QualitySkeleton() {
+  return (
+    <SkeletonRegion label="Loading metrics…" className="quality-body">
+      <div className="quality-cards">
+        {SKELETON_CARDS.map(({ label, hasNote }) => (
+          <div key={label} className="quality-card">
+            <span className="quality-card-label">{label}</span>
+            <span className="quality-card-value"><SkeletonLine width="50%" /></span>
+            {hasNote && <span className="quality-card-note"><SkeletonLine width="70%" /></span>}
+          </div>
+        ))}
+      </div>
+
+      <section>
+        <h3 className="quality-heading">Top-chunk score distribution</h3>
+        <ul className="quality-bars">
+          {Array.from({ length: SKELETON_BUCKETS }, (_, i) => (
+            <li key={i} className="quality-bar-row">
+              <span className="quality-bar-label"><SkeletonLine width="70%" /></span>
+              <span className="quality-bar-track" aria-hidden="true">
+                <Skeleton width="100%" height="100%" />
+              </span>
+              <span className="quality-bar-value"><SkeletonLine width="60%" /></span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section>
+        <h3 className="quality-heading">Feedback</h3>
+        <div className="quality-table-scroll">
+          <table className="quality-table">
+            <thead>
+              <tr>
+                <th scope="col">Answers</th>
+                <th scope="col">Total</th>
+                <th scope="col">Rated</th>
+                <th scope="col">Up</th>
+                <th scope="col">Down</th>
+              </tr>
+            </thead>
+            <tbody>
+              {SKELETON_FEEDBACK_ROWS.map((label) => (
+                <tr key={label}>
+                  <th scope="row">{label}</th>
+                  {Array.from({ length: 4 }, (_, i) => (
+                    <td key={i}><SkeletonLine width={40} /></td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="quality-note">Up and down are shares of rated answers. Small numbers swing easily.</p>
+      </section>
+    </SkeletonRegion>
+  );
+}
+
 // The same metrics as `npm run eval:prod`, for admins and demo visitors.
 export default function QualityView({ isDemo }: { isDemo: boolean }) {
   const [days, setDays] = useState<QualityDays>(7);
-  const { data, isLoading, error } = useQualitySummary(days);
+  const { data, isPending, error } = useQualitySummary(days);
 
   const scored = data ? data.questions - data.noResults : 0;
   const maxBucket = data ? Math.max(1, ...data.buckets.map((b) => b.count)) : 1;
@@ -50,8 +121,8 @@ export default function QualityView({ isDemo }: { isDemo: boolean }) {
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="quality-status">Loading metrics…</div>
+        {isPending ? (
+          <QualitySkeleton />
         ) : error || !data ? (
           <div className="quality-status">Could not load metrics: {error?.message ?? "no data"}</div>
         ) : (

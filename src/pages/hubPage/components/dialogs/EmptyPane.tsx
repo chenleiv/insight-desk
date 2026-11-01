@@ -1,17 +1,12 @@
-import { DocumentDetailSkeleton } from "../../../../components/skeleton/Skeleton";
-
 type Props = {
   hasDocs: boolean;
-  loading?: boolean | undefined;
 };
 
-export function EmptyPane({ hasDocs, loading }: Props) {
+export function EmptyPane({ hasDocs }: Props) {
   return (
     <div className="doc-pane">
       <div className="doc-pane-empty">
-        {loading ? (
-          <DocumentDetailSkeleton />
-        ) : hasDocs ? (
+        {hasDocs ? (
           <div className="doc-pane-empty-title">Select a document</div>
         ) : (
           <>

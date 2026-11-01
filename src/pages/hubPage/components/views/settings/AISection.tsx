@@ -6,6 +6,10 @@ import {
   updateSuggestions,
 } from "../../../../../api/aiClient";
 import { useStatus } from "../../../../../components/statusBar/useStatus";
+import { SkeletonLine, SkeletonRegion } from "../../../../../components/skeleton/Skeleton";
+
+// Matches the four question fields the loaded form always shows.
+const QUESTION_COUNT = 4;
 
 export function AISection({ readOnly = false }: { readOnly?: boolean }) {
   const status = useStatus();
@@ -13,17 +17,22 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
   const [promptDraft, setPromptDraft] = useState("");
   const [promptSaving, setPromptSaving] = useState(false);
   const [promptLoaded, setPromptLoaded] = useState(false);
+  const [promptFailed, setPromptFailed] = useState(false);
 
   const [questions, setQuestions] = useState<string[]>(["", "", "", ""]);
   const [questionsSaving, setQuestionsSaving] = useState(false);
   const [questionsLoaded, setQuestionsLoaded] = useState(false);
+  const [questionsFailed, setQuestionsFailed] = useState(false);
 
   const statusRef = useRef(status);
 
   useEffect(() => {
     getSystemPrompt()
       .then((r) => { setPromptDraft(r.prompt); setPromptLoaded(true); })
-      .catch((e) => statusRef.current.show({ kind: "error", title: "Error", message: e.message }));
+      .catch((e) => {
+        setPromptFailed(true);
+        statusRef.current.show({ kind: "error", title: "Error", message: e.message });
+      });
     getSuggestions()
       .then((r) => {
         const padded = [...r.questions];
@@ -31,7 +40,10 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
         setQuestions(padded.slice(0, 4));
         setQuestionsLoaded(true);
       })
-      .catch((e) => statusRef.current.show({ kind: "error", title: "Error", message: e.message }));
+      .catch((e) => {
+        setQuestionsFailed(true);
+        statusRef.current.show({ kind: "error", title: "Error", message: e.message });
+      });
   }, []);
 
   async function savePrompt() {
@@ -70,15 +82,25 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
           </div>
         </div>
         <div className="settings-form">
-          <textarea
-            className="settings-ai-textarea"
-            value={promptDraft}
-            onChange={(e) => setPromptDraft(e.target.value)}
-            readOnly={readOnly}
-            disabled={!promptLoaded || promptSaving}
-            rows={12}
-            placeholder="Loading…"
-          />
+          {!promptLoaded && !promptFailed ? (
+            <SkeletonRegion label="Loading system prompt…" className="settings-ai-textarea settings-ai-prompt-skeleton">
+              <SkeletonLine width="90%" />
+              <SkeletonLine width="100%" />
+              <SkeletonLine width="75%" />
+              <SkeletonLine width="85%" />
+              <SkeletonLine width="40%" />
+            </SkeletonRegion>
+          ) : (
+            <textarea
+              className="settings-ai-textarea"
+              value={promptDraft}
+              onChange={(e) => setPromptDraft(e.target.value)}
+              readOnly={readOnly}
+              disabled={!promptLoaded || promptSaving}
+              rows={12}
+              placeholder={promptFailed ? "Could not load the system prompt." : undefined}
+            />
+          )}
           <button
             type="button"
             className="settings-save-btn"
@@ -98,19 +120,30 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
           </div>
         </div>
         <div className="settings-form">
-          {questions.map((q, i) => (
-            <label key={i} className="settings-field">
-              Question {i + 1}
-              <input
-                className="settings-input"
-                value={q}
-                onChange={(e) => setQuestions((prev) => prev.map((v, idx) => idx === i ? e.target.value : v))}
-                readOnly={readOnly}
-                disabled={!questionsLoaded || questionsSaving}
-                placeholder={`Example question ${i + 1}`}
-              />
-            </label>
-          ))}
+          {!questionsLoaded && !questionsFailed ? (
+            <SkeletonRegion label="Loading example questions…" className="settings-ai-questions-skeleton">
+              {Array.from({ length: QUESTION_COUNT }, (_, i) => (
+                <div key={i} className="settings-field">
+                  Question {i + 1}
+                  <span className="settings-input settings-input-skeleton"><SkeletonLine width="60%" /></span>
+                </div>
+              ))}
+            </SkeletonRegion>
+          ) : (
+            questions.map((q, i) => (
+              <label key={i} className="settings-field">
+                Question {i + 1}
+                <input
+                  className="settings-input"
+                  value={q}
+                  onChange={(e) => setQuestions((prev) => prev.map((v, idx) => idx === i ? e.target.value : v))}
+                  readOnly={readOnly}
+                  disabled={!questionsLoaded || questionsSaving}
+                  placeholder={questionsFailed ? "Could not load" : `Example question ${i + 1}`}
+                />
+              </label>
+            ))
+          )}
           <button
             type="button"
             className="settings-save-btn"

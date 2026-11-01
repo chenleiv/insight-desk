@@ -4,7 +4,8 @@ import { listDocuments, type DocumentItem } from "../api/documentsClient";
 export const DOCUMENTS_QUERY_KEY = ["documents"] as const;
 
 export function useDocuments() {
-  const { data: docs = [], isLoading: loading, error } = useQuery({
+  // Pending means no data yet; a background refetch of cached documents keeps it false.
+  const { data: docs = [], isPending: loading, error } = useQuery({
     queryKey: DOCUMENTS_QUERY_KEY,
     queryFn: listDocuments,
     staleTime: 1000 * 60 * 5,

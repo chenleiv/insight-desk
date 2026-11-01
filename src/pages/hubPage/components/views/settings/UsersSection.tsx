@@ -9,6 +9,42 @@ import {
 } from "../../../../../api/authClient";
 import { useStatus } from "../../../../../components/statusBar/useStatus";
 import useConfirm from "../../../../../hooks/useConfirm";
+import { Skeleton, SkeletonLine, SkeletonRegion } from "../../../../../components/skeleton/Skeleton";
+
+const SKELETON_ROWS = 4;
+
+function UsersTableHead() {
+  return (
+    <div className="settings-users-thead">
+      <span>User</span>
+      <span>Role</span>
+      <span>Status</span>
+      <span></span>
+    </div>
+  );
+}
+
+// Same grid and control classes as a loaded row, so mobile placement matches too.
+function UsersSkeleton() {
+  return (
+    <SkeletonRegion label="Loading users…" className="settings-users-table">
+      <UsersTableHead />
+      {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+        <div key={i} className="settings-user-row skeleton-static">
+          <div className="settings-user-info">
+            <div className="settings-user-identity">
+              <span className="settings-user-name"><SkeletonLine width={120} /></span>
+              <span className="settings-user-email"><SkeletonLine width={180} /></span>
+            </div>
+          </div>
+          <span className="settings-role-select"><SkeletonLine width={56} /></span>
+          <span className="settings-status-btn"><SkeletonLine width="100%" /></span>
+          <span className="settings-delete-btn"><Skeleton width={15} height={15} /></span>
+        </div>
+      ))}
+    </SkeletonRegion>
+  );
+}
 
 export function UsersSection({ readOnly = false }: { readOnly?: boolean }) {
   const { user: currentUser } = useAuth();
@@ -93,7 +129,9 @@ export function UsersSection({ readOnly = false }: { readOnly?: boolean }) {
           <p>Manage roles and access for all users</p>
           {readOnly && <p className="settings-readonly-note">Admin only · Sample users shown in the demo, changes are disabled</p>}
         </div>
-        <span className="settings-user-count">{users.length} users</span>
+        <span className="settings-user-count">
+          {loading ? <SkeletonLine width={52} /> : `${users.length} users`}
+        </span>
       </div>
 
       <div className="settings-search">
@@ -107,15 +145,10 @@ export function UsersSection({ readOnly = false }: { readOnly?: boolean }) {
       </div>
 
       {loading ? (
-        <div className="settings-loading">Loading users…</div>
+        <UsersSkeleton />
       ) : (
         <div className="settings-users-table">
-          <div className="settings-users-thead">
-            <span>User</span>
-            <span>Role</span>
-            <span>Status</span>
-            <span></span>
-          </div>
+          <UsersTableHead />
           {filtered.length === 0 ? (
             <div className="settings-users-empty">No users found</div>
           ) : (
