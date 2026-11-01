@@ -4,7 +4,7 @@ import { logger } from './logger.js';
 import Groq from 'groq-sdk';
 import { getCurrentUser, requireAdmin } from './auth.js';
 import { aiChatSchema, aiFeedbackSchema, qualityQuerySchema, sendValidationError } from './schemas.js';
-import { promptState, PROMPT_METADATA, DEFAULT_PROMPT, CONTEXT_RULES } from './prompts.js';
+import { promptState, PROMPT_METADATA, CONTEXT_RULES, NO_INFO_ANSWER, LEGACY_NO_INFO_ANSWERS } from './prompts.js';
 import { AIConfig } from './models.js';
 import { search } from './rag/search.js';
 import { logRetrieval, saveFeedback } from './rag/retrievalLog.js';
@@ -61,11 +61,14 @@ async function englishKeywords(groq, question) {
 const CONTEXT_CHUNKS = 5;
 
 // Chunks scoring below this are not sent to the model. Calibrated on the demo
-// documents: unrelated questions topped out at 0.27, related ones started at 0.34.
-// Kept at the low end, since the model is also told to answer only from context.
+// documents (eval/threshold-results.md): unrelated questions top out at 0.287,
+// and one related question scores 0.275, so the ranges overlap slightly.
+// The model is also told to answer only from context.
 export const MIN_SIMILARITY = 0.3;
 
-export const NO_INFO_ANSWER = "I don't have information about this in your documents.";
+export { NO_INFO_ANSWER };
+
+export const EMPTY_ANSWER_DETAIL = 'The AI service returned an empty answer. Please try again.';
 
 // A letter outside the Latin script, e.g. Hebrew. The embedding model only understands English.
 const NON_LATIN_LETTER = /(?!\p{Script=Latin})\p{L}/u;
@@ -114,6 +117,30 @@ export function verifyCitations(answer, chunks) {
     return { answer: text.trim(), citations: [...citations.values()], unknown };
 }
 
+// Lowercased, curly apostrophes made straight, citations, surrounding quotes and
+// a final period removed, so small variations of the same sentence compare equal.
+function normalizeSentence(text) {
+    return text
+        .replace(/[[【]\s*c\d+(?:\s*,\s*c\d+)*\s*[\]】]/g, '')
+        .replace(/[\u2018\u2019]/g, "'")
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/^["'\u201c\u201d«]+|["'\u201c\u201d»]+$/g, '')
+        .trim()
+        .replace(/\.$/, '')
+        .toLowerCase();
+}
+
+const NO_INFO_SENTENCES = new Set([NO_INFO_ANSWER, ...LEGACY_NO_INFO_ANSWERS].map(normalizeSentence));
+
+/**
+ * True when the whole answer is a "not found" sentence, in the current or a
+ * legacy wording. A longer answer that only contains one is a real answer.
+ */
+export function isNoInfoAnswer(answer) {
+    return NO_INFO_SENTENCES.has(normalizeSentence(answer));
+}
+
 // Each question embeds the query on the CPU and calls Groq, so chat is capped per client IP.
 const chatLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -144,12 +171,13 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
         // Search only documents this user may read; the user comes from auth, never the request.
         const results = await search(req.user, query, CONTEXT_CHUNKS);
         const chunks = results.filter((c) => c.score >= MIN_SIMILARITY);
+        // Logged once the answer is known, so a model refusal also counts as "no information".
         // Null if the log could not be saved; the client then shows no feedback buttons.
-        const answerId = await logRetrieval(req.user, results, { noInfo: !chunks.length, minSimilarity: MIN_SIMILARITY });
+        const log = (noInfo) => logRetrieval(req.user, results, { noInfo, minSimilarity: MIN_SIMILARITY });
 
         // Nothing close enough: answer without calling the model, so it cannot guess.
         if (!chunks.length) {
-            return res.json({ answer: NO_INFO_ANSWER, citations: [], sources: [], answerId });
+            return res.json({ answer: NO_INFO_ANSWER, citations: [], answerId: await log(true) });
         }
 
         const userContent = `${buildContext(chunks)}\n\nQuestion: ${neutralizeTags(message)}`;
@@ -166,16 +194,17 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
             temperature: 0.3,
         });
 
-        const { answer, citations, unknown } = verifyCitations(response.choices[0].message.content, chunks);
+        const choice = response.choices?.[0];
+        const { answer, citations, unknown } = verifyCitations(choice?.message?.content ?? '', chunks);
         if (unknown.length) logger.warn('Model cited chunks that were not retrieved', { ids: unknown });
 
-        res.json({
-            answer,
-            citations,
-            // One source per document, in order of its best chunk.
-            sources: [...new Map(chunks.map((c) => [c.docId, { id: c.docId, title: c.title }])).values()],
-            answerId,
-        });
+        // A reasoning model can spend all of max_tokens on reasoning and return no text.
+        if (!answer) {
+            logger.warn('Model returned an empty answer', { finishReason: choice?.finish_reason ?? null });
+            return res.status(502).json({ detail: EMPTY_ANSWER_DETAIL });
+        }
+
+        res.json({ answer, citations, answerId: await log(isNoInfoAnswer(answer)) });
 
     } catch (error) {
         if (error.name === 'ZodError') {
@@ -252,9 +281,15 @@ router.patch('/api/ai/prompt', requireAdmin, async (req, res) => {
     if (!prompt || typeof prompt !== 'string') {
         return res.status(400).json({ detail: 'Invalid prompt' });
     }
-    promptState.prompt = prompt.trim();
-    await AIConfig.findByIdAndUpdate('ai', { systemPrompt: promptState.prompt }, { upsert: true, new: true });
-    res.json({ prompt: promptState.prompt, ...PROMPT_METADATA });
+    try {
+        // Saved first, so the running prompt never differs from the stored one.
+        const { systemPrompt } = await AIConfig.findByIdAndUpdate('ai', { systemPrompt: prompt.trim() }, { upsert: true, returnDocument: 'after' });
+        promptState.prompt = systemPrompt;
+        res.json({ prompt: promptState.prompt, ...PROMPT_METADATA });
+    } catch (error) {
+        logger.error('Prompt save error', { message: error?.message ?? String(error) });
+        res.status(500).json({ detail: 'Could not save the prompt. Please try again later.' });
+    }
 });
 
 router.get('/api/ai/suggestions', getCurrentUser, async (_req, res) => {
@@ -273,8 +308,13 @@ router.patch('/api/ai/suggestions', requireAdmin, async (req, res) => {
         return res.status(400).json({ detail: 'questions must be an array of strings' });
     }
     const filtered = questions.map((q) => q.trim()).filter(Boolean);
-    await AIConfig.findByIdAndUpdate('ai', { exampleQuestions: filtered }, { upsert: true, new: true });
-    res.json({ questions: filtered });
+    try {
+        await AIConfig.findByIdAndUpdate('ai', { exampleQuestions: filtered }, { upsert: true, returnDocument: 'after' });
+        res.json({ questions: filtered });
+    } catch (error) {
+        logger.error('Suggestions save error', { message: error?.message ?? String(error) });
+        res.status(500).json({ detail: 'Could not save the questions. Please try again later.' });
+    }
 });
 
 export default router;

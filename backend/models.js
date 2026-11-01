@@ -67,9 +67,13 @@ const retrievalLogSchema = new mongoose.Schema({
         index: { type: Number, required: true },
         score: { type: Number, required: true },
     }, { _id: false, strict: 'throw' })],
-    // True when no chunk passed the threshold and the answer was "no information".
+    // True when the answer was "no information": no chunk passed the threshold,
+    // or the model replied with the "not found" sentence.
     noInfo: { type: Boolean, required: true },
     chunkSize: { type: Number, required: true },
+    // EMBEDDING_FORMAT_VERSION in the code, always set on save. Records saved
+    // before this field existed have none; the TTL removes them within 30 days.
+    embeddingFormat: { type: Number },
     minSimilarity: { type: Number, required: true },
     // HMAC of the asking user and this record's id, so only that user can rate
     // the answer. It cannot be traced back to a user without the server secret.

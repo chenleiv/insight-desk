@@ -1,5 +1,6 @@
 import { RetrievalLog } from "../models.js";
 import { CHUNK_SIZE } from "./buildChunks.js";
+import { EMBEDDING_FORMAT_VERSION } from "./embeddingModel.js";
 import { keyedHash } from "../auth.js";
 import { logger } from "../logger.js";
 
@@ -18,6 +19,7 @@ export async function logRetrieval(user, results, { noInfo, minSimilarity }) {
       results: results.map((r) => ({ docId: r.docId, index: r.index, score: r.score })),
       noInfo,
       chunkSize: CHUNK_SIZE,
+      embeddingFormat: EMBEDDING_FORMAT_VERSION,
       minSimilarity,
     });
     log.ownerTag = ownerTag(user, log._id);

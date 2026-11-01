@@ -50,6 +50,14 @@ Documents already stored in MongoDB keep the chunks and embeddings built with th
 5. **Answer quality**, not only retrieval: send the top chunks to the model and score the answer against `expected`.
 6. **Chunk-level hits** (the chunk that holds the answer, not just the right document) and MRR, for a finer signal.
 
+## Near-miss suggestions (not implemented)
+
+A "did you mean" answer was considered for questions whose best chunk is just under `MIN_SIMILARITY`: instead of a flat "not found", point to the closest document titles. It was measured on the demo documents with `eval/questions.json` and `eval/unrelated-questions.json`, using the top chunk across all documents, as the chat would.
+
+- Only one related question (q14, 0.275) falls below 0.3, so the most it could help is one question in 20.
+- There is no clean separation: any lower bound that includes q14 (0.27 or lower) also includes the unrelated u11 (0.287, "How does garbage collection work in Java?"), which would be pointed to "Linux Process Management Basics". Lower bounds add more wrong suggestions (u08 at 0.248, u09 at 0.227, u13 at 0.200).
+- At every useful bound, at least half of the suggestions would be wrong, on a very small sample. The suggestion was not built. Revisit it with more questions and documents.
+
 ## Measuring in production
 
 In production there is no known "right document" for a question, so hit@k cannot be computed. Instead, every chat question leaves a small record of what retrieval found, and a script summarizes those records as indirect quality signals.
@@ -60,12 +68,15 @@ In production there is no known "right document" for a question, so hit@k cannot
 
 - `createdAt`: when the question was asked.
 - `results`: every chunk the search returned (up to 5), best first, *before* the similarity threshold: its `docId`, chunk `index` and similarity `score`.
-- `noInfo`: true when no chunk reached the threshold, so the answer was "no information" and the model was not called.
+- `noInfo`: true when the answer was "no information": either no chunk reached the threshold (the model was not called), or the model replied with the "not found" sentence. The server recognizes the current sentence and the earlier wordings, since a prompt stored by an admin may still ask for one of them. A refusal in another language is not recognized.
 - `chunkSize` and `minSimilarity`: the settings in the code at the time.
+- `embeddingFormat`: `EMBEDDING_FORMAT_VERSION` in the code at the time. Records saved before this field was added have none. The statistics do not filter on it: those older records may hold scores from before the reindex, and the 30-day TTL removes them all by early December 2026.
 - `feedback`: the user's rating of the answer, `up`, `down` or `null` (not rated). See [User feedback](#user-feedback).
 - `ownerTag`: an HMAC-SHA256 of the asking user's ID and the record's ID, keyed with the server secret (`JWT_SECRET`). It only lets the server check that a feedback request comes from the user who asked.
 
 Records are deleted automatically after 30 days by a MongoDB TTL index on `createdAt`.
+
+The record is saved once the answer is known. A failed model call, or an empty model answer, returns an error and saves no record.
 
 ### What is not collected, and why
 
