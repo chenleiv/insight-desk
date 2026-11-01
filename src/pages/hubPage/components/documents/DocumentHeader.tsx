@@ -13,6 +13,9 @@ import Menu from "../../../../components/menu/Menu";
 import { getCategoryChipStyle } from "../../utils/docs";
 import type { SaveStatus } from "../../hooks/useDocumentSave";
 import type { DownloadFormat } from "../../../../api/documentsClient";
+import { UPLOAD_ACCEPT } from "../../../../../shared/uploadRules";
+
+const IMPORT_TOOLTIP = `Supported: .json ${UPLOAD_ACCEPT.split(",").join(" ")}`;
 
 // "unsaved": edits not saved yet. "deleting": the delete request is running.
 type HeaderSaveStatus = SaveStatus | "unsaved" | "deleting";
@@ -222,7 +225,7 @@ export function DocumentHeader({
               className="doc-pane-import-btn"
               onClick={onImportClick}
               disabled={importDisabled}
-              data-tooltip="Supported: .txt .md .json .rtf .pdf .docx .xlsx .xls"
+              data-tooltip={IMPORT_TOOLTIP}
               data-tooltip-pos="bottom"
             >
               <FileUp size={13} aria-hidden />
