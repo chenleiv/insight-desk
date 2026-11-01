@@ -414,7 +414,6 @@
         }
     }
 
-    .settings-loading,
     .settings-users-empty {
         padding: 40px 24px;
         text-align: center;
@@ -639,6 +638,24 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
+    }
+
+    // A textarea with rows={12}: twelve lines plus its padding and border.
+    .settings-ai-prompt-skeleton {
+        display: block;
+        height: calc(12lh + 26px);
+    }
+
+    .settings-ai-questions-skeleton {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    // Inputs use the normal line height, not the inherited one.
+    .settings-input-skeleton {
+        display: block;
+        line-height: normal;
     }
 
     /* ── Categories (Documents tab) ── */

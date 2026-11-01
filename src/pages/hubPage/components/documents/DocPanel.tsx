@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Search, X, Paperclip, Star, Plus, ChevronRight } from "lucide-react";
 import type { DocumentItem } from "../../../../api/documentsClient";
 import { getCategoryChipStyle } from "../../utils/docs";
-import { Skeleton } from "../../../../components/skeleton/Skeleton";
+import { Skeleton, SkeletonLine } from "../../../../components/skeleton/Skeleton";
 
 type Props = {
   docs: DocumentItem[];
@@ -112,12 +112,18 @@ export default function DocPanel({
         )}
       </div>
 
-      <ul className="doc-panel-list">
+      {loading && <span className="visually-hidden" role="status">Loading documents…</span>}
+      <ul className="doc-panel-list" aria-busy={loading || undefined}>
         {loading && Array.from({ length: 6 }).map((_, i) => (
-          <li key={i} className="doc-panel-row">
+          <li key={i} className="doc-panel-row skeleton-static">
             <div className="doc-panel-row-body">
-              <Skeleton width="75%" height={13} />
-              <Skeleton width="40%" height={11} style={{ marginTop: 4 }} />
+              <span className="doc-panel-row-title"><SkeletonLine width="75%" /></span>
+              <div className="doc-panel-row-meta">
+                <Skeleton width={48} height={17} />
+              </div>
+            </div>
+            <div className="doc-panel-row-icons">
+              <Skeleton width={24} height={24} />
             </div>
           </li>
         ))}

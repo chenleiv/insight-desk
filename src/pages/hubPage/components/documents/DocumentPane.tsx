@@ -309,11 +309,11 @@ export default function DocumentPane({
   }
 
   if (!isCreating && loading) {
-    return <div className="doc-pane"><DocumentDetailSkeleton /></div>;
+    return <div className="doc-pane"><DocumentDetailSkeleton canEdit={canEdit} /></div>;
   }
 
   if (!isCreating && !doc) {
-    return <EmptyPane hasDocs={hasDocs} loading={loading} />;
+    return <EmptyPane hasDocs={hasDocs} />;
   }
 
   const isDrawer = variant === "drawer";

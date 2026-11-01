@@ -157,6 +157,10 @@
     .quality-bar-value {
         color: var(--muted);
         text-align: right;
+
+        .skeleton-line {
+            margin-left: auto;
+        }
     }
 }
 
@@ -188,6 +192,11 @@
 
     tbody th {
         font-weight: 400;
+    }
+
+    // Right-aligned like the numbers it stands in for.
+    td .skeleton-line {
+        margin-left: auto;
     }
 }
 

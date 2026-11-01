@@ -7,6 +7,7 @@ import { formatRelativeTime } from "../../../../utils/relativeTime";
 import type { DocumentItem } from "../../../../api/documentsClient";
 import { getDocTags, getCategoryIconStyle, getCategoryChipStyle } from "../../utils/docs";
 import Menu from "../../../../components/menu/Menu";
+import { Skeleton, SkeletonLine, SkeletonRegion } from "../../../../components/skeleton/Skeleton";
 import { loadJson, scopedKey } from "../../../../utils/storage";
 import { AI_QUERY_COUNT_BASE_KEY } from "./AIAssistantView";
 
@@ -20,6 +21,28 @@ type Props = {
   createDisabledLabel?: string;
   canImport?: boolean;
 };
+
+const RECENT_LIMIT = 5;
+
+// Same classes as a recent document row, without the button behavior.
+function RecentDocsSkeleton() {
+  return (
+    <SkeletonRegion label="Loading documents…" className="recent-docs-list">
+      {Array.from({ length: RECENT_LIMIT }, (_, i) => (
+        <div key={i} className="recent-doc-item recent-doc-item-clickable skeleton-static">
+          <Skeleton className="recent-doc-icon-tile" />
+          <div className="doc-info">
+            <span className="doc-title"><SkeletonLine width="60%" /></span>
+            <span className="doc-time"><SkeletonLine width="25%" /></span>
+          </div>
+          <div className="doc-tags">
+            <Skeleton width={14} height={14} />
+          </div>
+        </div>
+      ))}
+    </SkeletonRegion>
+  );
+}
 
 function docTime(doc: DocumentItem): number {
   const t = doc.updatedAt ?? doc.createdAt;
@@ -51,7 +74,7 @@ export default function DashboardView({
       onClick: () => { onImport?.("append", "text"); setShowImportMenu(false); },
     },
   ];
-  const { docs } = useDocuments();
+  const { docs, loading } = useDocuments();
   const { user, favoritesMap, toggleFavorite } = useAuth();
 
   const displayName = (() => {
@@ -61,7 +84,7 @@ export default function DashboardView({
   })();
 
   const recent = useMemo(() => {
-    return [...docs].sort((a, b) => docTime(b) - docTime(a)).slice(0, 5);
+    return [...docs].sort((a, b) => docTime(b) - docTime(a)).slice(0, RECENT_LIMIT);
   }, [docs]);
 
   const totalDocs = docs.length;
@@ -138,7 +161,7 @@ export default function DashboardView({
               <FileText size={18} />
             </span>
           </div>
-          <div className="stat-value">{totalDocs}</div>
+          <div className="stat-value">{loading ? <SkeletonLine width="40%" /> : totalDocs}</div>
           <div className="stat-label">Total Documents</div>
         </div>
         <div className="stat-card">
@@ -147,7 +170,7 @@ export default function DashboardView({
               <Star size={18} />
             </span>
           </div>
-          <div className="stat-value">{favoriteCount}</div>
+          <div className="stat-value">{loading ? <SkeletonLine width="40%" /> : favoriteCount}</div>
           <div className="stat-label">Favorites</div>
         </div>
         <div className="stat-card">
@@ -165,7 +188,7 @@ export default function DashboardView({
               <HardDrive size={18} />
             </span>
           </div>
-          <div className="stat-value">{storageLabel}</div>
+          <div className="stat-value">{loading ? <SkeletonLine width="60%" /> : storageLabel}</div>
           <div className="stat-label">Content Size</div>
         </div>
       </div>
@@ -176,55 +199,59 @@ export default function DashboardView({
             <h3>Recent Documents</h3>
           </div>
 
-          <div className="recent-docs-list">
-            {recent.length === 0 ? (
-              <p className="dashboard-recent-empty">No documents yet. Open Documents to create one.</p>
-            ) : (
-              recent.map((doc) => {
-                const tags = getDocTags(doc);
-                const primary = tags[0];
-                const iconStyle = primary
-                  ? getCategoryIconStyle(primary)
-                  : { backgroundColor: "var(--soft)", color: "var(--muted)" };
-                const isFav = !!favoritesMap[doc.id];
+          {loading ? (
+            <RecentDocsSkeleton />
+          ) : (
+            <div className="recent-docs-list">
+              {recent.length === 0 ? (
+                <p className="dashboard-recent-empty">No documents yet. Open Documents to create one.</p>
+              ) : (
+                recent.map((doc) => {
+                  const tags = getDocTags(doc);
+                  const primary = tags[0];
+                  const iconStyle = primary
+                    ? getCategoryIconStyle(primary)
+                    : { backgroundColor: "var(--soft)", color: "var(--muted)" };
+                  const isFav = !!favoritesMap[doc.id];
 
-                return (
-                  <button
-                    key={String(doc.id)}
-                    type="button"
-                    className="recent-doc-item recent-doc-item-clickable"
-                    onClick={() => onOpenDocument?.(doc.id)}
-                  >
-                    <span className="recent-doc-icon-tile" style={iconStyle}>
-                      <FileText size={16} />
-                    </span>
-                    <div className="doc-info">
-                      <span className="doc-title">{doc.title || "Untitled"}</span>
-                      <span className="doc-time">
-                        {formatRelativeTime(doc.updatedAt ?? doc.createdAt)}
+                  return (
+                    <button
+                      key={String(doc.id)}
+                      type="button"
+                      className="recent-doc-item recent-doc-item-clickable"
+                      onClick={() => onOpenDocument?.(doc.id)}
+                    >
+                      <span className="recent-doc-icon-tile" style={iconStyle}>
+                        <FileText size={16} />
                       </span>
-                    </div>
-                    <div className="doc-tags">
-                      {primary && (
-                        <span className="doc-panel-row-chip" style={getCategoryChipStyle(primary)}>
-                          {primary}
+                      <div className="doc-info">
+                        <span className="doc-title">{doc.title || "Untitled"}</span>
+                        <span className="doc-time">
+                          {formatRelativeTime(doc.updatedAt ?? doc.createdAt)}
                         </span>
-                      )}
-                      <Star
-                        size={14}
-                        className={`star-icon ${isFav ? "active" : ""}`}
-                        fill={isFav ? "var(--gold)" : "none"}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void toggleFavorite(doc.id);
-                        }}
-                      />
-                    </div>
-                  </button>
-                );
-              })
-            )}
-          </div>
+                      </div>
+                      <div className="doc-tags">
+                        {primary && (
+                          <span className="doc-panel-row-chip" style={getCategoryChipStyle(primary)}>
+                            {primary}
+                          </span>
+                        )}
+                        <Star
+                          size={14}
+                          className={`star-icon ${isFav ? "active" : ""}`}
+                          fill={isFav ? "var(--gold)" : "none"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void toggleFavorite(doc.id);
+                          }}
+                        />
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
 
       </div>
