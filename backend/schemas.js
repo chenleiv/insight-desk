@@ -21,6 +21,11 @@ export const registerSchema = z.object({
   displayName: z.string().max(80).optional(),
 });
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+});
+
 // Document Schemas
 export const documentSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),

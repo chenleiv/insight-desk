@@ -11,6 +11,14 @@ import {
 } from "./authStorage";
 import { AuthContext } from "./authContext";
 import { CHAT_KEY } from "../storageKeys";
+import { removeDemoScopedKeys } from "../utils/storage";
+import { useSessionCheck } from "./useSessionCheck";
+
+/** Removes the per-session keys; device preferences and a regular user's own keys stay. */
+function clearSessionStorage() {
+  localStorage.removeItem(CHAT_KEY);
+  removeDemoScopedKeys();
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() =>
@@ -39,6 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           signedInRef.current = false;
           setUser(null);
           clearUserFromStorage();
+          // The previous session ended while the app was closed; drop what it left behind.
+          clearSessionStorage();
         }
       } finally {
         if (!cancelled) setIsReady(true);
@@ -52,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /** Drops data cached for the previous session so the next user in this tab never sees it. */
   function resetSessionState() {
     queryClient.clear();
-    localStorage.removeItem(CHAT_KEY);
+    clearSessionStorage();
   }
 
   /** Ends a session the server no longer accepts. Later 401s find no user and do nothing. */
@@ -67,6 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const onUnauthorized = useEffectEvent(expireSession);
+
+  useSessionCheck(isReady && user !== null, expireSession);
 
   useEffect(() => {
     setUnauthorizedHandler(() => onUnauthorized());

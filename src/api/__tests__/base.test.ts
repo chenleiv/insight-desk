@@ -39,11 +39,24 @@ describe("apiFetch session expiry", () => {
     "/api/auth/demo",
     "/api/auth/me",
     "/api/auth/logout",
-    "/api/auth/password",
   ])("does not report a 401 from %s", async (path) => {
     respondWith(401);
 
     await expect(apiFetch(path, { method: "POST" })).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it("reports a 401 from the password change as an expired session", async () => {
+    respondWith(401);
+
+    await expect(apiFetch("/api/auth/password", { method: "PATCH" })).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).toHaveBeenCalledOnce();
+  });
+
+  it("does not report a wrong current password (400) from the password change", async () => {
+    respondWith(400);
+
+    await expect(apiFetch("/api/auth/password", { method: "PATCH" })).rejects.toMatchObject({ status: 400 });
     expect(onUnauthorized).not.toHaveBeenCalled();
   });
 

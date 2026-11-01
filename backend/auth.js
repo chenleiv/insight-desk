@@ -8,7 +8,7 @@ import { User } from './models.js';
 import { canEditDocuments, isDemoUser } from './access.js';
 import { createDemoWorkspace, removeDemoWorkspace } from './demo.js';
 
-import { loginSchema, registerSchema, sendValidationError } from './schemas.js';
+import { changePasswordSchema, loginSchema, registerSchema, sendValidationError } from './schemas.js';
 
 const router = express.Router();
 
@@ -349,26 +349,22 @@ router.post('/logout', async (req, res) => {
 
 router.patch('/password', passwordAttemptLimiter, getCurrentUser, async (req, res) => {
     try {
-        const { currentPassword, newPassword } = req.body;
-        if (!currentPassword || !newPassword) {
-            return res.status(400).json({ detail: 'currentPassword and newPassword are required' });
-        }
-        if (newPassword.length < 6) {
-            return res.status(400).json({ detail: 'New password must be at least 6 characters' });
-        }
+        const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
 
         const user = req.user;
         if (isDemoUser(user)) {
             return res.status(403).json({ detail: 'Not available in the demo' });
         }
         if (user.password_hash && !(await bcrypt.compare(currentPassword, user.password_hash))) {
-            return res.status(401).json({ detail: 'Current password is incorrect' });
+            // 400, not 401: the session is valid, so the client must not treat this as an expired session.
+            return res.status(400).json({ detail: 'Current password is incorrect' });
         }
 
         user.password_hash = await bcrypt.hash(newPassword, 10);
         await user.save();
         res.json({ ok: true });
     } catch (err) {
+        if (handleZodError(err, res)) return;
         logger.error('Change password failed', { message: err.message });
         res.status(500).json({ detail: 'Internal server error' });
     }
