@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useBlocker, useLocation } from "react-router-dom";
 import useConfirm from "../../../hooks/useConfirm";
 
+// Shared with the document pane, so every discard prompt asks the same question.
+export const DISCARD_MESSAGE = "Discard unsaved changes?";
+
 const DISCARD_DIALOG = {
   title: "Unsaved Changes",
-  message: "Discard unsaved changes?",
+  message: DISCARD_MESSAGE,
   confirmLabel: "Discard",
   variant: "danger",
 } as const;

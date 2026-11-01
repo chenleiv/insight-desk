@@ -427,6 +427,22 @@ describe("DocumentPane Close button", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it("asks the same question as Cancel and Escape", async () => {
+    confirm.mockResolvedValue(false);
+    render(<Harness initial={DOC_A} onClose={onClose} />);
+    await click(editBtn());
+    type("Hello there");
+    await click(cancelBtn());
+    await act(async () => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
+    await click(closeBtn());
+    const messages = confirm.mock.calls.map(([options]) => options.message);
+    expect(messages).toEqual([
+      "Discard unsaved changes?",
+      "Discard unsaved changes?",
+      "Discard unsaved changes?",
+    ]);
+  });
+
   it("in read mode, closes the document", async () => {
     render(<Harness initial={DOC_A} onClose={onClose} />);
     await click(closeBtn());
