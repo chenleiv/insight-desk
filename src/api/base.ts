@@ -11,6 +11,30 @@ export class ApiError extends Error {
   }
 }
 
+// A 401 from these is part of signing in or checking for a session, not an expired session.
+// The password change answers a wrong current password with 401, so it is exempt for now.
+const SESSION_EXEMPT_PATHS = new Set([
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/demo",
+  "/api/auth/me",
+  "/api/auth/logout",
+  "/api/auth/password",
+]);
+
+let unauthorizedHandler: (() => void) | null = null;
+
+/** Registers the callback that ends the session when a signed-in request gets 401. */
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
+export function notifyIfUnauthorized(path: string, status: number) {
+  if (status !== 401) return;
+  if (SESSION_EXEMPT_PATHS.has(path.split("?")[0])) return;
+  unauthorizedHandler?.();
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {}
@@ -36,6 +60,7 @@ export async function apiFetch<T>(
   const text = await res.text();
 
   if (!res.ok) {
+    notifyIfUnauthorized(path, res.status);
     let message = `Request failed: ${res.status}`;
     try {
       const body = JSON.parse(text);

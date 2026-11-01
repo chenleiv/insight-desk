@@ -15,6 +15,8 @@ export type AuthContextValue = {
   user: AuthUser | null;
   isReady: boolean;
   isAuthed: boolean;
+  /** True after the server rejected the session, until the next sign-in. */
+  sessionExpired: boolean;
   favoritesMap: Record<string | number, boolean>;
   loginSuccess: (user: AuthUser) => void;
   updateUser: (patch: Partial<AuthUser>) => void;
