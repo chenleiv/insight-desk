@@ -8,6 +8,8 @@ import { AUTH_USER_KEY, type AuthContextValue, type AuthUser } from "../authType
 import { CHAT_KEY } from "../../storageKeys";
 import { DOCUMENTS_QUERY_KEY } from "../../context/DocumentsContext";
 import { apiFetch, ApiError } from "../../api/base";
+import { scopedKey } from "../../utils/storage";
+import { SESSION_CHECK_MIN_GAP_MS } from "../useSessionCheck";
 
 const { meMock, logoutMock } = vi.hoisted(() => ({
   meMock: vi.fn(),
@@ -27,6 +29,7 @@ const QUALITY_QUERY_KEY = ["qualitySummary", 7];
 
 const alice: AuthUser = { email: "alice@example.com", role: "admin", favorites: [] };
 const bob: AuthUser = { email: "bob@example.com", role: "viewer", favorites: [] };
+const demoVisitor: AuthUser = { email: "demo-1234@demo.invalid", role: "demo", favorites: [] };
 
 let auth: AuthContextValue;
 let container: HTMLDivElement;
@@ -215,5 +218,128 @@ describe("AuthProvider session expiry", () => {
     await requestWithExpiredSession();
     expect(auth.user).toBeNull();
     expect(auth.sessionExpired).toBe(true);
+  });
+});
+
+// Renders a fresh provider whose startup identity check answers with the given result.
+async function remount(startup: () => Promise<AuthUser>) {
+  act(() => root.unmount());
+  meMock.mockReset().mockImplementation(startup);
+  root = createRoot(container);
+  await act(async () => {
+    root.render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Probe expose={(value) => { auth = value; }} />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+  });
+}
+
+describe("AuthProvider storage cleanup", () => {
+  const DEVICE_KEYS = ["theme", "docPanelCollapsed", "docPanelWidth", "insight-desk:welcomed"];
+
+  function seedScopedKeys(email: string) {
+    localStorage.setItem(scopedKey("documentsOrder", email), JSON.stringify(["doc-1"]));
+    localStorage.setItem(scopedKey("aiQueryCount", email), "3");
+  }
+
+  function scopedKeysOf(email: string) {
+    return [scopedKey("documentsOrder", email), scopedKey("aiQueryCount", email)].map((k) => localStorage.getItem(k));
+  }
+
+  beforeEach(() => {
+    for (const key of DEVICE_KEYS) localStorage.setItem(key, "1");
+  });
+
+  it("removes a demo visitor's scoped keys on logout and keeps device preferences", async () => {
+    await remount(async () => demoVisitor);
+    seedScopedKeys(demoVisitor.email);
+
+    await act(async () => {
+      await auth.logout();
+    });
+
+    expect(scopedKeysOf(demoVisitor.email)).toEqual([null, null]);
+    for (const key of DEVICE_KEYS) expect(localStorage.getItem(key)).toBe("1");
+  });
+
+  it("removes a demo visitor's scoped keys when the session expires", async () => {
+    await remount(async () => demoVisitor);
+    seedScopedKeys(demoVisitor.email);
+
+    await requestWithExpiredSession();
+
+    expect(scopedKeysOf(demoVisitor.email)).toEqual([null, null]);
+  });
+
+  it("removes keys left by earlier demo visitors when a new one signs in", async () => {
+    seedScopedKeys("demo-old@demo.invalid");
+
+    act(() => auth.loginSuccess(demoVisitor));
+
+    expect(scopedKeysOf("demo-old@demo.invalid")).toEqual([null, null]);
+  });
+
+  it("keeps a regular user's scoped keys on logout", async () => {
+    seedScopedKeys(alice.email);
+
+    await act(async () => {
+      await auth.logout();
+    });
+
+    expect(scopedKeysOf(alice.email)).toEqual([JSON.stringify(["doc-1"]), "3"]);
+  });
+
+  it("clears the chat history when the app starts with an expired session", async () => {
+    seedSessionData();
+    seedScopedKeys(demoVisitor.email);
+
+    await remount(async () => {
+      throw new ApiError("Invalid token", 401);
+    });
+
+    expect(auth.user).toBeNull();
+    expect(localStorage.getItem(CHAT_KEY)).toBeNull();
+    expect(scopedKeysOf(demoVisitor.email)).toEqual([null, null]);
+  });
+});
+
+describe("AuthProvider proactive session check", () => {
+  function focusLater() {
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now + SESSION_CHECK_MIN_GAP_MS);
+    window.dispatchEvent(new Event("focus"));
+  }
+
+  beforeEach(() => {
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  });
+
+  it("expires the session with the sign-in notice when a focus check gets a 401", async () => {
+    seedSessionData();
+    meMock.mockRejectedValue(new ApiError("Invalid token", 401));
+
+    await act(async () => {
+      focusLater();
+    });
+
+    expect(auth.user).toBeNull();
+    expect(auth.sessionExpired).toBe(true);
+    expectSessionDataCleared();
+  });
+
+  it("sends no check while signed out", async () => {
+    await act(async () => {
+      await auth.logout();
+    });
+    meMock.mockClear();
+
+    await act(async () => {
+      focusLater();
+    });
+
+    expect(meMock).not.toHaveBeenCalled();
   });
 });

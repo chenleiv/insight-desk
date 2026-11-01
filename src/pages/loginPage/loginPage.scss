@@ -176,24 +176,6 @@
             }
         }
 
-        .login-options {
-            display: flex;
-            justify-content: flex-end;
-            font-size: 14px;
-            margin-top: -8px;
-
-            .forgot-password {
-                text-decoration: none;
-                color: var(--primary);
-                font-weight: 500;
-
-                &:hover {
-                    color: var(--primary-hover);
-                    text-decoration: underline;
-                }
-            }
-        }
-
         .signin-btn {
             background: var(--primary);
             color: var(--primary-text);

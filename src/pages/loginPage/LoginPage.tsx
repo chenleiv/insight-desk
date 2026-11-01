@@ -198,14 +198,6 @@ export default function LoginPage() {
           </label>
         )}
 
-        {mode === "login" && (
-          <div className="login-options">
-            <a href="#" className="forgot-password accent-link">
-              Forgot password?
-            </a>
-          </div>
-        )}
-
         <button
           className="primary-btn signin-btn"
           type="submit"
