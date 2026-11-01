@@ -7,10 +7,11 @@ import { ConfirmContext, type ConfirmFn } from "../../../../../components/confir
 import type { Attachment, DocumentInput, DocumentItem } from "../../../../../api/documentsClient";
 import DocumentPane from "../DocumentPane";
 
-const { createDocument, updateDocument, uploadAttachment } = vi.hoisted(() => ({
+const { createDocument, updateDocument, uploadAttachment, deleteAttachment } = vi.hoisted(() => ({
   createDocument: vi.fn<(input: DocumentInput) => Promise<DocumentItem>>(),
   updateDocument: vi.fn<(id: string, input: DocumentInput) => Promise<DocumentItem>>(),
   uploadAttachment: vi.fn<(id: string, file: File) => Promise<Attachment>>(),
+  deleteAttachment: vi.fn<(docId: string, attachmentId: string) => Promise<void>>(),
 }));
 
 vi.mock("../../../../../api/documentsClient", async (importOriginal) => ({
@@ -18,6 +19,7 @@ vi.mock("../../../../../api/documentsClient", async (importOriginal) => ({
   createDocument,
   updateDocument,
   uploadAttachment,
+  deleteAttachment,
 }));
 
 const DOC_A: DocumentItem = {
@@ -57,10 +59,11 @@ type HarnessProps = {
   initial: DocumentItem;
   canEdit?: boolean;
   onDelete?: (doc: DocumentItem) => void;
+  isDeleting?: boolean;
   onClose?: () => void;
 };
 
-function Harness({ initial, canEdit = true, onDelete, onClose }: HarnessProps) {
+function Harness({ initial, canEdit = true, onDelete, isDeleting, onClose }: HarnessProps) {
   const [doc, setDoc] = useState(initial);
   const [queryClient] = useState(() => new QueryClient());
   return (
@@ -77,6 +80,7 @@ function Harness({ initial, canEdit = true, onDelete, onClose }: HarnessProps) {
           hasDocs
           onDirtyChange={onDirtyChange}
           {...(onDelete && { onDelete })}
+          {...(isDeleting !== undefined && { isDeleting })}
           {...(onClose && { onClose })}
         />
       </ConfirmContext.Provider>
@@ -133,6 +137,7 @@ beforeEach(() => {
   updateDocument.mockReset();
   updateDocument.mockImplementation(async (id, input) => serverCopy(id, input));
   uploadAttachment.mockReset();
+  deleteAttachment.mockReset();
   vi.mocked(status.show).mockReset();
   confirm.mockReset();
   onDirtyChange.mockReset();
@@ -635,5 +640,112 @@ describe("DocumentPane Create", () => {
     const accepted = document.querySelector<HTMLInputElement>("form > input[type=file]")!.accept.split(",");
     const listed = importBtn()!.dataset.tooltip!.replace("Supported: ", "").split(" ");
     expect(listed.sort()).toEqual(accepted.sort());
+  });
+
+  it.each(["default", "drawer"] as const)(
+    "keeps the %s create button disabled, with its text and no spinner, while creating",
+    async (variant) => {
+      createDocument.mockImplementationOnce(() => later<DocumentItem>().promise);
+      render(<CreateHarness variant={variant} />);
+      fill(INPUT);
+      await click(createBtn());
+      expect(createBtn()!.disabled).toBe(true);
+      expect(createBtn()!.textContent).toBe("Creating document…");
+      expect(createBtn()!.querySelector(".icon-spin")).toBeNull();
+      // The top indicator keeps its own spinner.
+      expect(createStatus()!.querySelector(".icon-spin")).not.toBeNull();
+    },
+  );
+});
+
+describe("DocumentPane attachment removal", () => {
+  const DOC_TWO: DocumentItem = {
+    ...DOC_A,
+    attachments: [
+      ...DOC_A.attachments!,
+      { _id: "att-2", url: "", gridfsId: "g-2", fileName: "notes.txt", fileType: "text/plain" },
+    ],
+  };
+
+  const chip = (name: string) =>
+    [...document.querySelectorAll(".notion-att-chip")].find((el) => el.textContent?.includes(name)) ?? null;
+  const removeBtns = () => [...document.querySelectorAll<HTMLButtonElement>('.notion-att-chips button[title="Remove"]')];
+  const srStatus = () => document.querySelector(".notion-att-sr-status")!;
+
+  function removal() {
+    let resolve!: () => void;
+    let reject!: (err: Error) => void;
+    deleteAttachment.mockImplementationOnce(() => new Promise<void>((res, rej) => { resolve = res; reject = rej; }));
+    return { resolve: () => resolve(), reject: (err: Error) => reject(err) };
+  }
+
+  async function startRemoving(name: string) {
+    confirm.mockResolvedValueOnce(true);
+    await click(chip(name)!.querySelector<HTMLButtonElement>('button[title="Remove"]'));
+  }
+
+  function expectPending(name: string) {
+    expect(chip(name)!.classList.contains("notion-att-chip--removing")).toBe(true);
+    expect(chip(name)!.textContent).toContain("Removing…");
+    expect(chip(name)!.querySelector('a[title="Open"]')).toBeNull();
+    expect(srStatus().textContent).toBe(`Removing ${name}…`);
+    expect(removeBtns().map((b) => b.disabled)).toEqual([true, true]);
+  }
+
+  it("announces the removal in an always-present status region", () => {
+    render(<Harness initial={DOC_TWO} />);
+    expect(srStatus().getAttribute("role")).toBe("status");
+    expect(srStatus().getAttribute("aria-live")).toBe("polite");
+    expect(srStatus().textContent).toBe("");
+  });
+
+  it("shows the pending state while the request runs and drops the file on success", async () => {
+    const req = removal();
+    render(<Harness initial={DOC_TWO} />);
+    await startRemoving("policy.pdf");
+    expect(deleteAttachment).toHaveBeenCalledWith("a", "att-1");
+    expectPending("policy.pdf");
+    expect(chip("notes.txt")!.classList.contains("notion-att-chip--removing")).toBe(false);
+
+    await act(async () => req.resolve());
+    expect(chip("policy.pdf")).toBeNull();
+    expect(srStatus().textContent).toBe("");
+    expect(removeBtns().map((b) => b.disabled)).toEqual([false]);
+  });
+
+  it("clears the pending state on error and keeps the file", async () => {
+    const req = removal();
+    render(<Harness initial={DOC_TWO} />);
+    await startRemoving("policy.pdf");
+    expectPending("policy.pdf");
+
+    await act(async () => req.reject(new Error("Server down")));
+    expect(chip("policy.pdf")).not.toBeNull();
+    expect(chip("policy.pdf")!.classList.contains("notion-att-chip--removing")).toBe(false);
+    expect(chip("policy.pdf")!.querySelector('a[title="Open"]')).not.toBeNull();
+    expect(srStatus().textContent).toBe("");
+    expect(removeBtns().map((b) => b.disabled)).toEqual([false, false]);
+    expect(status.show).toHaveBeenCalledWith(expect.objectContaining({ kind: "error", message: "Server down" }));
+  });
+});
+
+describe("DocumentPane document delete pending", () => {
+  const deleteBtn = () => document.querySelector<HTMLButtonElement>('[aria-label="Delete"]')!;
+
+  it("disables Delete and Edit and announces it while the delete runs", () => {
+    render(<Harness initial={DOC_A} onDelete={() => {}} isDeleting />);
+    expect(deleteBtn().disabled).toBe(true);
+    expect(deleteBtn().getAttribute("aria-busy")).toBe("true");
+    expect(editBtn()!.disabled).toBe(true);
+    expect(statusText()).toBe("Deleting…");
+  });
+
+  it("goes back to normal when the delete ends", () => {
+    render(<Harness initial={DOC_A} onDelete={() => {}} isDeleting />);
+    render(<Harness initial={DOC_A} onDelete={() => {}} isDeleting={false} />);
+    expect(deleteBtn().disabled).toBe(false);
+    expect(deleteBtn().getAttribute("aria-busy")).toBe("false");
+    expect(editBtn()!.disabled).toBe(false);
+    expect(statusText()).toBe("");
   });
 });

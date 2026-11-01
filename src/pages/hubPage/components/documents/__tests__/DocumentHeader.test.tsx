@@ -67,3 +67,36 @@ describe("DocumentHeader download menu", () => {
     expect(downloadBtn()).toBeNull();
   });
 });
+
+describe("DocumentHeader action buttons", () => {
+  const SHARED = "doc-pane-header-btn";
+  const button = (label: string) => document.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!;
+  const edit = () => document.querySelector<HTMLButtonElement>(".doc-pane-edit-btn")!;
+  const actions = () => [edit(), button("Export document"), button("Delete"), button("Close document")];
+
+  it("gives Edit, Export, Delete and Close the shared style, all enabled", () => {
+    render({ onEdit: () => {}, onDelete: () => {}, onClose: () => {} });
+    for (const btn of actions()) {
+      expect(btn.classList.contains(SHARED)).toBe(true);
+      expect(btn.disabled).toBe(false);
+    }
+  });
+
+  it("keeps the shared class on disabled buttons, which the disabled rule then styles", () => {
+    render({ editActions, onDelete: () => {}, onClose: () => {} });
+    expect(button("Export document").disabled).toBe(true);
+    expect(button("Delete").disabled).toBe(true);
+    expect(button("Export document").classList.contains(SHARED)).toBe(true);
+    expect(button("Delete").classList.contains(SHARED)).toBe(true);
+  });
+
+  it("disables Edit and Delete and shows Deleting… while the document is deleted", () => {
+    render({ onEdit: () => {}, onDelete: () => {}, isDeleting: true, saveStatus: "idle" });
+    expect(edit().disabled).toBe(true);
+    expect(button("Delete").disabled).toBe(true);
+    expect(button("Delete").getAttribute("aria-busy")).toBe("true");
+    const chip = document.querySelector(".doc-pane-save-status")!;
+    expect(chip.getAttribute("role")).toBe("status");
+    expect(chip.textContent).toBe("Deleting…");
+  });
+});

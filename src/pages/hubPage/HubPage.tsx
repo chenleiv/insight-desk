@@ -81,6 +81,8 @@ export default function HubPage() {
   const location = useLocation();
   // The new-document form is local only and ends on any navigation, including back/forward.
   const [creatingKey, setCreatingKey] = useState<string | null>(null);
+  // Set from confirm until the delete request ends, so the pane can show it is pending.
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   const urlView = viewFromParams(searchParams);
   // A document id in the URL that no longer exists (deleted, or a stale link).
   const missingDocId =
@@ -254,6 +256,7 @@ export default function HubPage() {
       variant: "danger",
     });
     if (!ok) return;
+    setDeletingDocId(doc.id);
     try {
       await deleteDocument(doc.id);
       const wasActive = activeDocId === doc.id;
@@ -272,6 +275,8 @@ export default function HubPage() {
         title: "Delete failed",
         message: e instanceof Error ? e.message : "Error",
       });
+    } finally {
+      setDeletingDocId(null);
     }
   }
 
@@ -401,6 +406,7 @@ export default function HubPage() {
                 setDocs((p) => p.map((d) => (d.id === updated.id ? updated : d)))
               }
               onDelete={onDelete}
+              isDeleting={!!activeDoc && deletingDocId === activeDoc.id}
               onDirtyChange={setIsPaneDirty}
 
               onClose={closeView}

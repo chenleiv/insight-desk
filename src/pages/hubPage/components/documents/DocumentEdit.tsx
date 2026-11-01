@@ -60,6 +60,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
 
   const editable = !!canEdit && !readOnly;
   const existingAttachments = doc?.attachments ?? [];
+  const removingAttachment = existingAttachments.find((att) => att._id === deletingAttachmentId) ?? null;
   const attachLimitReached =
     maxAttachments !== undefined && existingAttachments.length + pendingFiles.length >= maxAttachments;
 
@@ -142,26 +143,32 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
 
       {canEdit && (
         <div className="notion-att-chips">
+          {/* Always rendered, so screen readers announce when it fills. */}
+          <span className="notion-att-sr-status" role="status" aria-live="polite">
+            {removingAttachment ? `Removing ${removingAttachment.fileName}…` : ""}
+          </span>
           {existingAttachments.map((att) => {
             const isDeleting = deletingAttachmentId === att._id;
             const href = doc ? attachmentHref(doc.id, att) : null;
             return (
-              <span key={att._id} className="notion-att-chip">
-                <Paperclip size={11} aria-hidden />
+              <span key={att._id} className={`notion-att-chip${isDeleting ? " notion-att-chip--removing" : ""}`}>
+                {isDeleting ? <span className="notion-att-spinner" aria-hidden /> : <Paperclip size={11} aria-hidden />}
                 <span className="notion-att-chip-name">{att.fileName}</span>
-                {href && (
+                {isDeleting && <span className="notion-att-chip-badge">Removing…</span>}
+                {href && !isDeleting && (
                   <a href={href} target="_blank" rel="noopener noreferrer" className="notion-att-chip-action" title="Open">
                     <ExternalLink size={11} />
                   </a>
                 )}
+                {/* One removal at a time: each removal builds on the list the previous one left. */}
                 <button
                   type="button"
                   className="notion-att-chip-action"
                   title="Remove"
-                  disabled={isDeleting || attachmentsDisabled}
+                  disabled={deletingAttachmentId !== null || attachmentsDisabled}
                   onClick={() => onDeleteAttachment?.(att._id)}
                 >
-                  {isDeleting ? <span className="notion-att-spinner" /> : <X size={11} />}
+                  <X size={11} />
                 </button>
               </span>
             );
