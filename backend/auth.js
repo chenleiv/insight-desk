@@ -102,20 +102,29 @@ export async function getCurrentUser(req, res, next) {
         return res.status(401).json({ detail: 'Not authenticated' });
     }
 
+    let payload;
     try {
-        const payload = jwt.verify(token, JWT_SECRET);
-        const user = await User.findOne({ email: payload.sub });
-        if (!user) {
-            return res.status(401).json({ detail: 'User not found' });
-        }
-        if (isDemoUser(user) && user.expiresAt && user.expiresAt < new Date()) {
-            return res.status(401).json({ detail: 'Demo session expired' });
-        }
-        req.user = user;
-        next();
-    } catch (err) {
+        payload = jwt.verify(token, JWT_SECRET);
+    } catch {
         return res.status(401).json({ detail: 'Invalid token' });
     }
+
+    // A database failure is a server error, not a reason to end the client's session.
+    let user;
+    try {
+        user = await User.findOne({ email: payload.sub });
+    } catch (err) {
+        logger.error('User lookup failed', { message: err.message });
+        return res.status(500).json({ detail: 'Internal server error' });
+    }
+    if (!user) {
+        return res.status(401).json({ detail: 'User not found' });
+    }
+    if (isDemoUser(user) && user.expiresAt && user.expiresAt < new Date()) {
+        return res.status(401).json({ detail: 'Demo session expired' });
+    }
+    req.user = user;
+    next();
 }
 
 export function requireAdmin(req, res, next) {
