@@ -18,9 +18,12 @@ async function reindex() {
         throw new Error('MONGODB_URI is not defined');
     }
     await mongoose.connect(process.env.MONGODB_URI);
+    const prefix = dryRun ? '[dry run] ' : '';
+    // Host and database name only, so the target can be checked; never the URI or credentials.
+    const { host, name } = mongoose.connection;
+    console.log(`${prefix}Connected to ${host}, database ${name}`);
     if (!dryRun) await Chunk.syncIndexes();
 
-    const prefix = dryRun ? '[dry run] ' : '';
     const totals = { docs: 0, changed: 0, chunks: 0, embedded: 0, reused: 0 };
 
     for await (const doc of Document.find({ demo: { $ne: true } }).lean().cursor()) {
