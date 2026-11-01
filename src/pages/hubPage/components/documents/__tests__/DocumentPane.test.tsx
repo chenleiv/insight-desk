@@ -388,6 +388,69 @@ describe("DocumentPane Escape key", () => {
   });
 });
 
+describe("DocumentPane Close button", () => {
+  const onClose = vi.fn<() => void>();
+  const closeBtn = () => document.querySelector<HTMLButtonElement>('[aria-label="Close document"]');
+
+  beforeEach(() => onClose.mockReset());
+
+  it("in edit mode with no changes, returns to read mode without closing", async () => {
+    render(<Harness initial={DOC_A} onClose={onClose} />);
+    await click(editBtn());
+    await click(closeBtn());
+    expect(confirm).not.toHaveBeenCalled();
+    expect(content().readOnly).toBe(true);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("in edit mode, asks first, then discards the changes and stays on the document", async () => {
+    confirm.mockResolvedValue(true);
+    render(<Harness initial={DOC_A} onClose={onClose} />);
+    await click(editBtn());
+    type("Hello there");
+    await click(closeBtn());
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(content().value).toBe("Hello");
+    expect(content().readOnly).toBe(true);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(updateDocument).not.toHaveBeenCalled();
+  });
+
+  it("in edit mode, keeps editing with the changes when the discard is declined", async () => {
+    confirm.mockResolvedValue(false);
+    render(<Harness initial={DOC_A} onClose={onClose} />);
+    await click(editBtn());
+    type("Hello there");
+    await click(closeBtn());
+    expect(content().value).toBe("Hello there");
+    expect(content().readOnly).toBe(false);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("asks the same question as Cancel and Escape", async () => {
+    confirm.mockResolvedValue(false);
+    render(<Harness initial={DOC_A} onClose={onClose} />);
+    await click(editBtn());
+    type("Hello there");
+    await click(cancelBtn());
+    await act(async () => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
+    await click(closeBtn());
+    const messages = confirm.mock.calls.map(([options]) => options.message);
+    expect(messages).toEqual([
+      "Discard unsaved changes?",
+      "Discard unsaved changes?",
+      "Discard unsaved changes?",
+    ]);
+  });
+
+  it("in read mode, closes the document", async () => {
+    render(<Harness initial={DOC_A} onClose={onClose} />);
+    await click(closeBtn());
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(confirm).not.toHaveBeenCalled();
+  });
+});
+
 describe("DocumentPane Create", () => {
   const onCreated = vi.fn<(doc: DocumentItem) => void>();
   const onCancelCreate = vi.fn<() => void>();

@@ -19,6 +19,7 @@ import { Loader } from "../../../../components/loader/Loader";
 import { Maximize2, Save, Paperclip } from "lucide-react";
 import { useDocumentSave } from "../../hooks/useDocumentSave";
 import { useDocumentAttachments } from "../../hooks/useDocumentAttachments";
+import { DISCARD_MESSAGE } from "../../hooks/useUnsavedChangesGuard";
 
 type Props = {
   doc: DocumentItem | null;
@@ -226,7 +227,7 @@ export default function DocumentPane({
     if (isDirty) {
       const ok = await confirm({
         title: "Unsaved Changes",
-        message: "You have unsaved changes. Are you sure you want to discard them?",
+        message: DISCARD_MESSAGE,
         confirmLabel: "Discard",
         cancelLabel: "Stay",
         variant: "danger",
@@ -343,7 +344,10 @@ export default function DocumentPane({
         })}
         {...(isCreating && { onImportClick: () => importFileRef.current?.click(), importDisabled: isCreationPending })}
         {...(!isCreating && doc && { onDownload: (format: DownloadFormat) => void handleDownload(format) })}
-        {...(onClose ? { onClose } : {})}
+        {...(onClose ? {
+          // While editing, Close cancels the edit like Cancel and Escape instead of leaving the document.
+          onClose: isEditing ? () => void handleCancel() : onClose,
+        } : {})}
         {...(canEdit && doc && onDelete && { onDelete: () => onDelete(doc) })}
         {...(isMaximized !== undefined && { isMaximized })}
         {...(onToggleMaximize !== undefined && { onToggleMaximize })}
