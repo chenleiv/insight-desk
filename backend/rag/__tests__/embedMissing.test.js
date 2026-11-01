@@ -1,16 +1,18 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const { Chunk, logger, defaultEmbed } = vi.hoisted(() => ({
+const { Chunk, Document, logger, defaultEmbed } = vi.hoisted(() => ({
   Chunk: { find: vi.fn(), updateOne: vi.fn() },
+  Document: { find: vi.fn() },
   logger: { info: vi.fn(), error: vi.fn() },
   defaultEmbed: vi.fn(),
 }));
-vi.mock("../../models.js", () => ({ Chunk }));
+vi.mock("../../models.js", () => ({ Chunk, Document }));
 vi.mock("../../logger.js", () => ({ logger }));
 vi.mock("../embed.js", () => ({ embed: defaultEmbed }));
 
 import { embedMissingChunks, scheduleEmbeddingRetry, RETRY_DELAY_MS } from "../embedMissing.js";
+import { embeddingKey } from "../embeddingInput.js";
 
 // Each call to Chunk.find returns the next batch.
 function batches(...lists) {
@@ -18,7 +20,11 @@ function batches(...lists) {
 }
 
 // Reset, not clear: a batch queued but not consumed must not leak into the next test.
-beforeEach(() => vi.resetAllMocks());
+// The chunks' documents have no title unless a test gives them one.
+beforeEach(() => {
+  vi.resetAllMocks();
+  Document.find.mockReturnValue({ lean: async () => [] });
+});
 afterEach(() => vi.useRealTimers());
 
 describe("embedMissingChunks", () => {
@@ -29,9 +35,24 @@ describe("embedMissingChunks", () => {
     const count = await embedMissingChunks({ embed, batchSize: 2 });
 
     expect(count).toBe(3);
-    expect(Chunk.find).toHaveBeenCalledWith({ embedding: { $exists: false } }, "text");
-    expect(Chunk.updateOne).toHaveBeenCalledWith({ _id: "c1" }, { $set: { embedding: [2] } });
-    expect(Chunk.updateOne).toHaveBeenCalledWith({ _id: "c3" }, { $set: { embedding: [1] } });
+    expect(Chunk.find).toHaveBeenCalledWith({ embedding: { $exists: false } }, "docId text");
+    expect(Chunk.updateOne).toHaveBeenCalledWith({ _id: "c1" }, { $set: { embedding: [2], embeddingKey: embeddingKey(undefined, "ab") } });
+    expect(Chunk.updateOne).toHaveBeenCalledWith({ _id: "c3" }, { $set: { embedding: [1], embeddingKey: embeddingKey(undefined, "a") } });
+  });
+
+  it("embeds each chunk with its document's title and saves the matching key", async () => {
+    const embed = vi.fn(async () => [7]);
+    batches([{ _id: "c1", docId: "doc-1", text: "Common flows: ..." }]);
+    Document.find.mockReturnValue({ lean: async () => [{ _id: "doc-1", title: "OAuth" }] });
+
+    await embedMissingChunks({ embed });
+
+    expect(Document.find).toHaveBeenCalledWith({ _id: { $in: ["doc-1"] } }, "title");
+    expect(embed).toHaveBeenCalledWith("OAuth\n\nCommon flows: ...");
+    expect(Chunk.updateOne).toHaveBeenCalledWith(
+      { _id: "c1" },
+      { $set: { embedding: [7], embeddingKey: embeddingKey("OAuth", "Common flows: ...") } },
+    );
   });
 
   it("does nothing beyond one query when no chunk is missing an embedding", async () => {

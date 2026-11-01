@@ -1,9 +1,7 @@
 import { pipeline } from "@huggingface/transformers";
+import { EMBEDDING_MODEL, EMBEDDING_MODEL_REVISION } from "./embeddingModel.js";
 
-export const EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2";
-// Pinned commit, so a change upstream cannot silently swap the model.
-export const EMBEDDING_MODEL_REVISION = "751bff37182d3f1213fa05d7196b954e230abad9";
-export const EMBEDDING_DIMENSIONS = 384;
+export { EMBEDDING_MODEL, EMBEDDING_MODEL_REVISION, EMBEDDING_DIMENSIONS } from "./embeddingModel.js";
 
 let extractorPromise;
 

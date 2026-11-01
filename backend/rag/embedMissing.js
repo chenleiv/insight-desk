@@ -1,6 +1,7 @@
-import { Chunk } from "../models.js";
+import { Chunk, Document } from "../models.js";
 import { logger } from "../logger.js";
 import { embed as defaultEmbed } from "./embed.js";
+import { embeddingKey, embeddingText } from "./embeddingInput.js";
 
 const BATCH_SIZE = 50;
 export const RETRY_DELAY_MS = 60 * 1000;
@@ -13,14 +14,25 @@ export const RETRY_DELAY_MS = 60 * 1000;
 export async function embedMissingChunks({ embed = defaultEmbed, batchSize = BATCH_SIZE } = {}) {
   let total = 0;
   for (;;) {
-    const chunks = await Chunk.find({ embedding: { $exists: false } }, "text").limit(batchSize).lean();
+    const chunks = await Chunk.find({ embedding: { $exists: false } }, "docId text").limit(batchSize).lean();
     if (!chunks.length) return total;
+    const titles = await documentTitles(chunks.map((c) => c.docId));
     for (const chunk of chunks) {
+      const title = titles.get(String(chunk.docId));
       // A chunk replaced by a newer save in the meantime matches nothing here.
-      await Chunk.updateOne({ _id: chunk._id }, { $set: { embedding: await embed(chunk.text) } });
+      await Chunk.updateOne(
+        { _id: chunk._id },
+        { $set: { embedding: await embed(embeddingText(title, chunk.text)), embeddingKey: embeddingKey(title, chunk.text) } },
+      );
     }
     total += chunks.length;
   }
+}
+
+/** Map each document id to its title, in one query. */
+async function documentTitles(docIds) {
+  const docs = await Document.find({ _id: { $in: docIds } }, "title").lean();
+  return new Map(docs.map((d) => [String(d._id), d.title]));
 }
 
 /** Run embedMissingChunks and log the outcome; never throws. */

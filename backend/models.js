@@ -48,6 +48,8 @@ const chunkSchema = new mongoose.Schema({
     text: { type: String, required: true },
     // Set by `npm run reindex`; chunks saved by the routes do not have one yet.
     embedding: { type: [Number], default: undefined },
+    // embeddingKey(title, text) of the input `embedding` was computed from; set with it.
+    embeddingKey: { type: String },
 }, { timestamps: true });
 
 chunkSchema.index({ docId: 1, index: 1 }, { unique: true });
