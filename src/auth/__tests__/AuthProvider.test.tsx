@@ -7,6 +7,7 @@ import { useAuth } from "../useAuth";
 import { AUTH_USER_KEY, type AuthContextValue, type AuthUser } from "../authTypes";
 import { CHAT_KEY } from "../../storageKeys";
 import { DOCUMENTS_QUERY_KEY } from "../../context/DocumentsContext";
+import { apiFetch, ApiError } from "../../api/base";
 
 const { meMock, logoutMock } = vi.hoisted(() => ({
   meMock: vi.fn(),
@@ -129,5 +130,90 @@ describe("AuthProvider session reset", () => {
     expect(auth.user?.email).toBe(bob.email);
     expect(JSON.parse(localStorage.getItem(AUTH_USER_KEY) ?? "null")).toEqual(bob);
     expectSessionDataCleared();
+  });
+});
+
+// A request whose session the server no longer accepts.
+async function requestWithExpiredSession() {
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ detail: "Invalid token" }), { status: 401 })));
+  await act(async () => {
+    await apiFetch("/api/documents").catch(() => {});
+  });
+}
+
+describe("AuthProvider session expiry", () => {
+  it("signs the user out and clears session data on a 401 mid-session", async () => {
+    seedSessionData();
+
+    await requestWithExpiredSession();
+
+    expect(auth.user).toBeNull();
+    expect(auth.isAuthed).toBe(false);
+    expect(auth.sessionExpired).toBe(true);
+    expect(localStorage.getItem(AUTH_USER_KEY)).toBeNull();
+    expectSessionDataCleared();
+    expect(logoutMock).not.toHaveBeenCalled();
+  });
+
+  it("handles several parallel 401 responses once", async () => {
+    const clearSpy = vi.spyOn(queryClient, "clear");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 401 })));
+
+    await act(async () => {
+      await Promise.allSettled([
+        apiFetch("/api/documents"),
+        apiFetch("/api/ai/suggestions"),
+        apiFetch("/api/ai/quality?days=7"),
+      ]);
+    });
+
+    expect(clearSpy).toHaveBeenCalledOnce();
+    expect(auth.sessionExpired).toBe(true);
+  });
+
+  it("ignores a late 401 that arrives after logout", async () => {
+    await act(async () => {
+      await auth.logout();
+    });
+
+    await requestWithExpiredSession();
+
+    expect(auth.user).toBeNull();
+    expect(auth.sessionExpired).toBe(false);
+  });
+
+  it("keeps a 401 from the startup identity check silent", async () => {
+    act(() => root.unmount());
+    meMock.mockReset().mockRejectedValue(new ApiError("Not authenticated", 401));
+    root = createRoot(container);
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <Probe expose={(value) => { auth = value; }} />
+          </AuthProvider>
+        </QueryClientProvider>,
+      );
+    });
+
+    expect(auth.isReady).toBe(true);
+    expect(auth.user).toBeNull();
+    expect(auth.sessionExpired).toBe(false);
+  });
+
+  it("lets a different user sign in after expiry without the previous user's data", async () => {
+    seedSessionData();
+    await requestWithExpiredSession();
+
+    act(() => auth.loginSuccess(bob));
+
+    expect(auth.user?.email).toBe(bob.email);
+    expect(auth.sessionExpired).toBe(false);
+    expectSessionDataCleared();
+
+    // The new session is guarded again: its own expiry is handled.
+    await requestWithExpiredSession();
+    expect(auth.user).toBeNull();
+    expect(auth.sessionExpired).toBe(true);
   });
 });

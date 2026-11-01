@@ -15,7 +15,7 @@ export default function LoginPage() {
   const location = useLocation();
   const status = useStatus();
 
-  const { isAuthed, loginSuccess } = useAuth();
+  const { isAuthed, sessionExpired, loginSuccess } = useAuth();
   const { theme, setTheme } = useTheme();
 
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -122,6 +122,11 @@ export default function LoginPage() {
       </div>
 
       <form className="login-form" action={formAction}>
+        {sessionExpired && (
+          <div className="login-notice" role="status">
+            Your session expired. Please sign in again.
+          </div>
+        )}
         {error && <div className="login-error">{error}</div>}
 
         <label className="login-field">

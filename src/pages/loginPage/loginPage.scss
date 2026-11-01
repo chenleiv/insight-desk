@@ -98,6 +98,16 @@
             font-weight: 500;
         }
 
+        .login-notice {
+            background: var(--info-bg);
+            border: 1px solid var(--info-border);
+            color: var(--info-text);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+        }
+
         .login-field {
             display: flex;
             flex-direction: column;

@@ -1,4 +1,4 @@
-import { apiFetch, ApiError } from "./base";
+import { apiFetch, ApiError, notifyIfUnauthorized } from "./base";
 import { getApiBase } from "./config";
 
 export async function uploadAttachment(docId: string, file: File): Promise<Attachment> {
@@ -105,10 +105,12 @@ export function fileNameFromDisposition(header: string | null, fallback: string)
 }
 
 export async function downloadDocument(id: string, format: DownloadFormat) {
-  const res = await fetch(`${getApiBase()}/api/documents/${id}/download?format=${format}`, {
+  const path = `/api/documents/${id}/download?format=${format}`;
+  const res = await fetch(`${getApiBase()}${path}`, {
     credentials: "include",
   });
   if (!res.ok) {
+    notifyIfUnauthorized(path, res.status);
     const text = await res.text();
     let message = `Download failed: ${res.status}`;
     try {

@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { me, logout as apiLogout } from "../api/authClient";
 import { toggleFavorite as apiToggleFavorite } from "../api/documentsClient";
+import { setUnauthorizedHandler } from "../api/base";
 import type { AuthUser } from "./authTypes";
 import {
   loadUserFromStorage,
@@ -16,6 +17,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadUserFromStorage(),
   );
   const [isReady, setIsReady] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  /** Whether a user is signed in, readable at once by the 401 handler before React re-renders. */
+  const signedInRef = useRef(user !== null);
   const queryClient = useQueryClient();
   /** True after loginSuccess() — avoids clearing session when the initial /me (sent before the cookie existed) returns 401 after sign-in. */
   const sessionEstablishedByLogin = useRef(false);
@@ -26,11 +30,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const u = await me();
         if (cancelled) return;
+        signedInRef.current = true;
         setUser(u);
         saveUserToStorage(u);
       } catch {
         if (cancelled) return;
         if (!sessionEstablishedByLogin.current) {
+          signedInRef.current = false;
           setUser(null);
           clearUserFromStorage();
         }
@@ -49,7 +55,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(CHAT_KEY);
   }
 
+  /** Ends a session the server no longer accepts. Later 401s find no user and do nothing. */
+  function expireSession() {
+    if (!signedInRef.current) return;
+    signedInRef.current = false;
+    sessionEstablishedByLogin.current = false;
+    setUser(null);
+    clearUserFromStorage();
+    resetSessionState();
+    setSessionExpired(true);
+  }
+
+  const onUnauthorized = useEffectEvent(expireSession);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => onUnauthorized());
+    return () => setUnauthorizedHandler(null);
+  }, []);
+
   async function doLogout() {
+    signedInRef.current = false;
     sessionEstablishedByLogin.current = false;
     setUser(null);
     clearUserFromStorage();
@@ -101,9 +126,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isReady,
         isAuthed: !!user,
+        sessionExpired,
         favoritesMap,
         loginSuccess: (u) => {
           sessionEstablishedByLogin.current = true;
+          signedInRef.current = true;
+          setSessionExpired(false);
           resetSessionState();
           setUser(u);
           saveUserToStorage(u);
