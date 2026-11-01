@@ -229,7 +229,7 @@ describe("POST /api/ai/chat", () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
-      answer: NO_INFO_ANSWER, citations: [], sources: [], answerId: expect.any(String),
+      answer: NO_INFO_ANSWER, citations: [], answerId: expect.any(String),
     });
     expect(groqCreate).not.toHaveBeenCalled();
   });
