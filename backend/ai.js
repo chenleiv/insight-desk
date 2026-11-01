@@ -89,20 +89,28 @@ function buildContext(chunks) {
  * invented are removed from the answer and returned in `unknown`. The model
  * sometimes writes fullwidth brackets, 【c1】; those are rewritten as [c1].
  */
-function verifyCitations(answer, chunks) {
+export function verifyCitations(answer, chunks) {
     const byId = new Map(chunks.map((c, i) => [`c${i + 1}`, c]));
     const citations = new Map();
     const unknown = [];
-    const text = answer.replace(/(\s*)[[【]\s*(c\d+(?:\s*,\s*c\d+)*)\s*[\]】]/g, (_, space, list) => {
-        const ids = list.split(/\s*,\s*/);
+    let text = '';
+    let copyFrom = 0;
+    // The pattern starts at the bracket: a leading \s* would rescan each run of
+    // blanks from every position in it (quadratic on long whitespace).
+    for (const match of answer.matchAll(/[[【]\s*(c\d+(?:\s*,\s*c\d+)*)\s*[\]】]/g)) {
+        const ids = match[1].split(/\s*,\s*/);
         const valid = ids.filter((id) => byId.has(id));
         unknown.push(...ids.filter((id) => !byId.has(id)));
         for (const id of valid) {
             const c = byId.get(id);
             if (!citations.has(id)) citations.set(id, { id, docId: c.docId, title: c.title, index: c.index });
         }
-        return valid.length ? `${space}[${[...new Set(valid)].join(', ')}]` : '';
-    });
+        const before = answer.slice(copyFrom, match.index);
+        // A removed citation takes the whitespace in front of it along with it.
+        text += valid.length ? `${before}[${[...new Set(valid)].join(', ')}]` : before.trimEnd();
+        copyFrom = match.index + match[0].length;
+    }
+    text += answer.slice(copyFrom);
     return { answer: text.trim(), citations: [...citations.values()], unknown };
 }
 
