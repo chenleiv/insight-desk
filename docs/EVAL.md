@@ -70,6 +70,16 @@ A "did you mean" answer was considered for questions whose best chunk is just un
 
 Correctness is graded by hand from the file. The script only counts what it can check: refusals, empty answers, citations, forbidden Markdown, document titles in brackets, and the answer language for the Hebrew set.
 
+### First full run
+
+3 runs per question and wording, model `openai/gpt-oss-20b`.
+
+- **Related questions:** both wordings gave 0 refusals and 0 invented citations. The new wording had 3 of 57 answers without a valid citation (2 cut off by the 300-token limit, 1 with a hidden character); the old wording had 0.
+- **Unrelated questions (threshold bypassed):** the old wording gave 8 of 48 empty answers, and added text after the "not found" sentence. The new wording gave no empty answers and the exact sentence every time (1 call timed out).
+- **Hebrew:** both wordings answered 8 of 8 in Hebrew.
+
+**Decision:** switch the stored prompt to the new wording. Raising the 300-token limit is a separate follow-up.
+
 ## Measuring in production
 
 In production there is no known "right document" for a question, so hit@k cannot be computed. Instead, every chat question leaves a small record of what retrieval found, and a script summarizes those records as indirect quality signals.

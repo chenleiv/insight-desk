@@ -121,5 +121,5 @@ export function formatSummaryTable(summary) {
 
 /** Make text safe for one Markdown table cell. */
 export function cell(text) {
-  return String(text ?? "").replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
+  return String(text ?? "").replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
 }

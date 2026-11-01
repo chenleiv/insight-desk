@@ -143,4 +143,11 @@ describe("cell", () => {
   it("escapes pipes and keeps line breaks", () => {
     expect(cell("a | b\nc")).toBe("a \\| b<br>c");
   });
+
+  it("escapes backslashes before pipes, so a backslash cannot unescape a pipe", () => {
+    expect(cell("a\\b")).toBe("a\\\\b");
+    expect(cell("a|b")).toBe("a\\|b");
+    expect(cell("a\\|b")).toBe("a\\\\\\|b");
+    expect(cell("a\nb")).toBe("a<br>b");
+  });
 });
