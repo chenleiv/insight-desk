@@ -145,11 +145,14 @@ async function ask(groq, prompt, item) {
     ],
     ...CHAT_ANSWER_SETTINGS,
   });
-  const raw = response.choices?.[0]?.message?.content ?? "";
+  const choice = response.choices?.[0];
+  const raw = choice?.message?.content ?? "";
   const { answer, citations, unknown } = verifyCitations(raw, item.chunks);
   return {
     answer,
     empty: !answer,
+    // Stopped at max_tokens. The chat would cut this answer to its last complete sentence; the eval keeps it whole.
+    truncated: choice?.finish_reason === "length",
     refusal: !!answer && isNoInfoAnswer(answer),
     citations: citations.length,
     invented: unknown.length,
@@ -168,7 +171,7 @@ function report({ args, rows, items, translations, notes, finished }) {
     ...rows.map((r) => {
       const checks = r.error
         ? `error: ${r.error}`
-        : [r.refusal && "refusal", r.empty && "empty", r.invented && `${r.invented} invented`, ...r.violations, r.titleInBrackets && "title in brackets"].filter(Boolean).join(", ");
+        : [r.refusal && "refusal", r.empty && "empty", r.truncated && "cut off", r.invented && `${r.invented} invented`, ...r.violations, r.titleInBrackets && "title in brackets"].filter(Boolean).join(", ");
       return `| ${r.set} | ${r.id} | ${r.wording} | ${r.run} | ${cell(r.expected)} | ${cell(r.answer)} | ${cell(checks)} |  |`;
     }),
   ].join("\n");

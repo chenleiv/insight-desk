@@ -78,7 +78,7 @@ Correctness is graded by hand from the file. The script only counts what it can 
 - **Unrelated questions (threshold bypassed):** the old wording gave 8 of 48 empty answers, and added text after the "not found" sentence. The new wording gave no empty answers and the exact sentence every time (1 call timed out).
 - **Hebrew:** both wordings answered 8 of 8 in Hebrew.
 
-**Decision:** switch the stored prompt to the new wording. Raising the 300-token limit is a separate follow-up.
+**Decision:** switch the stored prompt to the new wording. The token limit was then raised from 300 to 1024, since the model's reasoning tokens count toward it. An answer that still stops at the limit is cut back to its last complete sentence and marked "(The answer was shortened.)"; the eval counts these in the "cut off" column.
 
 ## Measuring in production
 
