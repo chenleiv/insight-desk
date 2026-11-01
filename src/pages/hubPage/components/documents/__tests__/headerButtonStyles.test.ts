@@ -90,4 +90,14 @@ describe("header action button styles", () => {
     expect(declaration(body, "background")).toBe("var(--danger-bg) !important");
     expect(declaration(body, "border-color")).toBe("var(--danger-border) !important");
   });
+
+  it("keeps the general hover off disabled buttons, so they keep their disabled background", () => {
+    const hover = `${ACTIONS} .icon-btn:hover:not(:disabled)`;
+    expect(rule(hover).getPropertyValue("background")).toBe("var(--soft)");
+    expect(declaration(ruleBody(hover), "background")).toBe("var(--soft) !important");
+    const unguarded = rules
+      .flatMap((r) => r.selectorText.split(",").map((sel) => sel.trim()))
+      .filter((sel) => sel === `${ACTIONS} .icon-btn:hover`);
+    expect(unguarded).toEqual([]);
+  });
 });

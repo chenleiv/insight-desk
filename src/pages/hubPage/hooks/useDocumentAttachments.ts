@@ -7,6 +7,9 @@ import { DOCUMENTS_QUERY_KEY } from "../../../context/DocumentsContext";
 import { useStatus } from "../../../components/statusBar/useStatus";
 import useConfirm from "../../../hooks/useConfirm";
 
+// The latest upload, kept after it ends so its outcome can be announced.
+export type UploadStatus = { fileName: string; state: "uploading" | "done" | "failed" };
+
 type Options = {
   doc: DocumentItem | null;
   canEdit: boolean;
@@ -19,6 +22,7 @@ export function useDocumentAttachments({ doc, canEdit, onSaved }: Options) {
   const queryClient = useQueryClient();
 
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus | null>(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [localAttachments, setLocalAttachments] = useState<Attachment[] | null>(null);
@@ -29,6 +33,7 @@ export function useDocumentAttachments({ doc, canEdit, onSaved }: Options) {
   if (attachmentsDocId !== docId) {
     setAttachmentsDocId(docId);
     setLocalAttachments(null);
+    setUploadStatus(null);
   }
 
   const effectiveDoc = useMemo<DocumentItem | null>(() => {
@@ -40,14 +45,17 @@ export function useDocumentAttachments({ doc, canEdit, onSaved }: Options) {
   const handleUploadAttachment = useCallback(async (file: File) => {
     if (!doc) return;
     setIsUploading(true);
+    setUploadStatus({ fileName: file.name, state: "uploading" });
     try {
       const attachment = await uploadAttachment(doc.id, file);
       const current = localAttachments ?? doc.attachments ?? [];
       const next = [...current, attachment];
       setLocalAttachments(next);
       onSaved({ ...doc, attachments: next });
+      setUploadStatus({ fileName: file.name, state: "done" });
       status.show({ kind: "success", message: "File attached." });
     } catch (e) {
+      setUploadStatus({ fileName: file.name, state: "failed" });
       status.show({ kind: "error", title: "Upload failed", message: e instanceof Error ? e.message : "Upload failed." });
     } finally {
       setIsUploading(false);
@@ -64,6 +72,8 @@ export function useDocumentAttachments({ doc, canEdit, onSaved }: Options) {
       variant: "danger",
     });
     if (!ok) return;
+    // Otherwise the region would repeat the last upload once the removal ends.
+    setUploadStatus(null);
     setDeletingAttachmentId(attachmentId);
     try {
       await deleteAttachment(doc.id, attachmentId);
@@ -84,6 +94,7 @@ export function useDocumentAttachments({ doc, canEdit, onSaved }: Options) {
 
   return {
     isUploading,
+    uploadStatus,
     deletingAttachmentId,
     pendingFiles,
     setPendingFiles,

@@ -124,6 +124,7 @@ export default function DocumentPane({
 
   const {
     isUploading,
+    uploadStatus,
     deletingAttachmentId,
     pendingFiles,
     setPendingFiles,
@@ -396,6 +397,7 @@ export default function DocumentPane({
         maxContentLength={maxContentLength}
         maxAttachments={maxAttachments}
         isUploading={isUploading}
+        uploadStatus={uploadStatus}
         deletingAttachmentId={deletingAttachmentId}
         pendingFiles={pendingFiles}
         onUploadAttachment={isCreating

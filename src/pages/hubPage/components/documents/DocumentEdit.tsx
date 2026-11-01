@@ -4,6 +4,7 @@ import { Clock, Paperclip, ExternalLink, X, Plus, Lock } from "lucide-react";
 import type { DocumentInput, DocumentItem } from "../../../../api/documentsClient";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
 import { attachmentHref } from "../../utils/attachmentLink";
+import type { UploadStatus } from "../../hooks/useDocumentAttachments";
 
 type Props = {
   form: DocumentInput;
@@ -18,6 +19,7 @@ type Props = {
   // Locks adding and removing attachments, e.g. while the document is being created.
   attachmentsDisabled?: boolean;
   isUploading?: boolean;
+  uploadStatus?: UploadStatus | null;
   deletingAttachmentId?: string | null;
   pendingFiles?: File[];
   onUploadAttachment?: (file: File) => void;
@@ -26,6 +28,12 @@ type Props = {
   maxAttachments?: number | undefined;
 
   initialScrollTop?: number;
+};
+
+const UPLOAD_STATUS_TEXT: Record<UploadStatus["state"], (name: string) => string> = {
+  uploading: (name) => `Uploading ${name}…`,
+  done: (name) => `${name} attached.`,
+  failed: (name) => `Upload of ${name} failed.`,
 };
 
 export interface DocumentEditHandle {
@@ -42,6 +50,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
   readOnly = false,
   attachmentsDisabled = false,
   isUploading = false,
+  uploadStatus = null,
   deletingAttachmentId = null,
   pendingFiles = [],
   onUploadAttachment,
@@ -61,6 +70,9 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
   const editable = !!canEdit && !readOnly;
   const existingAttachments = doc?.attachments ?? [];
   const removingAttachment = existingAttachments.find((att) => att._id === deletingAttachmentId) ?? null;
+  const attachmentStatusText = removingAttachment ? `Removing ${removingAttachment.fileName}…`
+    : uploadStatus ? UPLOAD_STATUS_TEXT[uploadStatus.state](uploadStatus.fileName)
+    : "";
   const attachLimitReached =
     maxAttachments !== undefined && existingAttachments.length + pendingFiles.length >= maxAttachments;
 
@@ -145,7 +157,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
         <div className="notion-att-chips">
           {/* Always rendered, so screen readers announce when it fills. */}
           <span className="notion-att-sr-status" role="status" aria-live="polite">
-            {removingAttachment ? `Removing ${removingAttachment.fileName}…` : ""}
+            {attachmentStatusText}
           </span>
           {existingAttachments.map((att) => {
             const isDeleting = deletingAttachmentId === att._id;

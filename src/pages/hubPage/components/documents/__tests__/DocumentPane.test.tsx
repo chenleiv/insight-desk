@@ -729,6 +729,60 @@ describe("DocumentPane attachment removal", () => {
   });
 });
 
+describe("DocumentPane attachment upload announcement", () => {
+  const srStatus = () => document.querySelector(".notion-att-sr-status")!;
+  const file = new File(["text"], "notes.txt", { type: "text/plain" });
+
+  function upload() {
+    let resolve!: (att: Attachment) => void;
+    let reject!: (err: Error) => void;
+    uploadAttachment.mockImplementationOnce(() => new Promise<Attachment>((res, rej) => { resolve = res; reject = rej; }));
+    return { resolve: (att: Attachment) => resolve(att), reject: (err: Error) => reject(err) };
+  }
+
+  async function pick() {
+    const input = document.querySelector<HTMLInputElement>('.notion-doc-body input[type="file"]')!;
+    Object.defineProperty(input, "files", { value: [file] });
+    await act(async () => { input.dispatchEvent(new Event("change", { bubbles: true })); });
+  }
+
+  it("announces the upload while it runs and when it is attached", async () => {
+    const req = upload();
+    render(<Harness initial={DOC_A} />);
+    await pick();
+    expect(srStatus().textContent).toBe("Uploading notes.txt…");
+
+    await act(async () => req.resolve({ _id: "att-2", url: "", gridfsId: "g-2", fileName: "notes.txt", fileType: "text/plain" }));
+    expect(srStatus().textContent).toBe("notes.txt attached.");
+  });
+
+  it("announces a failed upload", async () => {
+    const req = upload();
+    render(<Harness initial={DOC_A} />);
+    await pick();
+    expect(srStatus().textContent).toBe("Uploading notes.txt…");
+
+    await act(async () => req.reject(new Error("Too large")));
+    expect(srStatus().textContent).toBe("Upload of notes.txt failed.");
+  });
+
+  it("announces only the removal once a removal follows an upload", async () => {
+    const req = upload();
+    render(<Harness initial={DOC_A} />);
+    await pick();
+    await act(async () => req.resolve({ _id: "att-2", url: "", gridfsId: "g-2", fileName: "notes.txt", fileType: "text/plain" }));
+
+    let finish!: () => void;
+    deleteAttachment.mockImplementationOnce(() => new Promise<void>((res) => { finish = res; }));
+    confirm.mockResolvedValueOnce(true);
+    await click(document.querySelector<HTMLButtonElement>('.notion-att-chips button[title="Remove"]'));
+    expect(srStatus().textContent).toBe("Removing policy.pdf…");
+
+    await act(async () => finish());
+    expect(srStatus().textContent).toBe("");
+  });
+});
+
 describe("DocumentPane document delete pending", () => {
   const deleteBtn = () => document.querySelector<HTMLButtonElement>('[aria-label="Delete"]')!;
 

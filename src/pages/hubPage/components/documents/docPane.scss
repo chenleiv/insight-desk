@@ -429,10 +429,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-
-            &:hover:not(:disabled) {
-                background: var(--soft-2);
-            }
         }
 
         .doc-pane-pending {
@@ -513,7 +509,8 @@
             color: var(--muted);
             transition: all 0.2s ease;
 
-            &:hover {
+            // A disabled button keeps its disabled look under the pointer.
+            &:hover:not(:disabled) {
                 color: var(--text);
                 background: var(--soft) !important;
                 border-color: var(--text) !important;
