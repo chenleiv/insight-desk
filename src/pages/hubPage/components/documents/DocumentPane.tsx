@@ -343,7 +343,10 @@ export default function DocumentPane({
         })}
         {...(isCreating && { onImportClick: () => importFileRef.current?.click(), importDisabled: isCreationPending })}
         {...(!isCreating && doc && { onDownload: (format: DownloadFormat) => void handleDownload(format) })}
-        {...(onClose ? { onClose } : {})}
+        {...(onClose ? {
+          // While editing, Close cancels the edit like Cancel and Escape instead of leaving the document.
+          onClose: isEditing ? () => void handleCancel() : onClose,
+        } : {})}
         {...(canEdit && doc && onDelete && { onDelete: () => onDelete(doc) })}
         {...(isMaximized !== undefined && { isMaximized })}
         {...(onToggleMaximize !== undefined && { onToggleMaximize })}
