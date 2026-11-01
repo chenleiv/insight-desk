@@ -4,6 +4,7 @@ import { User } from '../models.js';
 import { getCurrentUser, requireAdmin } from '../auth.js';
 import { isDemoUser } from '../access.js';
 import { DEMO_SAMPLE_USERS } from '../demo.js';
+import { userIdParamSchema, userUpdateSchema, sendValidationError } from '../schemas.js';
 
 const router = Router();
 
@@ -31,17 +32,18 @@ router.get('/', getCurrentUser, async (req, res) => {
 
 // Update user role/status (admin)
 router.patch('/:id', requireAdmin, async (req, res) => {
+    const params = userIdParamSchema.safeParse(req.params);
+    if (!params.success) return sendValidationError(res, params.error);
+    const body = userUpdateSchema.safeParse(req.body);
+    if (!body.success) return sendValidationError(res, body.error);
+
+    const { role, status } = body.data;
+    const update = {};
+    if (role !== undefined) update.role = role;
+    if (status !== undefined) update.status = status;
+
     try {
-        const { role, status } = req.body;
-        const update = {};
-        if (role && ['admin', 'viewer'].includes(role)) update.role = role;
-        if (status && ['active', 'inactive'].includes(status)) update.status = status;
-
-        if (Object.keys(update).length === 0) {
-            return res.status(400).json({ detail: 'No valid fields to update' });
-        }
-
-        const user = await User.findByIdAndUpdate(req.params.id, update, { new: true }).select('-password_hash');
+        const user = await User.findByIdAndUpdate(params.data.id, update, { new: true }).select('-password_hash');
         if (!user) return res.status(404).json({ detail: 'User not found' });
 
         res.json({ id: user._id, email: user.email, role: user.role, status: user.status || 'active' });

@@ -19,7 +19,7 @@ vi.mock("../rag/embed.js", () => ({ embed: vi.fn(async () => [1, 0, 0]) }));
 
 import { embed } from "../rag/embed.js";
 import { User, Document, Chunk, RetrievalLog } from "../models.js";
-import aiRouter, { NO_INFO_ANSWER } from "../ai.js";
+import aiRouter, { NO_INFO_ANSWER, verifyCitations } from "../ai.js";
 import { logRetrieval } from "../rag/retrievalLog.js";
 import { getRetrievalSummary } from "../rag/retrievalStats.js";
 
@@ -296,6 +296,34 @@ describe("POST /api/ai/chat", () => {
     const statuses = [];
     for (let i = 0; i < 21; i++) statuses.push((await chatAs(demoOne, { message: "vacation" })).status);
     expect(statuses).toContain(429);
+  });
+});
+
+// Tested directly, so these cases do not use up the chat rate limit.
+describe("verifyCitations", () => {
+  // One retrieved chunk: [c1] is kept and any other id is removed.
+  const chunks = [{ docId: "doc-1", title: "Policy", index: 0 }];
+
+  it.each([
+    ["a kept citation at the start", "[c1] Ask the team lead.", "[c1] Ask the team lead."],
+    ["a removed citation at the start", "[c9] Ask the team lead.", "Ask the team lead."],
+    ["a kept citation at the end", "Ask the team lead [c1]", "Ask the team lead [c1]"],
+    ["a removed citation at the end", "Ask the team lead [c9]", "Ask the team lead"],
+    ["adjacent citations", "Ask [c1][c9] [c8][c1] now.", "Ask [c1][c1] now."],
+    ["spaces before a removed citation", "Ask the team lead   [c9].", "Ask the team lead."],
+    ["newlines before a removed citation", "Ask the team lead\n\n[c9]\nThen wait.", "Ask the team lead\nThen wait."],
+    ["a removed citation between two words", "Ask the [c9] team lead.", "Ask the team lead."],
+  ])("rewrites %s", (_label, answer, expected) => {
+    expect(verifyCitations(answer, chunks).answer).toBe(expected);
+  });
+
+  it("handles 100,000 spaces in an answer quickly", () => {
+    const spaces = " ".repeat(100_000);
+    const result = verifyCitations(`Ask${spaces}the team lead${spaces}[c9] [c1${spaces}`, chunks);
+
+    expect(result.answer).toBe(`Ask${spaces}the team lead [c1`);
+    expect(result.citations).toEqual([]);
+    expect(result.unknown).toEqual(["c9"]);
   });
 });
 

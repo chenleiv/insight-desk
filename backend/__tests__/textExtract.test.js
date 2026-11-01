@@ -65,6 +65,12 @@ const TEXTEDIT_RTF = String.raw`{\rtf1\ansi\ansicpg1252\cocoartf2907
 Parking passes are issued by the facilities team every January.}`;
 
 describe("rtfToText", () => {
+  it("throws a TypeError for input that is not a string", () => {
+    expect(() => rtfToText({ length: 1e9 })).toThrow(TypeError);
+    expect(() => rtfToText(["{", "}"])).toThrow(TypeError);
+    expect(() => rtfToText(Buffer.from("{\\rtf1 x}"))).toThrow(TypeError);
+  });
+
   it("strips TextEdit formatting and keeps only the text", () => {
     expect(rtfToText(TEXTEDIT_RTF).trim()).toBe(
       "Attachment check.\nParking passes are issued by the facilities team every January.",

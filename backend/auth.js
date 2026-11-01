@@ -196,12 +196,16 @@ router.post('/register', async (req, res) => {
 // The state ties the callback to the browser that started the login (login CSRF).
 // Lax lets the cookie ride the top-level redirect back from Google.
 const OAUTH_STATE_COOKIE = 'oauth_state';
-const OAUTH_STATE_COOKIE_OPTIONS = {
-    httpOnly: true,
-    secure: ENV === 'prod' || process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/api/auth/google',
-};
+// Setting and clearing must use the same options, or the browser keeps the cookie.
+function oauthStateCookieOptions(extra = {}) {
+    return {
+        ...extra,
+        httpOnly: true,
+        secure: ENV === 'prod' || process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/api/auth/google',
+    };
+}
 
 function isValidOAuthState(returned, expected) {
     if (typeof returned !== 'string' || typeof expected !== 'string') return false;
@@ -215,7 +219,7 @@ router.get('/google', (req, res) => {
         return res.status(503).json({ detail: 'Google OAuth is not configured' });
     }
     const state = randomBytes(32).toString('base64url');
-    res.cookie(OAUTH_STATE_COOKIE, state, { ...OAUTH_STATE_COOKIE_OPTIONS, maxAge: 10 * 60 * 1000 });
+    res.cookie(OAUTH_STATE_COOKIE, state, oauthStateCookieOptions({ maxAge: 10 * 60 * 1000 }));
     const params = new URLSearchParams({
         state,
         client_id: GOOGLE_CLIENT_ID,
@@ -232,7 +236,7 @@ router.get('/google/callback', async (req, res) => {
     const { code, error, state } = req.query;
     const expectedState = req.cookies?.[OAUTH_STATE_COOKIE];
     // One use only: the state is cleared whatever the outcome.
-    res.clearCookie(OAUTH_STATE_COOKIE, OAUTH_STATE_COOKIE_OPTIONS);
+    res.clearCookie(OAUTH_STATE_COOKIE, oauthStateCookieOptions());
 
     if (error || !code) {
         return res.redirect(`${FRONTEND_URL}/login?error=google_cancelled`);

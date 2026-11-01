@@ -45,6 +45,22 @@ export const aiFeedbackSchema = z.strictObject({
   rating: z.enum(['up', 'down']),
 });
 
+// User Schemas
+// A MongoDB ObjectId, so a malformed id is a 400 instead of a cast error.
+export const userIdParamSchema = z.object({
+  id: z.string().regex(/^[0-9a-f]{24}$/i, 'Invalid user id'),
+});
+
+// Admins change only role and status; any other field is rejected.
+export const userUpdateSchema = z
+  .strictObject({
+    role: z.enum(['admin', 'viewer']).optional(),
+    status: z.enum(['active', 'inactive']).optional(),
+  })
+  .refine((data) => data.role !== undefined || data.status !== undefined, {
+    message: 'Provide role or status',
+  });
+
 // Quality dashboard range: the last 7 or 30 days (query string values arrive as strings).
 export const qualityQuerySchema = z.object({
   days: z.enum(['7', '30']).transform(Number),
