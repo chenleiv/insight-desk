@@ -127,6 +127,23 @@ export function applyMiddleware(app) {
     app.use('/api/', limiter);
 }
 
+// The SPA fallback only sends index.html, on full page loads and refreshes; static
+// assets are served before it and in-app navigation never reaches the server.
+// 1000 per 15 minutes leaves room for an office of visitors behind one NAT
+// address while stopping a client that requests pages in a loop.
+export const SPA_FALLBACK_LIMIT = 1000;
+
+// Relies on the trust proxy setting from applyMiddleware for the client IP.
+export function spaFallbackLimiter() {
+    return rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: SPA_FALLBACK_LIMIT,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: 'Too many requests, please try again later.',
+    });
+}
+
 // The largest JSON body the server parses. A bigger one is rejected with 413
 // before any route reads it, so a client cannot make the server buffer huge payloads.
 export const JSON_BODY_LIMIT = '2mb';

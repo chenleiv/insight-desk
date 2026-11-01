@@ -1,7 +1,14 @@
 // @vitest-environment node
 import { describe, it, expect, afterEach } from "vitest";
 import express from "express";
-import { applyMiddleware, apiNotFound, jsonBody, parseTrustProxyHops } from "../setup.js";
+import {
+  applyMiddleware,
+  apiNotFound,
+  jsonBody,
+  parseTrustProxyHops,
+  spaFallbackLimiter,
+  SPA_FALLBACK_LIMIT,
+} from "../setup.js";
 import { errorHandler } from "../errorHandler.js";
 
 let server;
@@ -111,6 +118,36 @@ describe("apiNotFound", () => {
     const page = await fetch(`${baseUrl}/hub`);
     expect(page.status).toBe(200);
     expect(page.headers.get("content-type")).toMatch(/html/);
+  });
+});
+
+describe("spaFallbackLimiter", () => {
+  // Same order as backend/index.js: the real middleware (trust proxy), then the limited fallback.
+  async function startSpaApp() {
+    process.env.TRUST_PROXY_HOPS = "1";
+    const app = express();
+    applyMiddleware(app);
+    app.get("*", spaFallbackLimiter(), (req, res) => res.type("html").send("<!doctype html>"));
+    await new Promise((resolve) => {
+      server = app.listen(0, resolve);
+    });
+    return `http://127.0.0.1:${server.address().port}`;
+  }
+
+  function loadPage(baseUrl, clientIp) {
+    return fetch(`${baseUrl}/hub`, { headers: { "X-Forwarded-For": clientIp } });
+  }
+
+  it("serves pages up to the limit, then returns 429 to that client only", async () => {
+    const baseUrl = await startSpaApp();
+    for (let n = 0; n < SPA_FALLBACK_LIMIT; n++) {
+      const res = await loadPage(baseUrl, "203.0.113.7");
+      expect(res.status).toBe(200);
+      await res.arrayBuffer();
+    }
+
+    expect((await loadPage(baseUrl, "203.0.113.7")).status).toBe(429);
+    expect((await loadPage(baseUrl, "198.51.100.9")).status).toBe(200);
   });
 });
 

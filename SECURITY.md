@@ -80,9 +80,13 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 
 - All `/api/` routes share one limit per client IP (100 per 15 minutes in production), plus stricter limits on
   password attempts (10 failed per 15 minutes) and demo creation (10 per hour).
-- Static files and the SPA fallback (`index.html`) are not rate-limited: they serve fixed files with no user
-  input. CodeQL's "Missing rate limiting" alert on the SPA fallback is dismissed with a reference to this section.
-  Test for the login limit: `backend/__tests__/authRateLimit.test.js`.
+- The SPA fallback (`index.html`) has its own generous limit: 1000 requests per 15 minutes per client IP, in every
+  environment. Only full page loads and refreshes reach it (static assets are served first, and in-app navigation
+  stays in the browser), so the limit leaves room for many visitors behind one shared IP while stopping a client
+  that requests pages in a loop. It uses the same client IP as the `/api/` limits (`TRUST_PROXY_HOPS`).
+- Static files under `dist/` are not rate-limited: they are fixed files with no user input.
+- Tests: the login limit in `backend/__tests__/authRateLimit.test.js`, the SPA fallback limit in
+  `backend/middleware/__tests__/setup.test.js`.
 
 ## Cross-site requests (CSRF)
 

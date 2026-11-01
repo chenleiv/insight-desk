@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 import { logger } from './logger.js';
-import { applyMiddleware, apiNotFound, jsonBody } from './middleware/setup.js';
+import { applyMiddleware, apiNotFound, jsonBody, spaFallbackLimiter } from './middleware/setup.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRouter, { seedUsersIfEmpty } from './auth.js';
 import aiRouter, { loadAIConfig } from './ai.js';
@@ -85,7 +85,7 @@ app.get('/robots.txt', (req, res) => {
 app.use('/api', apiNotFound);
 
 // SPA fallback
-app.get('*', (req, res) => {
+app.get('*', spaFallbackLimiter(), (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'), (err) => {
         if (err) {
             logger.error('Error sending index.html', { message: err.message });
