@@ -85,6 +85,23 @@ describe("rtfToText", () => {
     const rtf = String.raw`{\rtf1\ansi\uc1` + u(1513) + "?" + u(1500) + "?}";
     expect(rtfToText(rtf)).toBe(SHALOM.slice(0, 2));
   });
+
+  it("drops spaces and tabs before a line break but keeps them inside a line", () => {
+    const rtf = String.raw`{\rtf1\ansi one \tab  \par two\tab three\par}`;
+    expect(rtfToText(rtf)).toBe("one\ntwo\tthree\n");
+  });
+
+  // The old regex took minutes on this input: its time grew with the square of the run.
+  it("handles a long run of blanks in linear time", () => {
+    const rtf = String.raw`{\rtf1\ansi start` + " ".repeat(1_000_000) + String.raw`end\par}`;
+    expect(rtfToText(rtf)).toBe("start" + " ".repeat(1_000_000) + "end\n");
+  });
+
+  it("keeps extracting text from groups nested past the depth cap", () => {
+    const deep = "{".repeat(5000) + "deep" + "}".repeat(5000);
+    const rtf = String.raw`{\rtf1\ansi {\fonttbl ` + deep + "} visible}";
+    expect(rtfToText(rtf)).toBe(" visible");
+  });
 });
 
 describe("extractTextFromBuffer", () => {

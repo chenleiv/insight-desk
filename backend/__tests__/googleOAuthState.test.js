@@ -123,3 +123,32 @@ describe("Google OAuth state", () => {
     expect(googleCalls).toEqual([]);
   });
 });
+
+describe("cookies in production", () => {
+  // Restart the server with the auth module loaded under production settings.
+  beforeEach(async () => {
+    await new Promise((resolve) => server.close(resolve));
+    vi.resetModules();
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("JWT_SECRET", "test-secret-for-production-cookies");
+    const auth = await import("../auth.js");
+    const app = express();
+    app.use(cookieParser());
+    app.use("/api/auth", auth.default);
+    await new Promise((resolve) => {
+      server = app.listen(0, resolve);
+    });
+    baseUrl = `http://127.0.0.1:${server.address().port}`;
+  });
+
+  it("marks the state cookie and the session cookie Secure", async () => {
+    const { state, cookie, setCookie } = await startLogin();
+    expect(setCookie).toMatch(/;\s*Secure/i);
+
+    const res = await get(`/api/auth/google/callback?code=abc&state=${state}`, cookie);
+    const session = res.headers.getSetCookie().find((c) => c.startsWith("access_token="));
+    expect(session).toMatch(/;\s*Secure/i);
+    expect(session).toMatch(/HttpOnly/i);
+    expect(session).toMatch(/SameSite=Lax/i);
+  });
+});
