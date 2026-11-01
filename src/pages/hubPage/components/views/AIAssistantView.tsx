@@ -3,6 +3,7 @@ import "./aiAssistant.scss";
 import { BrainCircuit, Send, Bot, ChevronDown, SlidersHorizontal, ThumbsUp, ThumbsDown } from "lucide-react";
 import { chatWithAI, getSuggestions, getSystemPrompt, sendFeedback, type FeedbackRating } from "../../../../api/aiClient";
 import { citedSources, formatCitations, uid } from "../../utils/assistantUtils";
+import { renderMarkdown } from "../../utils/renderMarkdown";
 import { CHAT_KEY } from "../../../../storageKeys";
 import { loadJson, saveJson, scopedKey } from "../../../../utils/storage";
 import type { ChatMessage } from "./assistantTypes";
@@ -224,6 +225,7 @@ export default function AIAssistantView() {
                         typeof m.text === "string" ? (
                         <TypewriterText
                           text={m.text}
+                          render={renderMarkdown}
                           onComplete={() =>
                             setMessages((prev) =>
                               prev.map((msg) =>
@@ -231,6 +233,8 @@ export default function AIAssistantView() {
                               )
                             )}
                         />
+                      ) : m.role === "assistant" ? (
+                        renderMarkdown(m.text)
                       ) : (
                         m.text
                       )}

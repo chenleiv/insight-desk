@@ -90,6 +90,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  // Lets a wide code block scroll inside the bubble instead of widening it.
+  min-width: 0;
 }
 
 .ai-bubble {
@@ -97,6 +99,37 @@
   font-size: 15px;
   line-height: 1.5;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+
+  // Markdown in model answers.
+  ul,
+  ol {
+    margin: 0.25em 0;
+    padding-inline-start: 1.5em;
+  }
+
+  code {
+    font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+    font-size: 0.9em;
+    padding: 0 4px;
+    border-radius: 4px;
+    background: var(--bg);
+  }
+
+  pre {
+    margin: 0.5em 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: var(--bg);
+    overflow-x: auto;
+    white-space: pre;
+    overflow-wrap: normal;
+
+    code {
+      padding: 0;
+      background: none;
+    }
+  }
 
   &.thinking {
     display: flex;
