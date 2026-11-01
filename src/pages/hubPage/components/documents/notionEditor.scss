@@ -347,6 +347,19 @@
     margin-bottom: 10px;
 }
 
+// Announces attachment work to screen readers without taking space in the chip row.
+.notion-att-sr-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .notion-att-chip {
     display: inline-flex;
     align-items: center;
@@ -365,7 +378,8 @@
         opacity: 0.75;
     }
 
-    &.notion-att-chip--uploading {
+    &.notion-att-chip--uploading,
+    &.notion-att-chip--removing {
         border-style: dashed;
         color: var(--muted);
         cursor: default;

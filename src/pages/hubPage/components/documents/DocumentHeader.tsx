@@ -14,8 +14,11 @@ import { getCategoryChipStyle } from "../../utils/docs";
 import type { SaveStatus } from "../../hooks/useDocumentSave";
 import type { DownloadFormat } from "../../../../api/documentsClient";
 
-// "unsaved": edits not saved yet.
-type HeaderSaveStatus = SaveStatus | "unsaved";
+// "unsaved": edits not saved yet. "deleting": the delete request is running.
+type HeaderSaveStatus = SaveStatus | "unsaved" | "deleting";
+
+// Gives the header actions one resting look; only hover, focus and disabled differ.
+const HEADER_BTN = "doc-pane-header-btn";
 
 // Shown in place of the Edit button while editing.
 type EditActions = {
@@ -33,6 +36,7 @@ type Props = {
   onCancel: () => void;
   onClose?: () => void;
   onDelete?: () => void;
+  isDeleting?: boolean;
   isMaximized?: boolean;
   onToggleMaximize?: () => void;
   onMinimize?: () => void;
@@ -48,7 +52,7 @@ function MaximizeBtn({ isMaximized, className = "", onClick }: { isMaximized: bo
   const label = isMaximized ? "Exit full screen" : "Full screen";
   return (
     <button type="button"
-      className={`icon-btn doc-pane-header-tool-btn demo-mutex-target ${className}`}
+      className={`icon-btn ${HEADER_BTN} doc-pane-header-tool-btn demo-mutex-target ${className}`}
       onClick={onClick} data-tooltip={label} data-tooltip-pos="bottom"
       title={label} aria-label={label}>
       {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
@@ -58,7 +62,7 @@ function MaximizeBtn({ isMaximized, className = "", onClick }: { isMaximized: bo
 
 function CloseBtn({ size = 16, className = "", onClick }: { size?: number; className?: string; onClick: () => void }) {
   return (
-    <button type="button" className={`icon-btn doc-pane-close-btn ${className}`}
+    <button type="button" className={`icon-btn ${HEADER_BTN} doc-pane-close-btn ${className}`}
       onClick={onClick} data-tooltip="Close" data-tooltip-pos="bottom" aria-label="Close document">
       <X size={size} strokeWidth={2} />
     </button>
@@ -71,6 +75,7 @@ const SAVE_STATUS_LABELS: Record<HeaderSaveStatus, string> = {
   saving: "Saving…",
   saved: "Saved",
   error: "Save failed",
+  deleting: "Deleting…",
 };
 
 // Always rendered, so screen readers announce each change of the live region.
@@ -80,9 +85,10 @@ function SaveStatusChip({ status }: { status?: HeaderSaveStatus | undefined }) {
   return <span className={className} role="status" aria-live="polite">{SAVE_STATUS_LABELS[status]}</span>;
 }
 
-function EditBtn({ onClick }: { onClick: () => void }) {
+function EditBtn({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
   return (
-    <button type="button" className="doc-pane-mode-btn doc-pane-edit-btn" onClick={onClick} title="Edit document">
+    <button type="button" className={`doc-pane-mode-btn ${HEADER_BTN} doc-pane-edit-btn`} onClick={onClick}
+      disabled={disabled} title="Edit document">
       <Pencil size={14} aria-hidden />
       Edit
     </button>
@@ -114,7 +120,7 @@ function DownloadBtn({ onDownload, disabledHint }: { onDownload: (format: Downlo
   const btnRef = useRef<HTMLButtonElement>(null);
   return (
     <>
-      <button type="button" ref={btnRef} className="icon-btn doc-pane-header-tool-btn"
+      <button type="button" ref={btnRef} className={`icon-btn ${HEADER_BTN} doc-pane-header-tool-btn`}
         onClick={() => setOpen(true)} disabled={!!disabledHint}
         aria-haspopup="menu" aria-expanded={open}
         data-tooltip={disabledHint ?? "Export as Markdown, PDF or Word"} data-tooltip-pos="bottom" aria-label="Export document">
@@ -132,7 +138,7 @@ function DownloadBtn({ onDownload, disabledHint }: { onDownload: (format: Downlo
 
 function MinimizeBtn({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" className="icon-btn doc-pane-header-tool-btn"
+    <button type="button" className={`icon-btn ${HEADER_BTN} doc-pane-header-tool-btn`}
       onClick={onClick} data-tooltip="Collapse to Rail" data-tooltip-pos="bottom" title="Collapse to Rail">
       <PanelLeftClose size={16} />
     </button>
@@ -150,6 +156,7 @@ export function DocumentHeader({
   onCancel,
   onClose,
   onDelete,
+  isDeleting = false,
   isMaximized,
   onToggleMaximize,
   onMinimize,
@@ -168,15 +175,15 @@ export function DocumentHeader({
   // ── Default variant: delete btn + window controls ──
   const defaultActions = (
     <>
-      <SaveStatusChip status={saveStatus} />
+      <SaveStatusChip status={isDeleting ? "deleting" : saveStatus} />
       {editActions && !isCreating && <SaveCancelBtns {...editActions} />}
-      {onEdit && !isCreating && <EditBtn onClick={onEdit} />}
+      {onEdit && !isCreating && <EditBtn onClick={onEdit} disabled={isDeleting} />}
       {onDownload && !isCreating && (
         <DownloadBtn onDownload={onDownload} disabledHint={isEditing ? editingHint : undefined} />
       )}
       {onDelete && !isCreating && (
-        <button type="button" className="icon-btn doc-pane-delete-btn"
-          onClick={onDelete} disabled={isEditing}
+        <button type="button" className={`icon-btn ${HEADER_BTN} doc-pane-delete-btn`}
+          onClick={onDelete} disabled={isEditing || isDeleting} aria-busy={isDeleting}
           data-tooltip={isEditing ? editingHint : "Delete"} data-tooltip-pos="bottom" aria-label="Delete">
           <Trash2 size={16} />
         </button>

@@ -33,6 +33,8 @@ type Props = {
   onCreated: (doc: DocumentItem) => void;
   onSaved: (doc: DocumentItem) => void;
   onDelete?: (doc: DocumentItem) => void;
+  // The delete request for this document is running.
+  isDeleting?: boolean;
   hasDocs: boolean;
   onDirtyChange?: (isDirty: boolean) => void;
   loading?: boolean;
@@ -55,6 +57,7 @@ export default function DocumentPane({
   onCreated,
   onSaved,
   onDelete,
+  isDeleting = false,
   hasDocs,
   onDirtyChange,
   loading,
@@ -121,6 +124,7 @@ export default function DocumentPane({
 
   const {
     isUploading,
+    uploadStatus,
     deletingAttachmentId,
     pendingFiles,
     setPendingFiles,
@@ -348,7 +352,7 @@ export default function DocumentPane({
           // While editing, Close cancels the edit like Cancel and Escape instead of leaving the document.
           onClose: isEditing ? () => void handleCancel() : onClose,
         } : {})}
-        {...(canEdit && doc && onDelete && { onDelete: () => onDelete(doc) })}
+        {...(canEdit && doc && onDelete && { onDelete: () => onDelete(doc), isDeleting })}
         {...(isMaximized !== undefined && { isMaximized })}
         {...(onToggleMaximize !== undefined && { onToggleMaximize })}
         {...(onMinimize !== undefined && { onMinimize: handleMinimize })}
@@ -393,6 +397,7 @@ export default function DocumentPane({
         maxContentLength={maxContentLength}
         maxAttachments={maxAttachments}
         isUploading={isUploading}
+        uploadStatus={uploadStatus}
         deletingAttachmentId={deletingAttachmentId}
         pendingFiles={pendingFiles}
         onUploadAttachment={isCreating
@@ -415,7 +420,7 @@ export default function DocumentPane({
             disabled={!isDirty || !isValid || isCreationPending}
             aria-busy={isCreationPending}
           >
-            {isCreationPending ? <><Loader size={16} />Creating document…</> : "Create"}
+            {isCreationPending ? "Creating document…" : "Create"}
           </button>
         </div>
       )}
@@ -444,7 +449,7 @@ export default function DocumentPane({
               disabled={!isDirty || !isValid || isCreationPending}
               aria-busy={isCreationPending}
             >
-              {isCreationPending ? <Loader size={15} /> : <Save size={15} strokeWidth={2} aria-hidden />}
+              <Save size={15} strokeWidth={2} aria-hidden />
               {isCreationPending ? "Creating document…" : "Create"}
             </button>
           </div>
