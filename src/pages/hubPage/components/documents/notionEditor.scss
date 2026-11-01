@@ -324,9 +324,14 @@
     white-space: nowrap;
     transition: color 0.15s, border-color 0.15s;
 
-    &:hover {
+    &:hover:not(:disabled) {
         color: var(--text);
         border-color: var(--muted);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 }
 

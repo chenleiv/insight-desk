@@ -845,3 +845,25 @@
         padding: 10px 24px;
     }
 }
+
+/* ===== Create pending state ===== */
+.doc-pane-create-status--visible {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 24px 0;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--info-text);
+    background: var(--info-bg);
+    border: 1px solid var(--info-border);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+// Keep the busy button readable instead of the faded disabled look.
+.doc-pane-create-btn[aria-busy="true"]:disabled {
+    opacity: 0.85;
+    cursor: progress;
+}

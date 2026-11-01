@@ -7,13 +7,15 @@ import { ConfirmContext, type ConfirmFn } from "../../../../../components/confir
 import type { Attachment, DocumentInput, DocumentItem } from "../../../../../api/documentsClient";
 import DocumentPane from "../DocumentPane";
 
-const { updateDocument, uploadAttachment } = vi.hoisted(() => ({
+const { createDocument, updateDocument, uploadAttachment } = vi.hoisted(() => ({
+  createDocument: vi.fn<(input: DocumentInput) => Promise<DocumentItem>>(),
   updateDocument: vi.fn<(id: string, input: DocumentInput) => Promise<DocumentItem>>(),
   uploadAttachment: vi.fn<(id: string, file: File) => Promise<Attachment>>(),
 }));
 
 vi.mock("../../../../../api/documentsClient", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../../../api/documentsClient")>()),
+  createDocument,
   updateDocument,
   uploadAttachment,
 }));
@@ -383,5 +385,192 @@ describe("DocumentPane Escape key", () => {
     await pressEscape();
     expect(hubEscape).toHaveBeenCalledTimes(1);
     expect(confirm).not.toHaveBeenCalled();
+  });
+});
+
+describe("DocumentPane Create", () => {
+  const onCreated = vi.fn<(doc: DocumentItem) => void>();
+  const onCancelCreate = vi.fn<() => void>();
+  const hubEscape = vi.fn<() => void>();
+  const onHubKey = (e: KeyboardEvent) => { if (e.key === "Escape") hubEscape(); };
+  const INPUT: DocumentInput = { title: "Plan", category: "Ops", content: "Steps" };
+
+  beforeEach(() => {
+    localStorage.setItem("insight-desk:new-doc-toured", "1");
+    createDocument.mockReset();
+    createDocument.mockImplementation(async (input) => ({ ...input, id: "new" }));
+    onCreated.mockReset();
+    onCancelCreate.mockReset();
+    hubEscape.mockReset();
+    window.addEventListener("keydown", onHubKey);
+  });
+  afterEach(() => window.removeEventListener("keydown", onHubKey));
+
+  function CreateHarness({ variant = "default" }: { variant?: "default" | "drawer" }) {
+    const [queryClient] = useState(() => new QueryClient());
+    return (
+      <QueryClientProvider client={queryClient}>
+      <StatusContext.Provider value={status}>
+        <ConfirmContext.Provider value={confirm}>
+          <DocumentPane
+            doc={null}
+            canEdit
+            isCreating
+            variant={variant}
+            onCancelCreate={onCancelCreate}
+            onCreated={onCreated}
+            onSaved={() => {}}
+            hasDocs
+          />
+        </ConfirmContext.Provider>
+      </StatusContext.Provider>
+      </QueryClientProvider>
+    );
+  }
+
+  const field = (name: keyof DocumentInput) =>
+    document.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${name}"]`)!;
+  const createBtn = () => document.querySelector<HTMLButtonElement>(".doc-pane-create-btn");
+  const discardBtn = () => document.querySelector<HTMLButtonElement>(".doc-pane-cancel-btn");
+  const importBtn = () => document.querySelector<HTMLButtonElement>(".doc-pane-import-btn");
+  const addFileBtn = () => document.querySelector<HTMLButtonElement>(".notion-att-chip--add");
+  const createStatus = () => document.querySelector(".doc-pane-create-status");
+  const form = () => document.querySelector("form")!;
+
+  function fill(input: DocumentInput) {
+    act(() => {
+      for (const [name, value] of Object.entries(input)) {
+        const el = field(name as keyof DocumentInput);
+        const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(proto, "value")!.set!.call(el, value);
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+  }
+
+  function attach(file: File) {
+    const input = document.querySelector<HTMLInputElement>(".notion-doc-body input[type=file]")!;
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    act(() => { input.dispatchEvent(new Event("change", { bubbles: true })); });
+  }
+
+  function later<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (err: Error) => void;
+    const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
+  }
+
+  function expectLocked(locked: boolean) {
+    expect(createBtn()!.disabled).toBe(locked);
+    expect(createBtn()!.getAttribute("aria-busy")).toBe(String(locked));
+    expect(discardBtn()!.disabled).toBe(locked);
+    expect(importBtn()!.disabled).toBe(locked);
+    expect(addFileBtn()!.disabled).toBe(locked);
+    expect(field("title").readOnly).toBe(locked);
+    expect(field("category").readOnly).toBe(locked);
+    expect(field("content").readOnly).toBe(locked);
+    expect(form().getAttribute("aria-busy")).toBe(String(locked));
+  }
+
+  it("locks the form and shows the pending text while the request runs", async () => {
+    const create = later<DocumentItem>();
+    createDocument.mockImplementationOnce(() => create.promise);
+    render(<CreateHarness />);
+    fill(INPUT);
+    expect(createStatus()!.textContent).toBe("");
+    expect(createStatus()!.getAttribute("aria-live")).toBe("polite");
+
+    await click(createBtn());
+    expectLocked(true);
+    expect(createBtn()!.textContent).toBe("Creating document…");
+    expect(createStatus()!.textContent).toBe("Creating document… Preparing it for search.");
+    expect(createStatus()!.getAttribute("role")).toBe("status");
+    expect(field("content").value).toBe("Steps");
+
+    await act(async () => create.resolve({ ...INPUT, id: "new" }));
+    expect(onCreated).toHaveBeenCalledWith({ ...INPUT, id: "new" });
+    expectLocked(false);
+    expect(createBtn()!.textContent).toBe("Create");
+    expect(createStatus()!.textContent).toBe("");
+  });
+
+  it("shows the pending text in the drawer variant too", async () => {
+    createDocument.mockImplementationOnce(() => later<DocumentItem>().promise);
+    render(<CreateHarness variant="drawer" />);
+    fill(INPUT);
+    await click(createBtn());
+    expect(createBtn()!.disabled).toBe(true);
+    expect(createBtn()!.textContent).toBe("Creating document…");
+    expect(createStatus()!.textContent).toBe("Creating document… Preparing it for search.");
+  });
+
+  it("stays locked until every file upload has finished", async () => {
+    const upload = later<Attachment>();
+    uploadAttachment.mockImplementationOnce(() => upload.promise);
+    render(<CreateHarness />);
+    fill(INPUT);
+    attach(new File(["x"], "notes.txt", { type: "text/plain" }));
+
+    await click(createBtn());
+    expect(createDocument).toHaveBeenCalledTimes(1);
+    expect(uploadAttachment).toHaveBeenCalledWith("new", expect.any(File));
+    expect(onCreated).not.toHaveBeenCalled();
+    expectLocked(true);
+    expect(createStatus()!.textContent).toBe("Creating document… Preparing it for search.");
+
+    const attachment: Attachment = { _id: "att-9", url: "", fileName: "notes.txt", fileType: "text/plain" };
+    await act(async () => upload.resolve(attachment));
+    expect(onCreated).toHaveBeenCalledWith({ ...INPUT, id: "new", attachments: [attachment] });
+    expectLocked(false);
+  });
+
+  it("sends one request when the form is submitted twice quickly", async () => {
+    render(<CreateHarness />);
+    fill(INPUT);
+    await act(async () => {
+      form().dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form().dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
+    expect(createDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it("unlocks the form and keeps the input after a failed create", async () => {
+    const create = later<DocumentItem>();
+    createDocument.mockImplementationOnce(() => create.promise);
+    render(<CreateHarness />);
+    fill(INPUT);
+    await click(createBtn());
+    expectLocked(true);
+
+    await act(async () => create.reject(new Error("Network down")));
+    expectLocked(false);
+    expect(createBtn()!.textContent).toBe("Create");
+    expect(createStatus()!.textContent).toBe("");
+    expect(field("title").value).toBe("Plan");
+    expect(field("category").value).toBe("Ops");
+    expect(field("content").value).toBe("Steps");
+    expect(onCreated).not.toHaveBeenCalled();
+    expect(status.show).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "error", title: "Creation failed", message: "Network down" }),
+    );
+  });
+
+  it("ignores Escape while the request runs", async () => {
+    createDocument.mockImplementationOnce(() => later<DocumentItem>().promise);
+    render(<CreateHarness />);
+    fill(INPUT);
+    await click(createBtn());
+    await act(async () => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
+    expect(confirm).not.toHaveBeenCalled();
+    expect(onCancelCreate).not.toHaveBeenCalled();
+    expect(hubEscape).not.toHaveBeenCalled();
+  });
+
+  it("lists exactly the file types the import picker accepts", () => {
+    render(<CreateHarness />);
+    const accepted = document.querySelector<HTMLInputElement>("form > input[type=file]")!.accept.split(",");
+    const listed = importBtn()!.dataset.tooltip!.replace("Supported: ", "").split(" ");
+    expect(listed.sort()).toEqual(accepted.sort());
   });
 });

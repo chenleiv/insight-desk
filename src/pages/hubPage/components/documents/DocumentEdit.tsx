@@ -15,6 +15,8 @@ type Props = {
   // Read mode for a user who may edit: fields locked. Attachments can still be added and
   // removed, since each is saved on its own and not with the form.
   readOnly?: boolean;
+  // Locks adding and removing attachments, e.g. while the document is being created.
+  attachmentsDisabled?: boolean;
   isUploading?: boolean;
   deletingAttachmentId?: string | null;
   pendingFiles?: File[];
@@ -38,6 +40,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
   doc,
   canEdit,
   readOnly = false,
+  attachmentsDisabled = false,
   isUploading = false,
   deletingAttachmentId = null,
   pendingFiles = [],
@@ -61,7 +64,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
     maxAttachments !== undefined && existingAttachments.length + pendingFiles.length >= maxAttachments;
 
   useImperativeHandle(ref, () => ({
-    triggerAttach: () => { if (!attachLimitReached) fileInputRef.current?.click(); },
+    triggerAttach: () => { if (!attachLimitReached && !attachmentsDisabled) fileInputRef.current?.click(); },
   }));
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -155,7 +158,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
                   type="button"
                   className="notion-att-chip-action"
                   title="Remove"
-                  disabled={isDeleting}
+                  disabled={isDeleting || attachmentsDisabled}
                   onClick={() => onDeleteAttachment?.(att._id)}
                 >
                   {isDeleting ? <span className="notion-att-spinner" /> : <X size={11} />}
@@ -168,7 +171,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
               <Paperclip size={11} aria-hidden />
               <span className="notion-att-chip-name">{f.name}</span>
               <span className="notion-att-chip-badge">on save</span>
-              <button type="button" className="notion-att-chip-action" title="Remove" onClick={() => onDeleteAttachment?.(f.name)}>
+              <button type="button" className="notion-att-chip-action" title="Remove" disabled={attachmentsDisabled} onClick={() => onDeleteAttachment?.(f.name)}>
                 <X size={11} />
               </button>
             </span>
@@ -183,7 +186,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
               type="button"
               className="notion-att-chip notion-att-chip--add"
               onClick={() => fileInputRef.current?.click()}
-              disabled={attachLimitReached}
+              disabled={attachLimitReached || attachmentsDisabled}
               title={attachLimitReached ? `Demo limit: ${maxAttachments} file per document` : undefined}
             >
               <Plus size={11} aria-hidden />
