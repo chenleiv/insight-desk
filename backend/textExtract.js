@@ -61,6 +61,7 @@ function trimBlanksBeforeNewlines(text) {
  * decodes escaped characters; drops all formatting.
  */
 export function rtfToText(rtf) {
+    if (typeof rtf !== 'string') throw new TypeError('rtfToText expects a string');
     let out = '';
     let skip = false;
     let ucSkip = 1;       // fallback chars that follow each \uN escape
