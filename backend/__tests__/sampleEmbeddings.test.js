@@ -7,7 +7,7 @@ vi.mock("@huggingface/transformers", () => ({ pipeline: vi.fn() }));
 
 import { EMBEDDING_MODEL, EMBEDDING_MODEL_REVISION, EMBEDDING_DIMENSIONS } from "../rag/embed.js";
 import { buildDocumentChunks, CHUNK_SIZE, CHUNK_OVERLAP } from "../rag/buildChunks.js";
-import { chunkKey } from "../rag/chunkKey.js";
+import { embeddingKey, EMBEDDING_FORMAT_VERSION } from "../rag/embeddingInput.js";
 
 const read = (name) => JSON.parse(readFileSync(new URL(`../demo/${name}`, import.meta.url), "utf8"));
 const SAMPLES = read("sample-documents.json");
@@ -23,6 +23,7 @@ describe("sample-embeddings.json", () => {
         dimensions: FILE.dimensions,
         chunkSize: FILE.chunkSize,
         chunkOverlap: FILE.chunkOverlap,
+        embeddingFormat: FILE.embeddingFormat,
       },
       STALE,
     ).toEqual({
@@ -31,17 +32,18 @@ describe("sample-embeddings.json", () => {
       dimensions: EMBEDDING_DIMENSIONS,
       chunkSize: CHUNK_SIZE,
       chunkOverlap: CHUNK_OVERLAP,
+      embeddingFormat: EMBEDDING_FORMAT_VERSION,
     });
   });
 
   it("has a vector of the right length for every chunk of the sample documents", () => {
-    const texts = SAMPLES.flatMap((doc) => buildDocumentChunks(doc).map((c) => c.text));
-    const missing = texts.filter((text) => FILE.vectors[chunkKey(text)]?.length !== EMBEDDING_DIMENSIONS);
+    const keys = SAMPLES.flatMap((doc) => buildDocumentChunks(doc).map((c) => embeddingKey(doc.title, c.text)));
+    const missing = keys.filter((key) => FILE.vectors[key]?.length !== EMBEDDING_DIMENSIONS);
     expect(missing, STALE).toEqual([]);
   });
 
   it("has no vectors left over from chunks that no longer exist", () => {
-    const keys = new Set(SAMPLES.flatMap((doc) => buildDocumentChunks(doc).map((c) => chunkKey(c.text))));
+    const keys = new Set(SAMPLES.flatMap((doc) => buildDocumentChunks(doc).map((c) => embeddingKey(doc.title, c.text))));
     const extra = Object.keys(FILE.vectors).filter((key) => !keys.has(key));
     expect(extra, STALE).toEqual([]);
   });

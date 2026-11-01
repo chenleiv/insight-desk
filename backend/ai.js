@@ -63,7 +63,7 @@ const CONTEXT_CHUNKS = 5;
 // Chunks scoring below this are not sent to the model. Calibrated on the demo
 // documents: unrelated questions topped out at 0.27, related ones started at 0.34.
 // Kept at the low end, since the model is also told to answer only from context.
-const MIN_SIMILARITY = 0.3;
+export const MIN_SIMILARITY = 0.3;
 
 export const NO_INFO_ANSWER = "I don't have information about this in your documents.";
 

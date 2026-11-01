@@ -5,7 +5,7 @@ import { GridFSBucket } from 'mongodb';
 import { User, Document, Chunk } from './models.js';
 import { deleteDocumentChunks } from './rag/syncChunks.js';
 import { buildDocumentChunks } from './rag/buildChunks.js';
-import { chunkKey } from './rag/chunkKey.js';
+import { embeddingKey } from './rag/embeddingInput.js';
 import { logger } from './logger.js';
 
 export const DEMO_TTL_MS = 24 * 60 * 60 * 1000;
@@ -14,15 +14,15 @@ const SAMPLE_DOCUMENTS = JSON.parse(
     readFileSync(new URL('./demo/sample-documents.json', import.meta.url), 'utf8'),
 );
 
-// Precomputed by `npm run embed:demo`, keyed by chunkKey(text), so demo
+// Precomputed by `npm run embed:demo`, keyed by embeddingKey(title, text), so demo
 // workspaces get vectors without loading the model in the server.
 const SAMPLE_VECTORS = JSON.parse(
     readFileSync(new URL('./demo/sample-embeddings.json', import.meta.url), 'utf8'),
 ).vectors;
 
 const missingVectors = SAMPLE_DOCUMENTS
-    .flatMap((doc) => buildDocumentChunks(doc))
-    .filter((chunk) => !SAMPLE_VECTORS[chunkKey(chunk.text)]).length;
+    .flatMap((doc) => buildDocumentChunks(doc).map((chunk) => embeddingKey(doc.title, chunk.text)))
+    .filter((key) => !SAMPLE_VECTORS[key]).length;
 if (missingVectors) {
     logger.warn('Demo chunks without a precomputed vector; run npm run embed:demo', { count: missingVectors });
 }
@@ -119,9 +119,10 @@ export async function createDemoWorkspace(now = new Date()) {
     // without chunks, so a failure here is logged, not fatal. A chunk with no
     // precomputed vector is saved without one.
     try {
-        const chunks = docs
-            .flatMap((doc) => buildDocumentChunks(doc))
-            .map((chunk) => ({ ...chunk, embedding: SAMPLE_VECTORS[chunkKey(chunk.text)] }));
+        const chunks = docs.flatMap((doc) => buildDocumentChunks(doc).map((chunk) => {
+            const key = embeddingKey(doc.title, chunk.text);
+            return SAMPLE_VECTORS[key] ? { ...chunk, embedding: SAMPLE_VECTORS[key], embeddingKey: key } : chunk;
+        }));
         await Chunk.insertMany(chunks);
     } catch (err) {
         logger.error('Building demo chunks failed', { message: err.message });

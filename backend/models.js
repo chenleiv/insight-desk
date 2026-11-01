@@ -46,8 +46,11 @@ const chunkSchema = new mongoose.Schema({
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     index: { type: Number, required: true, min: 0 },
     text: { type: String, required: true },
-    // Set by `npm run reindex`; chunks saved by the routes do not have one yet.
+    // Vector of the chunk's title and text, set when the chunk is saved. Missing only
+    // when embedding failed on save; a retry fills it in, and search skips it until then.
     embedding: { type: [Number], default: undefined },
+    // embeddingKey(title, text) of the input `embedding` was computed from; set with it.
+    embeddingKey: { type: String },
 }, { timestamps: true });
 
 chunkSchema.index({ docId: 1, index: 1 }, { unique: true });

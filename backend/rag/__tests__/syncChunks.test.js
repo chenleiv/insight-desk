@@ -12,6 +12,7 @@ const { Chunk } = vi.hoisted(() => ({
 vi.mock("../../models.js", () => ({ Chunk }));
 
 import { syncDocumentChunks, deleteDocumentChunks } from "../syncChunks.js";
+import { embeddingKey } from "../embeddingInput.js";
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -65,15 +66,15 @@ describe("syncDocumentChunks", () => {
     const embed = vi.fn(async () => [9, 9]);
     Chunk.find.mockReturnValue({
       lean: async () => [
-        { text: "Unchanged.", embedding: [1, 1] },
-        { text: "Old text.", embedding: [2, 2] },
+        { text: "Unchanged.", embedding: [1, 1], embeddingKey: embeddingKey(undefined, "Unchanged.") },
+        { text: "Old text.", embedding: [2, 2], embeddingKey: embeddingKey(undefined, "Old text.") },
       ],
     });
     const doc = { _id: "doc-1", content: "New text.", attachments: [{ extractedText: "Unchanged." }] };
 
     await syncDocumentChunks(doc, undefined, { embed, reuseEmbeddings: true });
 
-    expect(Chunk.find).toHaveBeenCalledWith({ docId: "doc-1" }, "text embedding");
+    expect(Chunk.find).toHaveBeenCalledWith({ docId: "doc-1" }, "embedding embeddingKey");
     expect(embed).toHaveBeenCalledOnce();
     expect(embed).toHaveBeenCalledWith("New text.");
     expect(Chunk.insertMany).toHaveBeenCalledWith(
@@ -101,6 +102,43 @@ describe("syncDocumentChunks", () => {
 
     expect(Chunk.find).not.toHaveBeenCalled();
     expect(embed).toHaveBeenCalledWith("Some text.");
+  });
+
+  it("embeds the title with the text, but stores the text alone with the key", async () => {
+    const embed = vi.fn(async () => [9, 9]);
+    const doc = { _id: "doc-1", title: "OAuth 2.0 Authorization Flows", content: "Common flows: ..." };
+
+    await syncDocumentChunks(doc, undefined, { embed });
+
+    expect(embed).toHaveBeenCalledWith("OAuth 2.0 Authorization Flows\n\nCommon flows: ...");
+    const [chunk] = Chunk.insertMany.mock.calls[0][0];
+    expect(chunk.text).toBe("Common flows: ...");
+    expect(chunk.embeddingKey).toBe(embeddingKey(doc.title, "Common flows: ..."));
+  });
+
+  it("with reuseEmbeddings, re-embeds every chunk when the title changed", async () => {
+    const embed = vi.fn(async () => [9, 9]);
+    Chunk.find.mockReturnValue({
+      lean: async () => [{ text: "Some text.", embedding: [1, 1], embeddingKey: embeddingKey("Old title", "Some text.") }],
+    });
+
+    await syncDocumentChunks({ _id: "doc-1", title: "New title", content: "Some text." }, undefined, { embed, reuseEmbeddings: true });
+
+    expect(embed).toHaveBeenCalledWith("New title\n\nSome text.");
+    expect(Chunk.insertMany.mock.calls[0][0][0]).toMatchObject({
+      embedding: [9, 9],
+      embeddingKey: embeddingKey("New title", "Some text."),
+    });
+  });
+
+  it("with reuseEmbeddings, re-embeds a chunk stored before keys existed", async () => {
+    const embed = vi.fn(async () => [9, 9]);
+    Chunk.find.mockReturnValue({ lean: async () => [{ text: "Some text.", embedding: [1, 1] }] });
+
+    await syncDocumentChunks({ _id: "doc-1", content: "Some text." }, undefined, { embed, reuseEmbeddings: true });
+
+    expect(embed).toHaveBeenCalledOnce();
+    expect(Chunk.insertMany.mock.calls[0][0][0].embedding).toEqual([9, 9]);
   });
 
   it("only deletes when the document has no text", async () => {
