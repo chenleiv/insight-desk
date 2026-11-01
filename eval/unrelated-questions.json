@@ -1,0 +1,17 @@
+[
+  { "id": "u01", "type": "off-topic", "question": "What is the capital of Australia?" },
+  { "id": "u02", "type": "off-topic", "question": "How do I bake sourdough bread?" },
+  { "id": "u03", "type": "off-topic", "question": "Who won the 2018 FIFA World Cup?" },
+  { "id": "u04", "type": "off-topic", "question": "How do I change a flat tire?" },
+  { "id": "u05", "type": "off-topic", "question": "What are the basic rules of chess?" },
+  { "id": "u06", "type": "off-topic", "question": "What will the weather be like tomorrow?" },
+  { "id": "u07", "type": "off-topic", "question": "What is the company's current stock price?" },
+  { "id": "u08", "type": "near-miss", "question": "How do I configure autoscaling in Kubernetes?" },
+  { "id": "u09", "type": "near-miss", "question": "What is the difference between TCP and UDP?" },
+  { "id": "u10", "type": "near-miss", "question": "How do I write a SQL join between two tables?" },
+  { "id": "u11", "type": "near-miss", "question": "How does garbage collection work in Java?" },
+  { "id": "u12", "type": "near-miss", "question": "What is a blockchain consensus algorithm?" },
+  { "id": "u13", "type": "near-miss", "question": "How do I train a neural network in Python?" },
+  { "id": "u14", "type": "near-miss", "question": "How do I set up DNS records for a custom email domain?" },
+  { "id": "u15", "type": "near-miss", "question": "What is the time complexity of quicksort?" }
+]
