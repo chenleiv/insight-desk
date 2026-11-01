@@ -36,7 +36,8 @@ function getGroq() {
 export const CHAT_MODEL = 'openai/gpt-oss-20b';
 
 // Settings of the answer call, shared with eval/answers.js so it asks exactly as the chat does.
-export const CHAT_ANSWER_SETTINGS = { max_tokens: 300, temperature: 0.3 };
+// The model is a reasoning model, so its reasoning tokens count toward max_tokens too.
+export const CHAT_ANSWER_SETTINGS = { max_tokens: 1024, temperature: 0.3 };
 
 /**
  * Turn a question into English search keywords, so a question in another
@@ -72,6 +73,13 @@ export const MIN_SIMILARITY = 0.3;
 export { NO_INFO_ANSWER };
 
 export const EMPTY_ANSWER_DETAIL = 'The AI service returned an empty answer. Please try again.';
+export const TOO_LONG_ANSWER_DETAIL = 'The answer was too long to complete. Please try a narrower question.';
+export const AI_BUSY_DETAIL = 'The AI service is busy right now. Please try again in a few minutes.';
+export const SHORTENED_NOTE = '(The answer was shortened.)';
+
+// Retry-After sent with AI_BUSY_DETAIL when the provider gives none, and the most it may ask for.
+const DEFAULT_RETRY_AFTER_SECONDS = 300;
+const MAX_RETRY_AFTER_SECONDS = 3600;
 
 // A letter outside the Latin script, e.g. Hebrew. The embedding model only understands English.
 const NON_LATIN_LETTER = /(?!\p{Script=Latin})\p{L}/u;
@@ -128,6 +136,54 @@ export function verifyCitations(answer, chunks) {
     }
     text += answer.slice(copyFrom);
     return { answer: text.trim(), citations: [...citations.values()], unknown };
+}
+
+// A sentence end: punctuation, any closing quotes, brackets or emphasis, and
+// complete citations after it, followed by a blank or the end of the text.
+const SENTENCE_END = /[.!?]["'”’)*_]*(?:\s*[[【]\s*c\d+(?:\s*,\s*c\d+)*\s*[\]】])*(?=\s|$)/g;
+// A list marker with nothing after it, alone on the last line.
+const EMPTY_LIST_ITEM = /(^|\n)[ \t]*(?:[-*+]|\d+[.)])[ \t]*$/;
+
+/** Remove the opening ** or * that has no closing marker; list bullets are not emphasis. */
+function removeUnclosedEmphasis(text) {
+    const open = { '**': -1, '*': -1 };
+    for (const match of text.matchAll(/(^[ \t]*\*(?=[ \t]))|\*\*|\*/gm)) {
+        if (match[1]) continue;
+        const marker = match[0];
+        open[marker] = open[marker] === -1 ? match.index : -1;
+    }
+    // The later opener first, so the earlier index stays valid.
+    for (const [marker, index] of Object.entries(open).filter(([, i]) => i !== -1).sort((a, b) => b[1] - a[1])) {
+        text = text.slice(0, index) + text.slice(index + marker.length);
+    }
+    return text;
+}
+
+/**
+ * Cut an answer that stopped at the token limit back to its last complete
+ * sentence or complete line, and remove markup left open by the cut. A line
+ * ending with a colon only introduces what was cut, so it is not complete.
+ * Returns '' when nothing complete is left.
+ */
+export function cutToLastSentence(text) {
+    let cut = 0;
+    for (const match of text.matchAll(SENTENCE_END)) cut = Math.max(cut, match.index + match[0].length);
+    for (const match of text.matchAll(/\n/g)) {
+        const line = text.slice(text.lastIndexOf('\n', match.index - 1) + 1, match.index).replace(/[*_\s]+$/, '');
+        if (line && !line.endsWith(':')) cut = Math.max(cut, match.index);
+    }
+    let kept = text.slice(0, cut).trimEnd().replace(/\s*[[【][^\]】\n]*$/, '');
+    kept = removeUnclosedEmphasis(kept).replace(EMPTY_LIST_ITEM, '');
+    return kept.trim();
+}
+
+/** The provider's retry-after in whole seconds, capped, or the default when it sent none. */
+function retryAfterSeconds(error) {
+    const headers = error?.headers;
+    const value = typeof headers?.get === 'function' ? headers.get('retry-after') : headers?.['retry-after'];
+    const seconds = Number(value);
+    if (value == null || value === '' || !Number.isFinite(seconds) || seconds <= 0) return DEFAULT_RETRY_AFTER_SECONDS;
+    return Math.min(Math.ceil(seconds), MAX_RETRY_AFTER_SECONDS);
 }
 
 // Lowercased, curly apostrophes made straight, citations, surrounding quotes and
@@ -205,20 +261,41 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
         });
 
         const choice = response.choices?.[0];
-        const { answer, citations, unknown } = verifyCitations(choice?.message?.content ?? '', chunks);
+        const raw = choice?.message?.content ?? '';
+        // Text that stopped at the token limit is cut back to its last complete sentence,
+        // before citations are checked, so a half-written citation is never verified.
+        // An answer with no text besides invented citations counts as empty, cut off or not.
+        const full = verifyCitations(raw, chunks);
+        const shortened = choice?.finish_reason === 'length' && full.answer !== '';
+        if (shortened) logger.warn('Model answer was cut off by the token limit', { length: raw.length, finishReason: choice.finish_reason });
+        const { answer, citations, unknown } = shortened ? verifyCitations(cutToLastSentence(raw), chunks) : full;
         if (unknown.length) logger.warn('Model cited chunks that were not retrieved', { ids: unknown });
 
+        if (!answer && shortened) {
+            return res.status(502).json({ detail: TOO_LONG_ANSWER_DETAIL });
+        }
         // A reasoning model can spend all of max_tokens on reasoning and return no text.
         if (!answer) {
             logger.warn('Model returned an empty answer', { finishReason: choice?.finish_reason ?? null });
             return res.status(502).json({ detail: EMPTY_ANSWER_DETAIL });
         }
 
-        res.json({ answer, citations, answerId: await log(isNoInfoAnswer(answer)) });
+        res.json({
+            answer: shortened ? `${answer}\n\n${SHORTENED_NOTE}` : answer,
+            citations,
+            answerId: await log(isNoInfoAnswer(answer)),
+        });
 
     } catch (error) {
         if (error.name === 'ZodError') {
             return sendValidationError(res, error);
+        }
+        // The provider's quota is used up. Its message stays in the log; the visitor gets a plain one.
+        if (error?.status === 429) {
+            const retryAfter = retryAfterSeconds(error);
+            logger.warn('AI service rate limited', { status: 429, retryAfter, message: error.message });
+            res.set('Retry-After', String(retryAfter));
+            return res.status(503).json({ detail: AI_BUSY_DETAIL });
         }
         logger.error('Inference error', { message: error?.message ?? String(error) });
         res.status(500).json({ detail: 'Error communicating with AI service. Please try again later.' });

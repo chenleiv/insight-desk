@@ -97,6 +97,7 @@ export function summarize(rows, sets, wordings) {
         errors: group.length - n,
         refusals: ratio(count(answered, (r) => r.refusal), n),
         empty: ratio(count(answered, (r) => r.empty), n),
+        truncated: ratio(count(answered, (r) => r.truncated), n),
         cited: ratio(count(answered, (r) => r.citations > 0), n),
         invented: answered.reduce((sum, r) => sum + r.invented, 0),
         format: ratio(count(answered, (r) => r.violations.length > 0), n),
@@ -111,10 +112,10 @@ export function summarize(rows, sets, wordings) {
 /** Render summarize() output as a Markdown table. */
 export function formatSummaryTable(summary) {
   return [
-    "| set | wording | calls | errors | refusals | empty | with a valid citation | invented citation ids | format violations | title in brackets | answered in Hebrew |",
-    "|---|---|---|---|---|---|---|---|---|---|---|",
+    "| set | wording | calls | errors | refusals | empty | cut off | with a valid citation | invented citation ids | format violations | title in brackets | answered in Hebrew |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ...summary.map((s) =>
-      `| ${s.set} | ${s.wording} | ${s.calls} | ${s.errors} | ${s.refusals} | ${s.empty} | ${s.cited} | ${s.invented} | ${s.format} | ${s.titleBrackets} | ${s.hebrew} |`,
+      `| ${s.set} | ${s.wording} | ${s.calls} | ${s.errors} | ${s.refusals} | ${s.empty} | ${s.truncated} | ${s.cited} | ${s.invented} | ${s.format} | ${s.titleBrackets} | ${s.hebrew} |`,
     ),
   ].join("\n");
 }

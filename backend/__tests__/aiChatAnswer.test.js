@@ -19,7 +19,9 @@ vi.mock("groq-sdk", () => ({
 vi.mock("../rag/embed.js", () => ({ embed: vi.fn(async () => [1, 0, 0]) }));
 
 import { User, Document, Chunk, RetrievalLog, AIConfig } from "../models.js";
-import aiRouter, { EMPTY_ANSWER_DETAIL, isNoInfoAnswer } from "../ai.js";
+import aiRouter, {
+  EMPTY_ANSWER_DETAIL, TOO_LONG_ANSWER_DETAIL, AI_BUSY_DETAIL, SHORTENED_NOTE, isNoInfoAnswer, cutToLastSentence,
+} from "../ai.js";
 import { DEFAULT_PROMPT, NO_INFO_ANSWER, LEGACY_NO_INFO_ANSWERS, promptState } from "../prompts.js";
 import { EMBEDDING_FORMAT_VERSION } from "../rag/embeddingModel.js";
 import { logger } from "../logger.js";
@@ -130,6 +132,62 @@ describe("POST /api/ai/chat answer handling", () => {
     expect(await RetrievalLog.countDocuments()).toBe(0);
   });
 
+  it("returns an answer cut off inside a sentence up to its last complete sentence, with a note", async () => {
+    const warn = vi.spyOn(logger, "warn");
+    const content = "Ask the team lead [c1]. Then wait for the appro";
+    modelAnswers(content, { finish_reason: "length" });
+
+    const res = await chat();
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.answer).toBe(`Ask the team lead [c1].\n\n${SHORTENED_NOTE}`);
+    expect(body.citations.map((c) => c.id)).toEqual(["c1"]);
+    expect(warn).toHaveBeenCalledWith("Model answer was cut off by the token limit", { length: content.length, finishReason: "length" });
+    const [log] = await RetrievalLog.find().lean();
+    expect(log.noInfo).toBe(false);
+    expect(body.answerId).toBe(String(log._id));
+  });
+
+  it("drops a citation marker cut off at the end, so it gives no source", async () => {
+    modelAnswers("Ask the team lead. Then check [c", { finish_reason: "length" });
+
+    const body = await (await chat()).json();
+
+    expect(body.answer).toBe(`Ask the team lead.\n\n${SHORTENED_NOTE}`);
+    expect(body.citations).toEqual([]);
+  });
+
+  it("returns 502 when an answer cut off at the limit has no complete sentence", async () => {
+    modelAnswers("Ask the team le", { finish_reason: "length" });
+
+    const res = await chat();
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ detail: TOO_LONG_ANSWER_DETAIL });
+    expect(await RetrievalLog.countDocuments()).toBe(0);
+  });
+
+  it.each([
+    ["the provider's retry-after, rounded up", { "retry-after": "61.2" }, "62"],
+    ["at most an hour", { "retry-after": "86400" }, "3600"],
+    ["5 minutes when the provider sends none", {}, "300"],
+  ])("returns 503 with a plain message when the provider rate limits, retrying after %s", async (_label, headers, retryAfter) => {
+    const warn = vi.spyOn(logger, "warn");
+    const providerMessage = "429 Rate limit reached for model in organization org_x on tokens per day (TPD)";
+    groqCreate.mockRejectedValueOnce(Object.assign(new Error(providerMessage), { status: 429, headers }));
+
+    const res = await chat();
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get("retry-after")).toBe(retryAfter);
+    const text = await res.text();
+    expect(JSON.parse(text)).toEqual({ detail: AI_BUSY_DETAIL });
+    expect(text).not.toMatch(/TPD|org_x|tokens per day/);
+    expect(warn).toHaveBeenCalledWith("AI service rate limited", { status: 429, retryAfter: Number(retryAfter), message: providerMessage });
+    expect(await RetrievalLog.countDocuments()).toBe(0);
+  });
+
   it("does not log a retrieval when the model call fails", async () => {
     groqCreate.mockRejectedValueOnce(new Error("upstream down"));
 
@@ -171,6 +229,32 @@ describe("isNoInfoAnswer", () => {
     "",
   ])("does not detect %j", (answer) => {
     expect(isNoInfoAnswer(answer)).toBe(false);
+  });
+});
+
+describe("cutToLastSentence", () => {
+  it.each([
+    ["inside a sentence", "Ask the team lead [c1]. Then wait for the appro", "Ask the team lead [c1]."],
+    ["inside bold", "**Ask the team lead [c1]. Then wa", "Ask the team lead [c1]."],
+    ["inside bold that opened after the last sentence", "Ask the team lead [c1]. **Then wa", "Ask the team lead [c1]."],
+    ["inside italic", "*Ask the team lead.* Then *wait for", "*Ask the team lead.*"],
+    ["inside a citation marker", "Ask the team lead [c1]. Then wait [c", "Ask the team lead [c1]."],
+    ["after a citation that follows the period", "Ask the team lead. [c1] Then wa", "Ask the team lead. [c1]"],
+    ["inside a list item", "Steps:\n- Ask the team lead [c1]\n- Wait for appro", "Steps:\n- Ask the team lead [c1]"],
+    ["after an empty numbered item", "Steps:\n1. Ask the team lead.\n2.", "Steps:\n1. Ask the team lead."],
+    ["after an empty bullet", "Steps:\n* Ask the team lead.\n* ", "Steps:\n* Ask the team lead."],
+    ["after a line that introduces a list", "Ask the team lead.\n**Next steps:**\n- Wa", "Ask the team lead."],
+    ["after a question", "Who approves? The team le", "Who approves?"],
+  ])("cuts %s", (_label, text, expected) => {
+    expect(cutToLastSentence(text)).toBe(expected);
+  });
+
+  it.each([
+    ["no sentence end", "Ask the team le"],
+    ["only a line that introduces a list", "Steps:\n- Ask the te"],
+    ["only an unfinished citation", "[c"],
+  ])("returns an empty string when there is %s", (_label, text) => {
+    expect(cutToLastSentence(text)).toBe("");
   });
 });
 

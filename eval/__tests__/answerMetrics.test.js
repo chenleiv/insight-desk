@@ -126,10 +126,17 @@ describe("summarize", () => {
     );
 
     expect(old).toEqual({
-      set: "hebrew", wording: "old", calls: 3, errors: 1, refusals: "1/2", empty: "0/2", cited: "1/2",
+      set: "hebrew", wording: "old", calls: 3, errors: 1, refusals: "1/2", empty: "0/2", truncated: "0/2", cited: "1/2",
       invented: 0, format: "0/2", titleBrackets: "0/2", hebrew: "1/1",
     });
     expect(next).toMatchObject({ calls: 1, invented: 2, format: "1/1", titleBrackets: "1/1", hebrew: "0/1" });
+  });
+
+  it("counts answers cut off at the token limit, and shows them in the table", () => {
+    const rows = [row("new", { truncated: true }), row("new"), row("new", { error: "429" })];
+
+    expect(summarize(rows, ["hebrew"], ["new"])[0].truncated).toBe("1/2");
+    expect(formatSummaryTable(summarize(rows, ["hebrew"], ["new"]))).toContain("| 0/2 | 0/2 | 1/2 |");
   });
 
   it("renders one table row per group", () => {
