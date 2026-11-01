@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "../AuthProvider";
 import { useAuth } from "../useAuth";
 import { AUTH_USER_KEY, type AuthContextValue, type AuthUser } from "../authTypes";
-import { CHAT_KEY } from "../../pages/hubPage/utils/assistantUtils";
+import { CHAT_KEY } from "../../storageKeys";
 import { DOCUMENTS_QUERY_KEY } from "../../context/DocumentsContext";
 
 const { meMock, logoutMock } = vi.hoisted(() => ({

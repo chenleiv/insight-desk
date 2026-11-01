@@ -3,19 +3,28 @@ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vites
 import express from "express";
 
 const ADMIN = { _id: "admin-1", role: "admin" };
+const VIEWER = { _id: "viewer-1", role: "viewer" };
 const USER_ID = "64b7f0c2a1b2c3d4e5f60718";
 
-const { User } = vi.hoisted(() => ({
+const { User, auth } = vi.hoisted(() => ({
   User: { find: vi.fn(), findByIdAndUpdate: vi.fn(), findByIdAndDelete: vi.fn() },
+  auth: { currentUser: null },
 }));
 
 vi.mock("../../models.js", () => ({ User }));
 vi.mock("../../auth.js", () => {
   const authenticate = (req, _res, next) => {
-    req.user = ADMIN;
+    req.user = auth.currentUser;
     next();
   };
-  return { getCurrentUser: authenticate, requireAdmin: authenticate };
+  // Mirrors the real requireAdmin: authenticate, then reject non-admins.
+  const requireAdmin = (req, res, next) => {
+    authenticate(req, res, () => {
+      if (req.user.role !== "admin") return res.status(403).json({ detail: "Admin only" });
+      next();
+    });
+  };
+  return { getCurrentUser: authenticate, requireAdmin };
 });
 vi.mock("../../logger.js", () => ({ logger: { info: vi.fn(), error: vi.fn() } }));
 
@@ -39,6 +48,7 @@ afterAll(() => new Promise((resolve) => server.close(resolve)));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  auth.currentUser = ADMIN;
 });
 
 function patch(id, body) {
@@ -112,5 +122,46 @@ describe("PATCH /api/users/:id", () => {
     const res = await patch(USER_ID, { role: "viewer" });
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe("DELETE /api/users/:id", () => {
+  function del(id) {
+    return fetch(`${baseUrl}/api/users/${id}`, { method: "DELETE" });
+  }
+
+  it("returns 400 for an id that is not an ObjectId, without querying the database", async () => {
+    const res = await del("not-an-id");
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).errors).toEqual([{ path: ["id"], message: "Invalid user id" }]);
+    expect(User.findByIdAndDelete).not.toHaveBeenCalled();
+  });
+
+  it("deletes an existing user", async () => {
+    User.findByIdAndDelete.mockResolvedValueOnce({ _id: USER_ID });
+
+    const res = await del(USER_ID);
+
+    expect(res.status).toBe(204);
+    expect(User.findByIdAndDelete).toHaveBeenCalledWith(USER_ID);
+  });
+
+  it("returns 404 for a valid id with no user", async () => {
+    User.findByIdAndDelete.mockResolvedValueOnce(null);
+
+    const res = await del(USER_ID);
+
+    expect(res.status).toBe(404);
+    expect((await res.json()).detail).toBe("User not found");
+  });
+
+  it("rejects a non-admin user without querying the database", async () => {
+    auth.currentUser = VIEWER;
+
+    const res = await del(USER_ID);
+
+    expect(res.status).toBe(403);
+    expect(User.findByIdAndDelete).not.toHaveBeenCalled();
   });
 });

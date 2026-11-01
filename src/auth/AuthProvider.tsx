@@ -9,7 +9,7 @@ import {
   clearUserFromStorage,
 } from "./authStorage";
 import { AuthContext } from "./authContext";
-import { CHAT_KEY } from "../pages/hubPage/utils/assistantUtils";
+import { CHAT_KEY } from "../storageKeys";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() =>
