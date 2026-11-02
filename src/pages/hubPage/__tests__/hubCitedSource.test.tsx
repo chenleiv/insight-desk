@@ -82,7 +82,6 @@ describe("a source chip in the chat", () => {
         role: "assistant",
         text: "Twenty days.",
         sources: [{ id: "d1", title: "Vacation Policy" }],
-        citationStyle: "numbered",
         isTyped: true,
       },
     ]));

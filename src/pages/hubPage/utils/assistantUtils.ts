@@ -14,49 +14,33 @@ export function citedSources(citations: ChatResponse["citations"]) {
 // One or more citations in a row, like [c1] or [c1, c2][c3]. The pattern starts at
 // the bracket: a leading \s* would rescan each run of blanks from every position in it.
 const CITATION_RUN = /\[\s*c\d+(?:\s*,\s*c\d+)*\s*\](?:\s*\[\s*c\d+(?:\s*,\s*c\d+)*\s*\])*/g;
-const LIST_BULLET_ONLY = /^\s*(?:[-*+]|\d+[.)])$/;
-const NO_BREAK_SPACE = " ";
 
-/** A left-to-right isolate, so the number and its brackets do not flip in a right-to-left answer. */
-function citationMarker(number: number) {
-  return `⁦[${number}]⁩`;
-}
-
-/**
- * Show chunk citations like [c1, c2] as the numbers of the cited documents, each once.
- * A document's number is its position in citedSources, so markers match the numbered chips.
- */
-export function formatCitations(answer: string, citations: ChatResponse["citations"]) {
-  const docNumbers = new Map(citedSources(citations).map((s, i) => [s.id, i + 1]));
-  const numbers = new Map(citations.map((c) => [c.id, docNumbers.get(c.docId) ?? 0]));
-
+/** Remove chunk citations like [c1, c2] from an answer; the source chips show what it cites. */
+export function removeCitations(answer: string) {
   let text = "";
   let copyFrom = 0;
   for (const match of answer.matchAll(CITATION_RUN)) {
-    const cited = [...new Set((match[0].match(/c\d+/g) ?? []).flatMap((id) => numbers.get(id) ?? []))];
     const end = match.index + match[0].length;
     const head = text + answer.slice(copyFrom, match.index);
     const trimmed = head.trimEnd();
+    const rest = answer.slice(end);
+    const spaces = rest.length - rest.replace(/^[ \t]+/, "").length;
+    const next = rest.charAt(spaces);
+    const endsLine = next === "" || next === "\n" || next === "\r";
+    const opensLine = !trimmed || head.slice(trimmed.length).includes("\n");
     copyFrom = end;
-    // An unknown citation takes the whitespace in front of it along with it.
-    if (!cited.length) {
-      text = trimmed;
+    if (opensLine && !endsLine) {
+      // The text after it opens the line now, so the line break in front stays.
+      text = head;
+      copyFrom = end + spaces;
       continue;
     }
-    const markers = cited.map(citationMarker).join(NO_BREAK_SPACE);
-    const gap = head.slice(trimmed.length);
-    const rest = answer.slice(end);
-    const endsLine = /^[ \t]*(?:\r?\n|$)/.test(rest);
-    const startsLineWithText = gap.includes("\n") && !endsLine;
-    const afterBullet = LIST_BULLET_ONLY.test(trimmed.slice(trimmed.lastIndexOf("\n") + 1));
-    // A marker alone on its line moves up to the text it cites. One that opens a line
-    // of text, or follows a list bullet, stays there: moving it would change the Markdown.
-    text = trimmed && !startsLineWithText && !afterBullet
-      ? `${trimmed}${NO_BREAK_SPACE}${markers}`
-      : `${head}${markers}`;
-    if (/^[\p{L}\p{N}]/u.test(rest)) text += " ";
+    // A citation takes the whitespace in front of it along with it.
+    text = trimmed;
+    if (endsLine || /[.,;:!?)]/.test(next)) copyFrom = end + spaces;
+    else if (spaces === 0 && /^[\p{L}\p{N}]/u.test(rest)) text += " ";
   }
-  return text + answer.slice(copyFrom);
+  return (text + answer.slice(copyFrom)).trim();
 }
 
 /** The time a message was sent, or null for a message saved without one. */

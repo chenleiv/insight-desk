@@ -54,9 +54,8 @@ const OLD_ANSWER: ChatMessage = {
 const NEW_ANSWER: ChatMessage = {
   id: "a2",
   role: "assistant",
-  text: "Twenty days ⁦[1]⁩.",
+  text: "Twenty days.",
   sources: [{ id: "d1", title: "Vacation Policy" }],
-  citationStyle: "numbered",
   sentAt: new Date(2026, 0, 15, 9, 30).getTime(),
   isTyped: true,
 };
@@ -114,7 +113,7 @@ afterEach(() => {
 });
 
 describe("saved answers", () => {
-  it("shows an old answer as it was saved, with a clickable chip without a number", () => {
+  it("shows an old answer as it was saved, with a clickable chip", () => {
     renderChat([USER, OLD_ANSWER]);
     expect(container.querySelector(".ai-message.assistant .ai-bubble")!.textContent).toBe(OLD_ANSWER.text);
     expect(chips()[0].textContent).toBe("Vacation Policy");
@@ -123,10 +122,10 @@ describe("saved answers", () => {
     expect(onOpenDocument).toHaveBeenCalledWith("d1");
   });
 
-  it("shows a numbered chip for a numbered answer", () => {
+  it("names a chip by its title, with no number", () => {
     renderChat([USER, NEW_ANSWER]);
-    expect(chips()[0].textContent).toBe("[1]Vacation Policy");
-    expect(chips()[0].getAttribute("aria-label")).toBe("Open source 1: Vacation Policy");
+    expect(chips()[0].textContent).toBe("Vacation Policy");
+    expect(chips()[0].getAttribute("aria-label")).toBe("Open source: Vacation Policy");
   });
 
   it("shows a saved answer whole instead of typing it again", () => {
@@ -177,15 +176,26 @@ describe("right-to-left answers", () => {
 describe("source chips", () => {
   const citation = { id: "c1", docId: "d1", title: "Vacation Policy", index: 0 };
 
-  it("numbers a new answer's markers and chips from the verified citations only", async () => {
-    chatWithAI.mockResolvedValue({ answer: "Twenty days [c1] and [c9].", citations: [citation], answerId: null });
+  it("removes citations from a new answer and builds chips from the verified ones only", async () => {
+    chatWithAI.mockResolvedValue({ answer: "Twenty days [c1] and more [c9].", citations: [citation], answerId: null });
     renderChat();
     await ask();
     const answer = saved().at(-1)!;
-    expect(answer.citationStyle).toBe("numbered");
-    expect(answer.text).toBe("Twenty days ⁦[1]⁩ and.");
+    expect(answer.text).toBe("Twenty days and more.");
     expect(answer.sources).toEqual([{ id: "d1", title: "Vacation Policy" }]);
     expect(chips()).toHaveLength(1);
+  });
+
+  it("shows one chip for a document cited through several chunks", async () => {
+    chatWithAI.mockResolvedValue({
+      answer: "One [c1]. Two [c2].",
+      citations: [citation, { ...citation, id: "c2", index: 3 }],
+      answerId: null,
+    });
+    renderChat();
+    await ask();
+    expect(chips()).toHaveLength(1);
+    expect(saved().at(-1)!.text).toBe("One. Two.");
   });
 
   it("shows no chip for a citation the server did not verify", async () => {
@@ -209,7 +219,7 @@ describe("source chips", () => {
     documents.current = { docs: [{ id: "other" }], loading: false, error: null };
     renderChat([USER, NEW_ANSWER]);
     expect(chips()[0].getAttribute("aria-disabled")).toBe("true");
-    expect(chips()[0].getAttribute("aria-label")).toBe("Source 1: Vacation Policy, no longer available");
+    expect(chips()[0].getAttribute("aria-label")).toBe("Source: Vacation Policy, no longer available");
     act(() => chips()[0].click());
     expect(onOpenDocument).not.toHaveBeenCalled();
     expect(status.show).toHaveBeenCalledWith({ kind: "info", message: "This document is no longer available." });

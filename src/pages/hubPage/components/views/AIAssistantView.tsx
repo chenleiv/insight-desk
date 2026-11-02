@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } fr
 import "./aiAssistant.scss";
 import { BrainCircuit, Send, Bot, ChevronDown, SlidersHorizontal, ThumbsUp, ThumbsDown } from "lucide-react";
 import { chatWithAI, getSuggestions, getSystemPrompt, sendFeedback, type FeedbackRating } from "../../../../api/aiClient";
-import { citedSources, formatCitations, formatMessageTime, uid } from "../../utils/assistantUtils";
+import { citedSources, formatMessageTime, removeCitations, uid } from "../../utils/assistantUtils";
 import { renderMarkdown } from "../../utils/renderMarkdown";
 import { CHAT_KEY } from "../../../../storageKeys";
 import { loadJson, saveJson, scopedKey } from "../../../../utils/storage";
@@ -95,10 +95,9 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
         {
           id: uid(),
           role: "assistant",
-          text: formatCitations(response.answer, response.citations),
+          text: removeCitations(response.answer),
           // Only documents the answer actually cites, as checked by the server.
           sources: citedSources(response.citations),
-          citationStyle: "numbered",
           sentAt: Date.now(),
           isTyped: false,
           ...(response.answerId && { answerId: response.answerId }),
@@ -275,11 +274,10 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
                       <div className="ai-message-sources">
                         <span>Sources:</span>
                         <ul>
-                          {m.sources.map((s, i) => (
+                          {m.sources.map((s) => (
                             <li key={s.id}>
                               <SourceChip
                                 source={s}
-                                {...(m.citationStyle === "numbered" ? { number: i + 1 } : {})}
                                 available={isSourceAvailable(s.id)}
                                 disabled={isSending}
                                 onOpen={openSource}
