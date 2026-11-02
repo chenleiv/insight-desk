@@ -37,6 +37,7 @@ import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
 import { WelcomeModal } from "./components/dialogs/WelcomeModal";
 import { TourOverlay } from "./components/dialogs/TourOverlay";
 import { HUB_TOUR_STEPS } from "./components/dialogs/tourSteps";
+import { markGuideDone, skipAllGuides, useGuideDone } from "./utils/guides";
 
 export default function HubPage() {
   const { user, logout, toggleFavorite, favoritesMap: favorites } = useAuth();
@@ -113,7 +114,7 @@ export default function HubPage() {
 
   const [mobileDocPickerOpen, setMobileDocPickerOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem("insight-desk:welcomed"));
+  const showWelcome = !useGuideDone("welcome");
   const [showTour, setShowTour] = useState(false);
 
   const storedPanelWidth = loadJson<number>("docPanelWidth", PANEL_DEFAULT_WIDTH);
@@ -452,13 +453,9 @@ export default function HubPage() {
       {/* Welcome modal — shown on first visit */}
       {showWelcome && (
         <WelcomeModal
-          onClose={() => {
-            localStorage.setItem("insight-desk:welcomed", "1");
-            setShowWelcome(false);
-          }}
+          onClose={skipAllGuides}
           onStartTour={() => {
-            localStorage.setItem("insight-desk:welcomed", "1");
-            setShowWelcome(false);
+            markGuideDone("welcome");
             if (isDocPanelCollapsed) {
               handleToggleDocPanel();
               setTimeout(() => setShowTour(true), 320);
@@ -469,7 +466,15 @@ export default function HubPage() {
         />
       )}
 
-      {showTour && <TourOverlay steps={HUB_TOUR_STEPS} onDone={() => setShowTour(false)} />}
+      {showTour && (
+        <TourOverlay
+          steps={HUB_TOUR_STEPS}
+          onDone={(outcome) => {
+            if (outcome === "skipped") skipAllGuides();
+            setShowTour(false);
+          }}
+        />
+      )}
 
       {/* Import preview dialog */}
       {importPreview && (

@@ -6,6 +6,7 @@ import { StatusContext, type StatusApi } from "../../../../../components/statusB
 import { ConfirmContext, type ConfirmFn } from "../../../../../components/confirmModal/confirmContext";
 import type { Attachment, DocumentInput, DocumentItem } from "../../../../../api/documentsClient";
 import DocumentPane from "../DocumentPane";
+import { skipAllGuides } from "../../../utils/guides";
 
 const { createDocument, updateDocument, uploadAttachment, deleteAttachment } = vi.hoisted(() => ({
   createDocument: vi.fn<(input: DocumentInput) => Promise<DocumentItem>>(),
@@ -801,5 +802,80 @@ describe("DocumentPane document delete pending", () => {
     expect(deleteBtn().getAttribute("aria-busy")).toBe("false");
     expect(editBtn()!.disabled).toBe(false);
     expect(statusText()).toBe("");
+  });
+});
+
+describe("DocumentPane first-use tours", () => {
+  const DOC_TOURED = "insight-desk:doc-toured";
+  const NEW_DOC_TOURED = "insight-desk:new-doc-toured";
+  const tourTitle = () => document.querySelector(".tour-callout-title")?.textContent;
+  const skipTour = () => document.querySelector<HTMLButtonElement>(".tour-skip");
+  const nextOrDone = () => document.querySelector<HTMLButtonElement>(".tour-btn--primary");
+
+  function renderCreate() {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <StatusContext.Provider value={status}>
+          <ConfirmContext.Provider value={confirm}>
+            <DocumentPane
+              doc={null}
+              canEdit
+              isCreating
+              onCancelCreate={() => {}}
+              onCreated={() => {}}
+              onSaved={() => {}}
+              hasDocs
+            />
+          </ConfirmContext.Provider>
+        </StatusContext.Provider>
+      </QueryClientProvider>
+    );
+  }
+
+  beforeEach(() => {
+    localStorage.removeItem(DOC_TOURED);
+    localStorage.removeItem(NEW_DOC_TOURED);
+  });
+
+  it("shows the document tour on the first document opened", () => {
+    render(<Harness initial={DOC_A} />);
+    expect(tourTitle()).toContain("Edit");
+  });
+
+  it("shows the new document tour on the first new document", () => {
+    renderCreate();
+    expect(tourTitle()).toContain("Start writing");
+  });
+
+  it("shows no tour once the guides were skipped", () => {
+    skipAllGuides();
+    render(<Harness initial={DOC_A} />);
+    expect(tourTitle()).toBeUndefined();
+    render(null);
+    renderCreate();
+    expect(tourTitle()).toBeUndefined();
+  });
+
+  it("closes a tour already on screen when the guides are skipped elsewhere", () => {
+    render(<Harness initial={DOC_A} />);
+    expect(tourTitle()).toBeDefined();
+    act(() => skipAllGuides());
+    expect(tourTitle()).toBeUndefined();
+  });
+
+  it("skipping the document tour also skips the new document tour", async () => {
+    render(<Harness initial={DOC_A} />);
+    await click(skipTour());
+    expect(tourTitle()).toBeUndefined();
+    expect(localStorage.getItem(NEW_DOC_TOURED)).toBe("1");
+  });
+
+  it("finishing the document tour leaves the new document tour for later", async () => {
+    render(<Harness initial={DOC_A} />);
+    await click(nextOrDone());
+    await click(nextOrDone());
+    expect(tourTitle()).toBeUndefined();
+    expect(localStorage.getItem(DOC_TOURED)).toBe("1");
+    expect(localStorage.getItem(NEW_DOC_TOURED)).toBeNull();
   });
 });

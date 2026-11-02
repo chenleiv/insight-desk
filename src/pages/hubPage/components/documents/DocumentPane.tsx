@@ -16,6 +16,7 @@ import { parseImportFile } from "../../utils/parseImportFile";
 import { EmptyPane } from "../dialogs/EmptyPane";
 import { TourOverlay } from "../dialogs/TourOverlay";
 import { DOC_TOUR_STEPS, NEW_DOC_TOUR_STEPS } from "../dialogs/tourSteps";
+import { finishTour, useGuideDone } from "../../utils/guides";
 import { DocumentHeader } from "./DocumentHeader";
 import { DocumentEdit } from "./DocumentEdit";
 import type { DocumentEditHandle } from "./DocumentEdit";
@@ -76,12 +77,10 @@ export default function DocumentPane({
 }: Props) {
   const status = useStatus();
   const confirm = useConfirm();
-  const [showDocTour, setShowDocTour] = useState(() =>
-    !isCreating && !!doc && !localStorage.getItem("insight-desk:doc-toured")
-  );
-  const [showNewDocTour, setShowNewDocTour] = useState(() =>
-    isCreating && !localStorage.getItem("insight-desk:new-doc-toured")
-  );
+  // Decided on mount, so a document that finishes loading later does not start a tour.
+  const [opensDocument] = useState(() => !isCreating && !!doc);
+  const showDocTour = !useGuideDone("doc") && opensDocument;
+  const showNewDocTour = !useGuideDone("newDoc") && isCreating;
   const editRef = useRef<DocumentEditHandle>(null);
   const escapeRef = useRef<(e: KeyboardEvent) => void>(() => {});
   const importFileRef = useRef<HTMLInputElement>(null);
@@ -175,7 +174,7 @@ export default function DocumentPane({
     } catch (e) {
       setSaveStatus("error");
       const msg = e instanceof Error ? e.message : "Creation failed.";
-      status.show({ kind: "error", title: "Creation failed", message: msg, timeoutMs: 0 });
+      status.show({ kind: "error", title: "Creation failed", message: msg });
     } finally {
       createInFlightRef.current = false;
     }
@@ -196,6 +195,7 @@ export default function DocumentPane({
         kind: "error",
         title: "Attachment failed",
         message: `Document created, but "${file.name}" was not attached. Attach it again from the document.`,
+        // Stays until closed: nothing else on screen shows that the file is missing.
         timeoutMs: 0,
       });
       return;
@@ -205,7 +205,6 @@ export default function DocumentPane({
       kind: "error",
       title: "Creation failed",
       message: `Document was not created: "${file.name}" could not be uploaded. ${reason}`,
-      timeoutMs: 0,
     });
   }
 
@@ -495,19 +494,13 @@ export default function DocumentPane({
     {showDocTour && (
       <TourOverlay
         steps={DOC_TOUR_STEPS}
-        onDone={() => {
-          localStorage.setItem("insight-desk:doc-toured", "1");
-          setShowDocTour(false);
-        }}
+        onDone={(outcome) => finishTour("doc", outcome)}
       />
     )}
     {showNewDocTour && (
       <TourOverlay
         steps={NEW_DOC_TOUR_STEPS}
-        onDone={() => {
-          localStorage.setItem("insight-desk:new-doc-toured", "1");
-          setShowNewDocTour(false);
-        }}
+        onDone={(outcome) => finishTour("newDoc", outcome)}
       />
     )}
   </>

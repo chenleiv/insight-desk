@@ -3,6 +3,7 @@ import { Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "../../../../../auth/useAuth";
 import { changePassword, updateProfile } from "../../../../../api/authClient";
 import { useStatus } from "../../../../../components/statusBar/useStatus";
+import { resetGuides } from "../../../utils/guides";
 import type { Role } from "../../../../../auth/authTypes";
 
 const ROLE_LABELS: Record<Role, string> = { admin: "Administrator", viewer: "Viewer", demo: "Demo" };
@@ -141,6 +142,19 @@ export function AccountSection() {
         <div className="settings-info-row">
           <span className="settings-info-label">Role</span>
           <span className="settings-info-value">{ROLE_LABELS[user?.role ?? "viewer"]}</span>
+        </div>
+        <div className="settings-info-row">
+          <span className="settings-info-label">Guides</span>
+          <button
+            type="button"
+            className="settings-cancel-btn"
+            onClick={() => {
+              resetGuides();
+              status.show({ kind: "success", message: "The guides will show again." });
+            }}
+          >
+            Show the guides again
+          </button>
         </div>
         {profileDirty && (
           <div className="settings-profile-save-row">

@@ -5,7 +5,7 @@
     transform: translateX(-50%);
     z-index: 1000;
     width: min(92vw, 460px);
-    background: color-mix(in srgb, var(--panel) 90%, transparent);
+    background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 12px;
     box-shadow: var(--shadow-elevated);
@@ -39,7 +39,7 @@
     border-color: var(--success-border);
     background: linear-gradient(to right,
             var(--success-bg),
-            transparent 40%);
+            transparent 40%), var(--panel);
 
     &::before {
         background: var(--success-border);
@@ -54,7 +54,7 @@
     border-color: var(--danger-border);
     background: linear-gradient(to right,
             var(--danger-bg),
-            transparent 40%);
+            transparent 40%), var(--panel);
 
     &::before {
         background: var(--danger-border);
@@ -69,7 +69,7 @@
     border-color: var(--info-border);
     background: linear-gradient(to right,
             var(--info-bg),
-            transparent 40%);
+            transparent 40%), var(--panel);
 
     &::before {
         background: var(--info-border);
@@ -132,5 +132,11 @@
     to {
         opacity: 1;
         transform: translateX(-50%) translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .statusbar {
+        animation: none;
     }
 }
