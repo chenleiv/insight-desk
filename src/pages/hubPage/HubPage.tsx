@@ -354,7 +354,7 @@ export default function HubPage() {
 
         <main className="hub-main">
           {activeView.kind === "ai" && (
-            <AIAssistantView />
+            <AIAssistantView onOpenDocument={goToDocument} />
           )}
           {activeView.kind === "dashboard" && (
             <div className="hub-view-scroll">
