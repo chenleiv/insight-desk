@@ -9,8 +9,8 @@ export default function DemoBanner() {
     <div className="demo-banner" role="status">
       <FlaskConical size={14} aria-hidden />
       <span>
-        Demo workspace: your own private copy of the sample documents. Edit, add, delete and chat freely.
-        It's one-time: everything is deleted when you sign out, and you can't return to it later.
+        Demo workspace: your own private copy of the sample documents, deleted when you sign out.
+        Edit, add and chat freely.
         Limits: {documents} documents, {contentLength.toLocaleString("en-US")} characters
         and {ATTACHMENTS} per document. Import and admin settings are disabled.
       </span>

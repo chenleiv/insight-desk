@@ -111,8 +111,8 @@ describe("demo banner", () => {
     auth.user = { email: "demo-1@demo.invalid", role: "demo" };
     renderHub();
     expect(document.querySelector(".demo-banner")!.textContent).toBe(
-      "Demo workspace: your own private copy of the sample documents. Edit, add, delete and chat freely. "
-      + "It's one-time: everything is deleted when you sign out, and you can't return to it later. "
+      "Demo workspace: your own private copy of the sample documents, deleted when you sign out. "
+      + "Edit, add and chat freely. "
       + "Limits: 20 documents, 20,000 characters and 1 attachment per document. Import and admin settings are disabled.",
     );
   });
