@@ -3,6 +3,7 @@ import { MessageCircle } from "lucide-react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useResize } from "../../hooks/useResize";
 import { useMobile } from "../../hooks/useMobile";
+import { useViewportHeight } from "../../hooks/useViewportHeight";
 
 import TopBar from "./components/layout/TopBar";
 import AIAssistantView from "./components/views/AIAssistantView";
@@ -44,6 +45,7 @@ export default function HubPage() {
   const status = useStatus();
   const confirm = useConfirm();
   const isMobile = useMobile(767);
+  useViewportHeight();
 
   const isAdmin = user?.role === "admin";
   const isDemo = user?.role === "demo";

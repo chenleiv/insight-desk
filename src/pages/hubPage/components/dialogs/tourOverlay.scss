@@ -1,3 +1,5 @@
+@use "../../../../styles/mixins";
+
 /* ── Backdrop ── */
 .tour-backdrop {
   position: fixed;
@@ -80,6 +82,7 @@
   cursor: pointer;
   font-family: inherit;
   transition: background 0.15s, color 0.15s;
+  @include mixins.touch-target;
 
   &--primary {
     background: var(--primary);
@@ -106,7 +109,7 @@
 /* ── Skip button ── */
 .tour-skip {
   position: fixed;
-  bottom: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   z-index: 9002;
@@ -121,6 +124,7 @@
   cursor: pointer;
   font-family: inherit;
   transition: color 0.15s, background 0.15s;
+  @include mixins.touch-target;
 
   &:hover {
     color: rgba(255, 255, 255, 0.95);

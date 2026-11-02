@@ -8,7 +8,7 @@
 /* ===== Import Preview Dialog ===== */
 .import-preview-modal {
     width: min(620px, 94vw);
-    max-height: 80vh;
+    max-height: 80dvh;
     display: flex;
     flex-direction: column;
     background: color-mix(in srgb, var(--panel) 90%, transparent);

@@ -1,3 +1,14 @@
+$mobile-breakpoint: 767px;
+$touch-target-size: 44px;
+
+// Only touch input needs the larger size, so desktop controls keep their compact look.
+@mixin touch-target {
+    @media (pointer: coarse) {
+        min-width: $touch-target-size;
+        min-height: $touch-target-size;
+    }
+}
+
 @mixin btn-base {
     display: inline-flex;
     align-items: center;
@@ -12,6 +23,7 @@
     user-select: none;
     border: 1px solid transparent;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    @include touch-target;
 
     &:active {
         transform: scale(0.97);
@@ -65,8 +77,6 @@
         border-color: var(--danger-border);
     }
 }
-
-$mobile-breakpoint: 767px;
 
 @mixin mobile {
     @container (max-width: #{$mobile-breakpoint}) {

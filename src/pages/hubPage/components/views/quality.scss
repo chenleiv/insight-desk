@@ -72,6 +72,7 @@
         border: none;
         border-radius: 7px;
         cursor: pointer;
+        @include mixins.touch-target;
 
         &.active {
             background: var(--panel);

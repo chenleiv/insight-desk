@@ -1,3 +1,5 @@
+@use "../../../../styles/mixins";
+
 .doc-panel {
   flex: 1;
   min-width: 0;
@@ -255,6 +257,7 @@
   color: var(--text-muted);
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
+  @include mixins.touch-target;
 
   &:hover {
     color: var(--gold);
@@ -284,6 +287,7 @@
   text-align: left;
   transition: color 0.15s, background 0.15s, border-color 0.15s;
   flex-shrink: 0;
+  @include mixins.touch-target;
 
   &:hover:not(:disabled) {
     background: var(--primary-bg-hover, rgba(99, 102, 241, 0.15));
@@ -332,6 +336,7 @@
   padding: 5px 6px;
   outline: none;
   min-width: 0;
+  @include mixins.touch-target;
 
   &::placeholder {
     color: var(--text-muted);
@@ -346,6 +351,7 @@
   color: var(--text-muted);
   display: flex;
   align-items: center;
+  @include mixins.touch-target;
 
   &:hover {
     color: var(--text);
@@ -449,6 +455,7 @@
   cursor: pointer;
   color: var(--text-muted);
   transition: color 0.15s, background 0.15s;
+  @include mixins.touch-target;
 
   &:hover {
     background: var(--hover, rgba(0, 0, 0, 0.06));

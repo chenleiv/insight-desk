@@ -4,7 +4,12 @@
 .hub-layout {
     container-type: inline-size;
     position: fixed;
-    inset: 0;
+    // useViewportHeight keeps these on the visible area when the on-screen keyboard opens.
+    top: var(--app-top, 0);
+    left: 0;
+    right: 0;
+    height: var(--app-height, 100dvh);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     display: flex;
     flex-direction: column;
     background: var(--bg);
@@ -89,6 +94,7 @@
         cursor: pointer;
         font-family: inherit;
         box-shadow: 0 2px 10px color-mix(in srgb, var(--primary) 35%, transparent);
+        @include mixins.touch-target;
 
         svg {
             flex-shrink: 0;
@@ -133,6 +139,7 @@
         cursor: pointer;
         transition: background 0.15s, color 0.15s;
         font-family: inherit;
+        @include mixins.touch-target;
 
         &:hover {
             background: var(--soft);
@@ -165,6 +172,7 @@
             cursor: pointer;
             transition: background 0.15s, border-color 0.15s, color 0.15s;
             font-family: inherit;
+            @include mixins.touch-target;
 
             &:hover {
                 background: var(--soft);
@@ -181,6 +189,7 @@
             border-radius: 50%;
             display: flex;
             align-items: center;
+            @include mixins.touch-target;
 
             .topbar-avatar {
                 width: 30px;
@@ -259,6 +268,7 @@
                 cursor: pointer;
                 font-family: inherit;
                 transition: background 0.15s, color 0.15s;
+                @include mixins.touch-target;
 
                 &:hover {
                     background: var(--soft);
@@ -373,6 +383,7 @@
     letter-spacing: 0.02em;
     box-shadow: 0 4px 18px color-mix(in srgb, var(--primary) 40%, transparent);
     transition: transform 0.18s ease-out, box-shadow 0.18s, filter 0.18s;
+    @include mixins.touch-target;
 
     svg {
         flex-shrink: 0;
@@ -440,7 +451,10 @@
 /* ===== Mobile Doc Picker Bottom Sheet ===== */
 .mobile-doc-picker-overlay {
     position: fixed;
-    inset: 0;
+    top: var(--app-top, 0);
+    left: 0;
+    right: 0;
+    height: var(--app-height, 100dvh);
     background: rgba(0, 0, 0, 0.4);
     z-index: 300;
     display: flex;
@@ -449,7 +463,8 @@
 
 .mobile-doc-picker-sheet {
     width: 100%;
-    height: 72vh;
+    height: 72%;
+    padding-bottom: env(safe-area-inset-bottom);
     background: var(--panel);
     border-radius: 16px 16px 0 0;
     border-top: 1px solid var(--border);
@@ -507,7 +522,7 @@
     border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    padding: 16px 12px;
+    padding: max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) 12px;
     transform: translateX(100%);
     animation: drawer-slide-in 0.22s ease forwards;
 }
@@ -573,6 +588,7 @@
     justify-content: center;
     color: var(--muted);
     cursor: pointer;
+    @include mixins.touch-target;
 
     &:hover {
         background: var(--soft);
@@ -602,6 +618,7 @@
     width: 100%;
     text-align: left;
     transition: background 0.15s;
+    @include mixins.touch-target;
 
     &:hover {
         background: var(--soft);
