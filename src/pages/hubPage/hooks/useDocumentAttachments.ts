@@ -6,6 +6,7 @@ import { ApiError } from "../../../api/base";
 import { DOCUMENTS_QUERY_KEY } from "../../../context/DocumentsContext";
 import { useStatus } from "../../../components/statusBar/useStatus";
 import useConfirm from "../../../hooks/useConfirm";
+import { uploadError } from "../../../../shared/uploadRules";
 
 // The latest upload, kept after it ends so its outcome can be announced.
 export type UploadStatus = { fileName: string; state: "uploading" | "done" | "failed" };
@@ -42,8 +43,20 @@ export function useDocumentAttachments({ doc, canEdit, onSaved }: Options) {
     return { ...doc, attachments: localAttachments };
   }, [doc, localAttachments]);
 
+  // A file the server would reject is not sent or queued; the user gets the server's message.
+  const rejectUpload = useCallback((file: File) => {
+    const error = uploadError(file);
+    if (error) status.show({ kind: "error", title: "Upload failed", message: error });
+    return error !== null;
+  }, [status]);
+
+  // Files picked while creating a document are uploaded once it exists.
+  const addPendingFile = useCallback((file: File) => {
+    if (!rejectUpload(file)) setPendingFiles((prev) => [...prev, file]);
+  }, [rejectUpload]);
+
   const handleUploadAttachment = useCallback(async (file: File) => {
-    if (!doc) return;
+    if (!doc || rejectUpload(file)) return;
     setIsUploading(true);
     setUploadStatus({ fileName: file.name, state: "uploading" });
     try {
@@ -60,7 +73,7 @@ export function useDocumentAttachments({ doc, canEdit, onSaved }: Options) {
     } finally {
       setIsUploading(false);
     }
-  }, [doc, localAttachments, onSaved, status]);
+  }, [doc, localAttachments, onSaved, status, rejectUpload]);
 
   const handleDeleteAttachment = useCallback(async (attachmentId: string) => {
     if (!doc || !canEdit) return;
@@ -98,6 +111,7 @@ export function useDocumentAttachments({ doc, canEdit, onSaved }: Options) {
     deletingAttachmentId,
     pendingFiles,
     setPendingFiles,
+    addPendingFile,
     effectiveDoc,
     handleUploadAttachment,
     handleDeleteAttachment,

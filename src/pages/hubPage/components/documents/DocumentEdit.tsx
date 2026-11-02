@@ -5,6 +5,7 @@ import type { DocumentInput, DocumentItem } from "../../../../api/documentsClien
 import { formatRelativeTime } from "../../../../utils/relativeTime";
 import { attachmentHref } from "../../utils/attachmentLink";
 import type { UploadStatus } from "../../hooks/useDocumentAttachments";
+import { UPLOAD_ACCEPT } from "../../../../../shared/uploadRules";
 
 type Props = {
   form: DocumentInput;
@@ -233,7 +234,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
         ref={fileInputRef}
         type="file"
         hidden
-        accept=".pdf,.docx,.xlsx,.xls,.txt,.md,.rtf"
+        accept={UPLOAD_ACCEPT}
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) onUploadAttachment?.(file);

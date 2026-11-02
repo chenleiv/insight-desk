@@ -2,8 +2,15 @@ import "./docPane.scss";
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 const CLIENT_SIDE_EXTS = new Set(["json", "txt", "md", "rtf"]);
-import type { DocumentItem, DocumentInput, DownloadFormat } from "../../../../api/documentsClient";
-import { createDocument, uploadAttachment, extractTextFromFile, downloadDocument } from "../../../../api/documentsClient";
+import type { Attachment, DocumentItem, DocumentInput, DownloadFormat } from "../../../../api/documentsClient";
+import {
+  createDocument,
+  deleteDocument,
+  uploadAttachment,
+  extractTextFromFile,
+  downloadDocument,
+} from "../../../../api/documentsClient";
+import { UPLOAD_ACCEPT } from "../../../../../shared/uploadRules";
 import { useStatus } from "../../../../components/statusBar/useStatus";
 import { parseImportFile } from "../../utils/parseImportFile";
 import { EmptyPane } from "../dialogs/EmptyPane";
@@ -128,6 +135,7 @@ export default function DocumentPane({
     deletingAttachmentId,
     pendingFiles,
     setPendingFiles,
+    addPendingFile,
     effectiveDoc,
     handleUploadAttachment,
     handleDeleteAttachment,
@@ -151,16 +159,17 @@ export default function DocumentPane({
     setSaveStatus("saving");
     try {
       const created = await createDocument(form);
-      if (pendingFiles.length > 0) {
-        const uploaded = [];
-        for (const file of pendingFiles) {
+      const uploaded: Attachment[] = [];
+      for (const file of pendingFiles) {
+        try {
           uploaded.push(await uploadAttachment(created.id, file));
+        } catch (uploadErr) {
+          await undoPartialCreate(created, uploaded, file, uploadErr);
+          return;
         }
-        setPendingFiles([]);
-        onCreated({ ...created, attachments: uploaded });
-      } else {
-        onCreated(created);
       }
+      setPendingFiles([]);
+      onCreated(pendingFiles.length > 0 ? { ...created, attachments: uploaded } : created);
       status.show({ kind: "success", message: "Document created." });
       setSaveStatus("idle");
     } catch (e) {
@@ -171,6 +180,34 @@ export default function DocumentPane({
       createInFlightRef.current = false;
     }
   };
+
+  // A file failed after the document was created. The document is deleted so a retry
+  // does not make a second one; the form keeps its fields and files for that retry.
+  // If the delete fails too, the document is kept and opened with the files that made it.
+  async function undoPartialCreate(created: DocumentItem, uploaded: Attachment[], file: File, uploadErr: unknown) {
+    const reason = uploadErr instanceof Error ? uploadErr.message : "Upload failed.";
+    try {
+      await deleteDocument(created.id);
+    } catch {
+      setPendingFiles([]);
+      onCreated({ ...created, attachments: uploaded });
+      setSaveStatus("idle");
+      status.show({
+        kind: "error",
+        title: "Attachment failed",
+        message: `Document created, but "${file.name}" was not attached. Attach it again from the document.`,
+        timeoutMs: 0,
+      });
+      return;
+    }
+    setSaveStatus("error");
+    status.show({
+      kind: "error",
+      title: "Creation failed",
+      message: `Document was not created: "${file.name}" could not be uploaded. ${reason}`,
+      timeoutMs: 0,
+    });
+  }
 
   const isCreationPending = saveStatus === "saving" && isCreating;
 
@@ -363,7 +400,7 @@ export default function DocumentPane({
           ref={importFileRef}
           type="file"
           hidden
-          accept=".json,.txt,.md,.rtf,.pdf,.docx,.xlsx,.xls"
+          accept={`.json,${UPLOAD_ACCEPT}`}
           onChange={handleImportContent}
         />
       )}
@@ -400,9 +437,7 @@ export default function DocumentPane({
         uploadStatus={uploadStatus}
         deletingAttachmentId={deletingAttachmentId}
         pendingFiles={pendingFiles}
-        onUploadAttachment={isCreating
-          ? (file) => setPendingFiles((prev) => [...prev, file])
-          : handleUploadAttachment}
+        onUploadAttachment={isCreating ? addPendingFile : handleUploadAttachment}
         onDeleteAttachment={isCreating
           ? (name) => setPendingFiles((prev) => prev.filter((f) => f.name !== name))
           : handleDeleteAttachment}

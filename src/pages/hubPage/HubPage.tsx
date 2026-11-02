@@ -66,6 +66,8 @@ export default function HubPage() {
 
   const PANEL_DEFAULT_WIDTH = 320;
   const PANEL_COLLAPSE_THRESHOLD = 130;
+  // A saved width below this opens at the default instead, so the panel is usable on load.
+  const PANEL_MIN_OPEN_WIDTH = 200;
 
   const {
     isDirty: isPaneDirty,
@@ -73,9 +75,8 @@ export default function HubPage() {
     clearDirty,
     guardDirty,
   } = useUnsavedChangesGuard();
-  const [isDocPanelCollapsed, setIsDocPanelCollapsed] = useState<boolean>(() =>
-    loadJson<boolean>("docPanelCollapsed", true)
-  );
+  // The documents panel opens on every page load; collapsing it lasts until the next load.
+  const [isDocPanelCollapsed, setIsDocPanelCollapsed] = useState(false);
   const [isDraggingPanel, setIsDraggingPanel] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -115,10 +116,8 @@ export default function HubPage() {
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem("insight-desk:welcomed"));
   const [showTour, setShowTour] = useState(false);
 
-  const savedPanelWidth = Math.max(
-    PANEL_COLLAPSE_THRESHOLD + 1,
-    loadJson<number>("docPanelWidth", PANEL_DEFAULT_WIDTH)
-  );
+  const storedPanelWidth = loadJson<number>("docPanelWidth", PANEL_DEFAULT_WIDTH);
+  const savedPanelWidth = storedPanelWidth >= PANEL_MIN_OPEN_WIDTH ? storedPanelWidth : PANEL_DEFAULT_WIDTH;
   const { width: docPanelWidth, setWidth: setDocPanelWidth, startResize } = useResize(
     savedPanelWidth, PANEL_COLLAPSE_THRESHOLD, 500, false
   );
@@ -130,10 +129,8 @@ export default function HubPage() {
     setPrevDocPanelWidth(docPanelWidth);
     if (!isDocPanelCollapsed && docPanelWidth <= PANEL_COLLAPSE_THRESHOLD) {
       setIsDocPanelCollapsed(true);
-      saveJson("docPanelCollapsed", true);
     } else if (isDocPanelCollapsed && docPanelWidth > PANEL_COLLAPSE_THRESHOLD) {
       setIsDocPanelCollapsed(false);
-      saveJson("docPanelCollapsed", false);
     }
   }
 
@@ -150,11 +147,7 @@ export default function HubPage() {
 
 
   const handleToggleDocPanel = useCallback(() => {
-    setIsDocPanelCollapsed((prev) => {
-      const next = !prev;
-      saveJson("docPanelCollapsed", next);
-      return next;
-    });
+    setIsDocPanelCollapsed((prev) => !prev);
     // When expanding after auto-collapse, restore to a usable width
     if (isDocPanelCollapsed && docPanelWidth <= PANEL_COLLAPSE_THRESHOLD) {
       setDocPanelWidth(PANEL_DEFAULT_WIDTH);

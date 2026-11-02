@@ -13,6 +13,12 @@ import { exportDocument, ExportError } from '../documentExport.js';
 import { syncDocumentChunks, deleteDocumentChunks } from '../rag/syncChunks.js';
 import { embed } from '../rag/embed.js';
 import { scheduleEmbeddingRetry } from '../rag/embedMissing.js';
+import {
+    MAX_UPLOAD_BYTES,
+    FILE_TOO_LARGE_MESSAGE,
+    resolveUploadMime,
+    fileTypeNotAllowedMessage,
+} from '../../shared/uploadRules.js';
 
 const router = Router();
 
@@ -73,30 +79,21 @@ function getBucket() {
     return new GridFSBucket(mongoose.connection.db, { bucketName: 'attachments' });
 }
 
-const ALLOWED_ATTACHMENT_MIMES = new Set([
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel',
-    'text/plain',
-    'text/markdown',
-    'application/rtf',
-    'text/rtf',
-]);
-
 // The largest file multer accepts. A bigger one is rejected with 413 and a message naming the limit.
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-const FILE_TOO_LARGE_MESSAGE =
-    `File is too large. The maximum size is ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB.`;
+export { MAX_UPLOAD_BYTES };
 
+// The allowed types live in shared/uploadRules.js, which the UI uses too. A file the
+// browser sent with no type or a generic one gets its extension's type.
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_UPLOAD_BYTES },
     fileFilter: (_req, file, cb) => {
-        if (ALLOWED_ATTACHMENT_MIMES.has(file.mimetype)) {
+        const mimeType = resolveUploadMime(file.originalname, file.mimetype);
+        if (mimeType) {
+            file.mimetype = mimeType;
             cb(null, true);
         } else {
-            cb(Object.assign(new Error(`File type "${file.mimetype}" is not allowed`), { status: 400 }));
+            cb(Object.assign(new Error(fileTypeNotAllowedMessage(file.mimetype)), { status: 400 }));
         }
     },
 });
@@ -320,8 +317,13 @@ router.get('/:id/attachments/:attachmentId/file', getCurrentUser, async (req, re
         const bucket = getBucket();
         const downloadStream = bucket.openDownloadStream(attachment.gridfsId);
 
-        res.set('Content-Type', attachment.fileType);
-        res.set('Content-Disposition', `inline; filename="${encodeURIComponent(attachment.fileName)}"`);
+        // Served as a download with the type of its allowed extension, never sniffed,
+        // so a stored file cannot render as a page on this origin.
+        res.attachment(attachment.fileName);
+        res.set({
+            'Content-Type': resolveUploadMime(attachment.fileName, attachment.fileType) || 'application/octet-stream',
+            'X-Content-Type-Options': 'nosniff',
+        });
 
         downloadStream.on('error', () => res.status(404).end());
         downloadStream.pipe(res);
@@ -347,6 +349,8 @@ router.post('/:id/attachments', requireEditor, handleMulterUpload, async (req, r
 
         const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
         const attachmentId = new mongoose.Types.ObjectId();
+        // Before the file is stored, so a failure here leaves nothing behind.
+        const extractedText = await extractTextFromBuffer(file.buffer, file.mimetype);
 
         // Upload to GridFS
         const bucket = getBucket();
@@ -354,24 +358,28 @@ router.post('/:id/attachments', requireEditor, handleMulterUpload, async (req, r
             contentType: file.mimetype,
             metadata: { docId: req.params.id, attachmentId: attachmentId.toString() },
         });
-        uploadStream.end(file.buffer);
-        await new Promise((resolve, reject) => {
-            uploadStream.on('finish', resolve);
-            uploadStream.on('error', reject);
-        });
+        try {
+            uploadStream.end(file.buffer);
+            await new Promise((resolve, reject) => {
+                uploadStream.on('finish', resolve);
+                uploadStream.on('error', reject);
+            });
 
-        const fileUrl = `${BACKEND_URL}/api/documents/${req.params.id}/attachments/${attachmentId}/file`;
-        const extractedText = await extractTextFromBuffer(file.buffer, file.mimetype);
-
-        doc.attachments.push({
-            _id: attachmentId,
-            url: fileUrl,
-            fileName: file.originalname,
-            fileType: file.mimetype,
-            extractedText,
-            gridfsId: uploadStream.id,
-        });
-        await doc.save();
+            const fileUrl = `${BACKEND_URL}/api/documents/${req.params.id}/attachments/${attachmentId}/file`;
+            doc.attachments.push({
+                _id: attachmentId,
+                url: fileUrl,
+                fileName: file.originalname,
+                fileType: file.mimetype,
+                extractedText,
+                gridfsId: uploadStream.id,
+            });
+            await doc.save();
+        } catch (err) {
+            // The document does not reference the file, so remove it rather than leave it orphaned.
+            await bucket.delete(uploadStream.id).catch(() => {});
+            throw err;
+        }
         await refreshChunks(doc);
 
         res.json(doc.attachments[doc.attachments.length - 1]);
