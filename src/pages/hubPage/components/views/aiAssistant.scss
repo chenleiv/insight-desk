@@ -108,7 +108,10 @@
     padding-inline-start: 1.5em;
   }
 
+  // Code stays left to right inside a right-to-left answer.
   code {
+    direction: ltr;
+    unicode-bidi: isolate;
     font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
     font-size: 0.9em;
     padding: 0 4px;
@@ -117,6 +120,8 @@
   }
 
   pre {
+    direction: ltr;
+    text-align: left;
     margin: 0.5em 0;
     padding: 8px 12px;
     border-radius: 6px;
@@ -185,11 +190,47 @@
   }
 
   li {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  button {
+    display: inline-flex;
+    max-width: 100%;
     padding: 2px 8px;
     border: 1px solid var(--border);
     border-radius: 999px;
     background: var(--panel);
     color: var(--text);
+    font: inherit;
+    cursor: pointer;
+
+    &:hover:not(:disabled, [aria-disabled="true"]) {
+      border-color: var(--primary-border);
+      background: var(--primary-bg);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 1px;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    &[aria-disabled="true"] {
+      color: var(--muted);
+      text-decoration: line-through;
+      cursor: not-allowed;
+    }
+  }
+
+  .ai-source-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

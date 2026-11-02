@@ -5,8 +5,8 @@ import { Fragment, type ReactNode } from "react";
  *
  * It builds React elements only, so nothing it outputs is parsed as HTML.
  * It knows bold, italic, inline code, flat lists and fenced code blocks.
- * Links, images and HTML are not supported and stay plain text, so a
- * citation shown as "[Document Title]" is never turned into a link.
+ * Links, images and HTML are not supported and stay plain text, so a citation
+ * shown as "[Document Title]" in an older saved answer is never turned into a link.
  *
  * Every step is a single pass or a lookup in a table built in one pass, and
  * no regular expression is used on the text, so time stays linear in its length.

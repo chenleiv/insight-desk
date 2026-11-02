@@ -1,17 +1,24 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
 import "./aiAssistant.scss";
 import { BrainCircuit, Send, Bot, ChevronDown, SlidersHorizontal, ThumbsUp, ThumbsDown } from "lucide-react";
 import { chatWithAI, getSuggestions, getSystemPrompt, sendFeedback, type FeedbackRating } from "../../../../api/aiClient";
-import { citedSources, formatCitations, uid } from "../../utils/assistantUtils";
+import { citedSources, formatMessageTime, removeCitations, uid } from "../../utils/assistantUtils";
 import { renderMarkdown } from "../../utils/renderMarkdown";
 import { CHAT_KEY } from "../../../../storageKeys";
 import { loadJson, saveJson, scopedKey } from "../../../../utils/storage";
 import type { ChatMessage } from "./assistantTypes";
 import TypewriterText from "../layout/TypewriterText";
 import { useAuth } from "../../../../auth/useAuth";
+import { useDocuments } from "../../../../context/DocumentsContext";
+import { useStatus } from "../../../../components/statusBar/useStatus";
 import { SystemPromptModal } from "./ai/SystemPromptModal";
+import { SourceChip } from "./ai/SourceChip";
 
 export const AI_QUERY_COUNT_BASE_KEY = "aiQueryCount";
+
+// Shown when an answer held nothing but citations. The server only keeps such an
+// answer when a citation is verified, so there is always a source chip below it.
+const ONLY_CITATIONS_TEXT = "See the sources below.";
 
 const DEFAULT_SUGGESTIONS = [
   "security issue related to this topic",
@@ -20,8 +27,17 @@ const DEFAULT_SUGGESTIONS = [
   "What is the most important rules from this topic?",
 ];
 
-export default function AIAssistantView() {
+type Props = {
+  onOpenDocument: (id: string) => void;
+};
+
+export default function AIAssistantView({ onOpenDocument }: Props) {
   const { user } = useAuth();
+  const status = useStatus();
+  const { docs, loading: docsLoading, error: docsError } = useDocuments();
+  const docIds = useMemo(() => new Set(docs.map((d) => d.id)), [docs]);
+  // The documents this user may read. While the list is unknown, a chip is not marked as gone.
+  const isSourceAvailable = (id: string) => docsLoading || !!docsError || docIds.has(id);
 
   const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS);
 
@@ -31,6 +47,7 @@ export default function AIAssistantView() {
       .catch(() => {});
   }, []);
 
+  // The view unmounts when a document opens, so a saved answer is shown whole, not typed again.
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     loadJson<ChatMessage[]>(CHAT_KEY, [
       {
@@ -40,7 +57,7 @@ export default function AIAssistantView() {
         isTyped: true,
         isGreeting: true,
       },
-    ])
+    ]).map((m) => (m.isTyped === false ? { ...m, isTyped: true } : m))
   );
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -69,7 +86,7 @@ export default function AIAssistantView() {
     setMessages((prev) => {
       const isInitial = prev.length === 1 && prev[0].isGreeting;
       const history = isInitial ? [] : prev;
-      return [...history, { id: uid(), role: "user", text: question }];
+      return [...history, { id: uid(), role: "user", text: question, sentAt: Date.now() }];
     });
     setInput("");
     setIsSending(true);
@@ -82,9 +99,10 @@ export default function AIAssistantView() {
         {
           id: uid(),
           role: "assistant",
-          text: formatCitations(response.answer, response.citations),
+          text: removeCitations(response.answer) || ONLY_CITATIONS_TEXT,
           // Only documents the answer actually cites, as checked by the server.
           sources: citedSources(response.citations),
+          sentAt: Date.now(),
           isTyped: false,
           ...(response.answerId && { answerId: response.answerId }),
         },
@@ -100,6 +118,7 @@ export default function AIAssistantView() {
           id: uid(),
           role: "assistant",
           text: errMsg,
+          sentAt: Date.now(),
           isTyped: false,
         },
       ]);
@@ -119,6 +138,16 @@ export default function AIAssistantView() {
       await sendFeedback(m.answerId, rating);
     } catch {
       setFeedback(m.feedback);
+    }
+  }
+
+  function openSource(id: string) {
+    if (docsError) {
+      status.show({ kind: "error", message: "Documents could not be loaded. Please try again." });
+    } else if (!isSourceAvailable(id)) {
+      status.show({ kind: "info", message: "This document is no longer available." });
+    } else {
+      onOpenDocument(id);
     }
   }
 
@@ -155,6 +184,12 @@ export default function AIAssistantView() {
   useEffect(() => {
     saveJson(CHAT_KEY, messages);
   }, [messages]);
+
+  // Coming back from a document, the chat opens at its latest message, not at the top.
+  useLayoutEffect(() => {
+    const el = messagesContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
 
   useEffect(() => {
     const el = messagesContainerRef.current;
@@ -209,7 +244,7 @@ export default function AIAssistantView() {
           <div className="ai-messages" aria-live="polite" ref={messagesContainerRef} onScroll={handleMessagesScroll}>
             {messages.map((m) => {
               if (m.isGreeting) return null;
-              const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const timeString = formatMessageTime(m.sentAt);
 
               return (
                 <div key={m.id} className={`ai-message ${m.role}`}>
@@ -219,7 +254,7 @@ export default function AIAssistantView() {
                     </div>
                   )}
                   <div className="ai-bubble-wrap">
-                    <div className="ai-bubble">
+                    <div className="ai-bubble" dir="auto">
                       {m.role === "assistant" &&
                         m.isTyped === false &&
                         typeof m.text === "string" ? (
@@ -243,7 +278,16 @@ export default function AIAssistantView() {
                       <div className="ai-message-sources">
                         <span>Sources:</span>
                         <ul>
-                          {m.sources.map((s) => <li key={s.id}>{s.title}</li>)}
+                          {m.sources.map((s) => (
+                            <li key={s.id}>
+                              <SourceChip
+                                source={s}
+                                available={isSourceAvailable(s.id)}
+                                disabled={isSending}
+                                onOpen={openSource}
+                              />
+                            </li>
+                          ))}
                         </ul>
                       </div>
                     )}
@@ -267,7 +311,7 @@ export default function AIAssistantView() {
                         </button>
                       </div>
                     )}
-                    {m.role === "assistant" && <div className="ai-message-time">{timeString}</div>}
+                    {m.role === "assistant" && timeString && <div className="ai-message-time">{timeString}</div>}
                   </div>
                 </div>
               );

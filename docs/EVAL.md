@@ -80,6 +80,8 @@ Correctness is graded by hand from the file. The script only counts what it can 
 
 **Decision:** switch the stored prompt to the new wording. The token limit was then raised from 300 to 1024, since the model's reasoning tokens count toward it. An answer that still stops at the limit is cut back to its last complete sentence and marked "(The answer was shortened.)"; the eval counts these in the "cut off" column.
 
+**Second run** (related set, 1 run, max_tokens 1024): 0 refusals, 0 empty, 0 cut off, 19 of 19 with a valid citation, 0 invented ids and 0 format violations in both wordings.
+
 ## Measuring in production
 
 In production there is no known "right document" for a question, so hit@k cannot be computed. Instead, every chat question leaves a small record of what retrieval found, and a script summarizes those records as indirect quality signals.
