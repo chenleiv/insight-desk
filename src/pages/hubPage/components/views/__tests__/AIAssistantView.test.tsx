@@ -186,6 +186,15 @@ describe("source chips", () => {
     expect(chips()).toHaveLength(1);
   });
 
+  it("shows a short text above the chips when an answer holds only citations", async () => {
+    chatWithAI.mockResolvedValue({ answer: "[c1]", citations: [citation], answerId: null });
+    renderChat();
+    await ask();
+    expect(saved().at(-1)!.text).toBe("See the sources below.");
+    expect(chips()).toHaveLength(1);
+    expect(chips()[0].textContent).toBe("Vacation Policy");
+  });
+
   it("shows one chip for a document cited through several chunks", async () => {
     chatWithAI.mockResolvedValue({
       answer: "One [c1]. Two [c2].",

@@ -16,6 +16,10 @@ import { SourceChip } from "./ai/SourceChip";
 
 export const AI_QUERY_COUNT_BASE_KEY = "aiQueryCount";
 
+// Shown when an answer held nothing but citations. The server only keeps such an
+// answer when a citation is verified, so there is always a source chip below it.
+const ONLY_CITATIONS_TEXT = "See the sources below.";
+
 const DEFAULT_SUGGESTIONS = [
   "security issue related to this topic",
   "Summarize the key decisions and their rationale",
@@ -95,7 +99,7 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
         {
           id: uid(),
           role: "assistant",
-          text: removeCitations(response.answer),
+          text: removeCitations(response.answer) || ONLY_CITATIONS_TEXT,
           // Only documents the answer actually cites, as checked by the server.
           sources: citedSources(response.citations),
           sentAt: Date.now(),
