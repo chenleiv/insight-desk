@@ -72,6 +72,7 @@ export default function DocPanel({
             type="button"
             className={`doc-panel-star-btn${showFavoritesOnly ? " active" : ""}`}
             onClick={() => setShowFavoritesOnly((v) => !v)}
+            aria-label={showFavoritesOnly ? "Show all" : "Favorites only"}
             data-tooltip={showFavoritesOnly ? "Show all" : "Favorites only"}
             data-tooltip-pos="bottom"
           >

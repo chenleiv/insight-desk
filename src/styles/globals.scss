@@ -6,6 +6,11 @@
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html,
 body,
 #root {
@@ -88,6 +93,16 @@ select {
   }
 }
 
+// iOS zooms the page when a field under 16px takes focus. The document title is already larger.
+@media (pointer: coarse) {
+
+  input:not(.notion-title-input),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -157,19 +172,31 @@ select {
     letter-spacing: 0.02em;
   }
 
-  &:hover::before,
-  &:hover::after {
-    opacity: 1;
-    transition-delay: 0.3s;
-    /* Slight delay on in to prevent flash */
+  // On touch a tap leaves :hover stuck, so tooltips exist only where a pointer can hover.
+  @media (hover: none) {
+
+    &::before,
+    &::after {
+      display: none;
+    }
   }
 
-  &:hover::before {
-    transform: translate(-50%, -4px);
-  }
+  @media (hover: hover) {
 
-  &:hover::after {
-    transform: translate(-50%, -9px);
+    &:hover::before,
+    &:hover::after {
+      opacity: 1;
+      transition-delay: 0.3s;
+      /* Slight delay on in to prevent flash */
+    }
+
+    &:hover::before {
+      transform: translate(-50%, -4px);
+    }
+
+    &:hover::after {
+      transform: translate(-50%, -9px);
+    }
   }
 
   /* Variations depending on where the tooltip should appear */
@@ -188,12 +215,14 @@ select {
       transform: translate(-50%, -4px);
     }
 
-    &:hover::before {
-      transform: translate(-50%, 4px);
-    }
+    @media (hover: hover) {
+      &:hover::before {
+        transform: translate(-50%, 4px);
+      }
 
-    &:hover::after {
-      transform: translate(-50%, 9px);
+      &:hover::after {
+        transform: translate(-50%, 9px);
+      }
     }
   }
 
@@ -216,12 +245,14 @@ select {
       transform: translate(4px, -50%);
     }
 
-    &:hover::before {
-      transform: translate(-4px, -50%);
-    }
+    @media (hover: hover) {
+      &:hover::before {
+        transform: translate(-4px, -50%);
+      }
 
-    &:hover::after {
-      transform: translate(-9px, -50%);
+      &:hover::after {
+        transform: translate(-9px, -50%);
+      }
     }
   }
 }

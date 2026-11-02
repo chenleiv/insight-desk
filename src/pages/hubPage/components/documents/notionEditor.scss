@@ -121,6 +121,11 @@
         border: 1px dashed transparent;
         border-radius: 6px;
         min-width: 80px;
+
+        // Same size as the input, which grows to 16px on touch, so its text is not cut off.
+        @media (pointer: coarse) {
+            font-size: 16px;
+        }
     }
 }
 
@@ -373,6 +378,12 @@
     color: var(--secondery-text);
     max-width: 220px;
 
+    @media (pointer: coarse) {
+        height: auto;
+        min-height: mixins.$touch-target-size;
+        max-width: 100%;
+    }
+
     &.notion-att-chip--pending {
         border-style: dashed;
         opacity: 0.75;
@@ -446,6 +457,7 @@
     .notion-att-chip-action {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         padding: 0;
         background: transparent;
         border: none;
@@ -453,6 +465,7 @@
         cursor: pointer;
         line-height: 1;
         flex-shrink: 0;
+        @include mixins.touch-target;
 
         &:hover {
             color: var(--text);

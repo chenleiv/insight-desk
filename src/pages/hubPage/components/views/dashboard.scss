@@ -30,9 +30,11 @@
 
     .dashboard-top-actions {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 8px;
         flex-shrink: 0;
+        max-width: 100%;
     }
 
     .action-btn {
@@ -48,6 +50,7 @@
         border: none;
         transition: all 0.2s;
         white-space: nowrap;
+        @include mixins.touch-target;
 
         &:disabled {
             opacity: 0.55;

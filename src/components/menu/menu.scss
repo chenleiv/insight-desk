@@ -1,3 +1,5 @@
+@use "../../styles/mixins";
+
 .menu-wrap {
     position: relative;
     display: inline-flex;
@@ -63,6 +65,7 @@
     transition: all 0.15s ease;
     display: flex;
     align-items: center;
+    @include mixins.touch-target;
 
     &:hover {
         background: var(--soft);

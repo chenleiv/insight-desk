@@ -1,3 +1,5 @@
+@use "../../styles/mixins";
+
 .login-page-wrapper {
     display: flex;
     flex-direction: column;
@@ -22,14 +24,15 @@
 
 .login-theme-btn {
     position: fixed;
-    top: 10px;
-    right: 10px;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
     width: 32px;
     height: 32px;
     border-radius: 8px;
     border: none;
     background: transparent;
     cursor: pointer;
+    @include mixins.touch-target;
 
     &:hover {
         color: var(--text);
@@ -70,6 +73,7 @@
             cursor: pointer;
             transition: background 0.18s, color 0.18s;
             font-family: inherit;
+            @include mixins.touch-target;
 
             &.active {
                 background: var(--panel);
@@ -164,6 +168,7 @@
                 border-radius: 4px;
                 transition: color 0.2s;
                 line-height: 0;
+                @include mixins.touch-target;
 
                 &:hover {
                     color: var(--text);
@@ -186,6 +191,7 @@
             border: none;
             cursor: pointer;
             transition: background 0.2s, opacity 0.2s;
+            @include mixins.touch-target;
 
             &:hover {
                 background: var(--primary-hover);
@@ -234,6 +240,7 @@
         font-family: inherit;
         cursor: pointer;
         transition: background 0.18s, border-color 0.18s;
+        @include mixins.touch-target;
 
         &:hover {
             background: var(--hover, rgba(0, 0, 0, 0.04));

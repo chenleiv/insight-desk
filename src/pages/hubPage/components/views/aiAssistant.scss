@@ -95,6 +95,8 @@
 }
 
 .ai-bubble {
+  // Without a cap, the width of a code block stretches the bubble past the screen.
+  max-width: 100%;
   padding: 14px 18px;
   font-size: 15px;
   line-height: 1.5;
@@ -176,6 +178,7 @@
 }
 
 .ai-message-sources {
+  max-width: 100%;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -196,6 +199,7 @@
 
   button {
     display: inline-flex;
+    align-items: center;
     max-width: 100%;
     padding: 2px 8px;
     border: 1px solid var(--border);
@@ -204,6 +208,7 @@
     color: var(--text);
     font: inherit;
     cursor: pointer;
+    @include mixins.touch-target;
 
     &:hover:not(:disabled, [aria-disabled="true"]) {
       border-color: var(--primary-border);
@@ -250,6 +255,7 @@
     background: none;
     color: var(--muted);
     cursor: pointer;
+    @include mixins.touch-target;
 
     &:hover {
       color: var(--text);
@@ -276,7 +282,7 @@
 }
 
 .ai-input-section {
-  padding: 0 24px max(20px, env(safe-area-inset-bottom));
+  padding: 0 24px 20px;
   background: var(--bg);
   flex-shrink: 0;
 }
@@ -329,6 +335,7 @@
     flex-shrink: 0;
     margin-left: 12px;
     transition: all 0.2s ease;
+    @include mixins.touch-target;
 
     &:hover:not(:disabled) {
       filter: brightness(1.1);
@@ -361,6 +368,7 @@
   white-space: nowrap;
   transition: color 0.15s;
   margin-left: auto;
+  @include mixins.touch-target;
 
   &:hover {
     color: var(--danger-text);
@@ -419,6 +427,7 @@
   text-align: left;
   cursor: pointer;
   transition: all 0.2s ease;
+  @include mixins.touch-target;
 
   &:hover {
     border-color: var(--primary);
@@ -444,6 +453,7 @@
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
   white-space: nowrap;
+  @include mixins.touch-target;
 
   &:hover {
     color: var(--text);
@@ -468,7 +478,7 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   width: min(620px, 100%);
-  max-height: 80vh;
+  max-height: 80dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -498,6 +508,7 @@
       padding: 4px;
       border-radius: 4px;
       display: flex;
+      @include mixins.touch-target;
 
       &:hover {
         color: var(--text);
@@ -588,6 +599,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
+  @include mixins.touch-target;
 
   &:hover {
     background: color-mix(in srgb, var(--danger-bg) 150%, transparent);
@@ -613,6 +625,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   transition: background 0.15s, box-shadow 0.15s;
   z-index: 10;
+  @include mixins.touch-target;
 
   &:hover {
     background: var(--soft);

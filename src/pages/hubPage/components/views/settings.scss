@@ -32,6 +32,7 @@
             font-weight: 500;
             cursor: pointer;
             transition: all 0.18s ease;
+            @include mixins.touch-target;
 
             &:hover:not(.active) {
                 color: var(--text);
@@ -217,6 +218,7 @@
         font-size: 14px;
         min-width: 0;
         transition: border-color 0.2s, background 0.2s;
+        @include mixins.touch-target;
 
         &::placeholder {
             color: var(--muted);
@@ -285,6 +287,7 @@
         font-size: 14px;
         cursor: pointer;
         transition: all 0.2s;
+        @include mixins.touch-target;
 
         &:hover {
             background: var(--soft);
@@ -351,6 +354,7 @@
         padding: 4px;
         border-radius: 4px;
         transition: color 0.2s;
+        @include mixins.touch-target;
 
         &:hover {
             color: var(--text);
@@ -367,6 +371,7 @@
     }
 
     .settings-save-btn {
+        @include mixins.touch-target;
         @include mixins.btn-primary;
         padding: 10px 24px;
         border-radius: 8px;
@@ -535,6 +540,7 @@
         cursor: pointer;
         transition: all 0.2s;
         text-align: center;
+        @include mixins.touch-target;
 
         &.active {
             background: var(--success-bg);
@@ -566,6 +572,7 @@
         color: var(--muted);
         cursor: pointer;
         transition: all 0.2s;
+        @include mixins.touch-target;
 
         &:hover:not(:disabled) {
             background: var(--danger-bg);
@@ -680,6 +687,7 @@
         padding: 10px 16px;
         margin-top: 0;
         align-self: auto;
+        @include mixins.touch-target;
     }
 
     .settings-cat-empty {
