@@ -185,3 +185,42 @@ describe("TourOverlay", () => {
     expect(document.querySelector(".tour-backdrop--dim")).toBeNull();
   });
 });
+
+describe("TourOverlay outcome", () => {
+  it("reports completed from the last step's Done button", () => {
+    const onDone = vi.fn();
+    render(<TourOverlay steps={STEPS} onDone={onDone} />);
+    click(".tour-btn--primary");
+    click(".tour-btn--primary");
+    expect(onDone).toHaveBeenCalledExactlyOnceWith("completed");
+  });
+
+  it("reports skipped from the Skip button", () => {
+    const onDone = vi.fn();
+    render(<TourOverlay steps={STEPS} onDone={onDone} />);
+    click(".tour-skip");
+    expect(onDone).toHaveBeenCalledExactlyOnceWith("skipped");
+  });
+
+  it("reports skipped from Escape, even on the last step", () => {
+    const onDone = vi.fn();
+    render(<TourOverlay steps={STEPS} onDone={onDone} />);
+    press("ArrowRight");
+    press("Escape");
+    expect(onDone).toHaveBeenCalledExactlyOnceWith("skipped");
+  });
+
+  it("reports skipped from a backdrop click", () => {
+    const onDone = vi.fn();
+    render(<TourOverlay steps={STEPS} onDone={onDone} />);
+    click(".tour-backdrop");
+    expect(onDone).toHaveBeenCalledExactlyOnceWith("skipped");
+  });
+
+  it("does not end the tour on a click inside the callout", () => {
+    const onDone = vi.fn();
+    render(<TourOverlay steps={STEPS} onDone={onDone} />);
+    click(".tour-callout");
+    expect(onDone).not.toHaveBeenCalled();
+  });
+});

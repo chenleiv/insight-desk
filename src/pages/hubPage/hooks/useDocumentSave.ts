@@ -47,7 +47,7 @@ export function useDocumentSave({ doc, form, onSaved, onFormSync }: Options) {
       } catch (e) {
         setSaveStatus("error");
         const msg = e instanceof Error ? e.message : "Save failed.";
-        latestRef.current.status.show({ kind: "error", title: "Save failed", message: msg, timeoutMs: 0 });
+        latestRef.current.status.show({ kind: "error", title: "Save failed", message: msg });
         return false;
       } finally {
         inFlightRef.current = null;

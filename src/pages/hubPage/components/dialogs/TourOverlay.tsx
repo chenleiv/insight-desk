@@ -44,9 +44,11 @@ function parseLayoutKey(key: string): { vw: number; vh: number; rect: Rect | nul
   return { vw, vh, rect };
 }
 
+export type TourOutcome = "completed" | "skipped";
+
 type Props = {
   steps: TourStep[];
-  onDone: () => void;
+  onDone: (outcome: TourOutcome) => void;
 };
 
 export function TourOverlay({ steps, onDone }: Props) {
@@ -63,7 +65,7 @@ export function TourOverlay({ steps, onDone }: Props) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onDone();
+      if (e.key === "Escape") onDone("skipped");
       if (e.key === "ArrowRight" && step < steps.length - 1) setStep((s) => s + 1);
       if (e.key === "ArrowLeft" && step > 0) setStep((s) => s - 1);
     }
@@ -107,7 +109,7 @@ export function TourOverlay({ steps, onDone }: Props) {
   }
 
   return createPortal(
-    <div className={`tour-backdrop${rect ? "" : " tour-backdrop--dim"}`} onClick={onDone}>
+    <div className={`tour-backdrop${rect ? "" : " tour-backdrop--dim"}`} onClick={() => onDone("skipped")}>
       {rect && (
         <div
           className="tour-spotlight"
@@ -133,14 +135,21 @@ export function TourOverlay({ steps, onDone }: Props) {
           <button
             type="button"
             className="tour-btn tour-btn--primary"
-            onClick={isLast ? onDone : () => setStep((s) => s + 1)}
+            onClick={isLast ? () => onDone("completed") : () => setStep((s) => s + 1)}
           >
             {isLast ? "Done ✓" : "Next →"}
           </button>
         </div>
       </div>
 
-      <button type="button" className="tour-skip" onClick={onDone}>
+      <button
+        type="button"
+        className="tour-skip"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDone("skipped");
+        }}
+      >
         Skip tour
       </button>
     </div>,

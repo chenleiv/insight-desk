@@ -253,6 +253,28 @@ describe("AuthProvider storage cleanup", () => {
     for (const key of DEVICE_KEYS) localStorage.setItem(key, "1");
   });
 
+  describe("guide keys", () => {
+    const GUIDE_KEYS = ["insight-desk:welcomed", "insight-desk:doc-toured", "insight-desk:new-doc-toured"];
+
+    beforeEach(() => {
+      for (const key of GUIDE_KEYS) localStorage.setItem(key, "1");
+    });
+
+    it.each([["a regular user", alice], ["a demo visitor", demoVisitor]])("stay after %s logs out", async (_label, user) => {
+      await remount(async () => user);
+      await act(async () => {
+        await auth.logout();
+      });
+      for (const key of GUIDE_KEYS) expect(localStorage.getItem(key)).toBe("1");
+    });
+
+    it.each([["a regular user", alice], ["a demo visitor", demoVisitor]])("stay when %s signs in", async (_label, user) => {
+      await remount(async () => { throw new ApiError("Unauthorized", 401); });
+      act(() => auth.loginSuccess(user));
+      for (const key of GUIDE_KEYS) expect(localStorage.getItem(key)).toBe("1");
+    });
+  });
+
   it("removes a demo visitor's scoped keys on logout and keeps device preferences", async () => {
     await remount(async () => demoVisitor);
     seedScopedKeys(demoVisitor.email);
