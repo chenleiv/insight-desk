@@ -345,6 +345,55 @@ describe("new document form on phones", () => {
   });
 });
 
+describe("Back from a document on phones", () => {
+  it("returns to the list through history, so the next Back does not reopen the document", async () => {
+    renderHub("/hub?view=dashboard", "/hub?view=documents", "/hub?doc=d1");
+    await tap(".pane-close");
+    expect(search()).toBe("?view=documents");
+    expect(router.state.historyAction).toBe("POP");
+    await back();
+    expect(search()).toBe("?view=dashboard");
+  });
+
+  it("returns to the screen the document was opened from", async () => {
+    renderHub("/hub?view=dashboard", "/hub?doc=d1");
+    await tap(".pane-close");
+    expect(search()).toBe("?view=dashboard");
+  });
+
+  it("replaces a direct link with the list", async () => {
+    renderHub("/hub?doc=d1");
+    await tap(".pane-close");
+    expect(search()).toBe("?view=documents");
+    expect(router.state.historyAction).toBe("REPLACE");
+  });
+
+  it("stays on the document when the unsaved changes are kept", async () => {
+    confirm.mockResolvedValue(false);
+    renderHub("/hub?view=documents", "/hub?doc=d1");
+    await tap(".pane-dirty");
+    await tap(".pane-close");
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(search()).toBe("?doc=d1");
+  });
+
+  it("asks once and leaves when the unsaved changes are discarded", async () => {
+    confirm.mockResolvedValue(true);
+    renderHub("/hub?view=documents", "/hub?doc=d1");
+    await tap(".pane-dirty");
+    await tap(".pane-close");
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(search()).toBe("?view=documents");
+  });
+
+  it("leaves the new-document form through history too", async () => {
+    renderHub("/hub?view=documents", "/hub?view=new");
+    await tap(".pane-close");
+    expect(search()).toBe("?view=documents");
+    expect(router.state.historyAction).toBe("POP");
+  });
+});
+
 describe("direct links on phones", () => {
   it("opens a document, under the Documents tab", () => {
     renderHub("/hub?doc=d1");
@@ -431,6 +480,13 @@ describe("hub navigation on wider screens", () => {
     renderHub("/hub?view=settings");
     expect(q(".settings-signout-btn")).toBeNull();
     expect(q(".topbar-user-btn")).not.toBeNull();
+  });
+
+  it("still closes a document to the chat with a new history entry", async () => {
+    renderHub("/hub?view=dashboard", "/hub?doc=d1");
+    await tap(".pane-close");
+    expect(search()).toBe("");
+    expect(router.state.historyAction).toBe("PUSH");
   });
 
   it("gives the demo the longer one-line banner, collapsed", () => {

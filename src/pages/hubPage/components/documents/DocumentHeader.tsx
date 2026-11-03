@@ -1,6 +1,8 @@
 import {
+  ArrowLeft,
   Maximize2,
   Minimize2,
+  MoreVertical,
   PanelLeftClose,
   Trash2,
   X,
@@ -10,6 +12,7 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import Menu from "../../../../components/menu/Menu";
+import { useMobile } from "../../../../hooks/useMobile";
 import { getCategoryChipStyle } from "../../utils/docs";
 import type { SaveStatus } from "../../hooks/useDocumentSave";
 import type { DownloadFormat } from "../../../../api/documentsClient";
@@ -148,6 +151,52 @@ function MinimizeBtn({ onClick }: { onClick: () => void }) {
   );
 }
 
+function BackBtn({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
+  return (
+    <button type="button" className="icon-btn doc-pane-back" onClick={onClick} disabled={disabled} aria-label="Back">
+      <ArrowLeft size={18} aria-hidden />
+    </button>
+  );
+}
+
+// Wide enough for the longest label on one line.
+const MORE_MENU_WIDTH = 220;
+
+function MoreMenu({ onDownload, onDelete, isDeleting }: {
+  onDownload?: ((format: DownloadFormat) => void) | undefined;
+  onDelete?: (() => void) | undefined;
+  isDeleting: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  // The menu closes itself on pointer down, so without this a second tap would reopen it.
+  const closingRef = useRef(false);
+
+  const items = [
+    ...(onDownload ? DOWNLOAD_OPTIONS.map(({ format, label }) => ({
+      label: `Export as ${label}`,
+      onClick: () => onDownload(format),
+    })) : []),
+    // Not returned to the menu, which would stay open behind the confirm dialog until it is answered.
+    ...(onDelete ? [{ label: "Delete", danger: true, disabled: isDeleting, onClick: () => { onDelete(); } }] : []),
+  ];
+  if (items.length === 0) return null;
+
+  return (
+    <>
+      <button type="button" ref={btnRef} className={`icon-btn ${HEADER_BTN} doc-pane-header-tool-btn`}
+        onPointerDown={() => { closingRef.current = open; }}
+        onClick={() => {
+          if (!closingRef.current) setOpen(true);
+          closingRef.current = false;
+        }}
+        aria-haspopup="menu" aria-expanded={open} aria-label="More actions">
+        <MoreVertical size={16} aria-hidden />
+      </button>
+      <Menu open={open} onClose={() => setOpen(false)} anchorRef={btnRef} minWidth={MORE_MENU_WIDTH} items={items} />
+    </>
+  );
+}
 
 const Placeholder = () => <span className="doc-pane-grid-placeholder" aria-hidden />;
 
@@ -171,6 +220,7 @@ export function DocumentHeader({
   onDownload,
 }: Props) {
   const isDrawer = variant === "drawer";
+  const isPhone = useMobile() && !isDrawer;
   // Download would leave out unsaved text and delete would drop the edit, so both wait for Save or Cancel.
   const isEditing = !!editActions;
   const editingHint = "Save or cancel your changes first";
@@ -197,6 +247,17 @@ export function DocumentHeader({
     </>
   );
 
+  // ── Phones: the buttons above need more than the width, so Back moves to the left and
+  // Export and Delete into a menu. Like them, the menu waits for Save or Cancel.
+  const phoneActions = (
+    <>
+      <SaveStatusChip status={isDeleting ? "deleting" : saveStatus} />
+      {editActions && !isCreating && <SaveCancelBtns {...editActions} />}
+      {onEdit && !isCreating && <EditBtn onClick={onEdit} disabled={isDeleting} />}
+      {!isEditing && !isCreating && <MoreMenu onDownload={onDownload} onDelete={onDelete} isDeleting={isDeleting} />}
+    </>
+  );
+
   // ── Drawer variant: keeps grid layout ──
   const editActionsDrawer = (
     <div className="doc-pane-actions-grid" role="toolbar" aria-label="Document actions">
@@ -208,6 +269,10 @@ export function DocumentHeader({
   return (
     <div className={`doc-pane-top-wrapper ${isDrawer ? "doc-pane-top-wrapper--drawer" : ""}`}>
       <div className={`doc-pane-top ${isDrawer ? "doc-pane-top--drawer" : ""}`}>
+        {/* Not while a request runs: the document may be created, saved or gone when it ends. */}
+        {isPhone && onClose && (
+          <BackBtn onClick={onClose} disabled={isDeleting || importDisabled || !!editActions?.isSaving} />
+        )}
         <div className="doc-pane-title-container">
           <div className="doc-pane-title-stack demo-welcome-target">
             {isDrawer && (
@@ -235,7 +300,7 @@ export function DocumentHeader({
         </div>
 
         <div className={`doc-pane-actions${isDrawer ? " doc-pane-actions--drawer-edit" : ""}`}>
-          {!isDrawer ? defaultActions : editActionsDrawer}
+          {isDrawer ? editActionsDrawer : isPhone ? phoneActions : defaultActions}
         </div>
       </div>
     </div>

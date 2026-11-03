@@ -61,6 +61,7 @@
     margin: 0 0 4px 0;
     font-family: inherit;
     text-overflow: ellipsis;
+    @include mixins.touch-target;
 
     &::placeholder {
         color: var(--secondery-text);
@@ -145,6 +146,7 @@
     outline: none;
     min-width: 0;
     transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+    @include mixins.touch-target;
 
     &::placeholder {
         color: var(--muted);
@@ -328,6 +330,7 @@
     cursor: pointer;
     white-space: nowrap;
     transition: color 0.15s, border-color 0.15s;
+    @include mixins.touch-target;
 
     &:hover:not(:disabled) {
         color: var(--text);

@@ -239,8 +239,26 @@ export default function HubPage() {
     void guardDirty().then((ok) => { if (ok) void logout(); });
   }
 
+  // Leaves this entry the way Back would. A direct link has nothing behind it, so the list
+  // takes its place.
+  function leaveEntry() {
+    if (location.key !== "default") {
+      navigate(-1);
+      return;
+    }
+    setActiveView(homeView, { replace: true });
+  }
+
   function closeView() {
-    void guardDirty().then((ok) => { if (ok) setActiveView(homeView); });
+    void guardDirty().then((ok) => {
+      if (!ok) return;
+      // On phones this is the Back button, so it must not add an entry that Back would reopen.
+      if (isMobile && (urlView.kind === "doc" || urlView.kind === "new")) {
+        leaveEntry();
+        return;
+      }
+      setActiveView(homeView);
+    });
   }
 
   // A tab goes to its own screen and never toggles, unlike the desktop top bar buttons.
@@ -250,12 +268,12 @@ export default function HubPage() {
 
   function cancelCreate() {
     clearDirty();
-    // The form has its own history entry here, so leave it the way Back would.
-    if (urlView.kind === "new" && location.key !== "default") {
-      navigate(-1);
+    // The form has its own history entry here.
+    if (urlView.kind === "new") {
+      leaveEntry();
       return;
     }
-    setActiveView(homeView, { replace: urlView.kind === "new" });
+    setActiveView(homeView);
   }
 
   function handleCreated(doc: DocumentItem) {
