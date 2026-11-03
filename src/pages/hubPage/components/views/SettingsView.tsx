@@ -11,9 +11,11 @@ type Props = {
   showAdminTabs: boolean;
   // Demo visitors see the admin tabs but cannot change anything.
   adminReadOnly: boolean;
+  // Phones have no user menu, so signing out lives in the account tab.
+  onSignOut?: () => void;
 };
 
-export default function SettingsView({ showAdminTabs, adminReadOnly }: Props) {
+export default function SettingsView({ showAdminTabs, adminReadOnly, onSignOut }: Props) {
   const [tab, setTab] = useState<Tab>("account");
 
   return (
@@ -50,7 +52,7 @@ export default function SettingsView({ showAdminTabs, adminReadOnly }: Props) {
       </div>
 
       <div className="settings-content">
-        {tab === "account" && <AccountSection />}
+        {tab === "account" && <AccountSection {...(onSignOut ? { onSignOut } : {})} />}
         {tab === "users" && showAdminTabs && <UsersSection readOnly={adminReadOnly} />}
         {tab === "ai" && showAdminTabs && <AISection readOnly={adminReadOnly} />}
       </div>

@@ -1,5 +1,5 @@
 import { useState, useActionState } from "react";
-import { Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
+import { Eye, EyeOff, ChevronDown, ChevronUp, LogOut } from "lucide-react";
 import { useAuth } from "../../../../../auth/useAuth";
 import { changePassword, updateProfile } from "../../../../../api/authClient";
 import { useStatus } from "../../../../../components/statusBar/useStatus";
@@ -43,7 +43,7 @@ function PasswordField({
   );
 }
 
-export function AccountSection() {
+export function AccountSection({ onSignOut }: { onSignOut?: () => void }) {
   const { user, updateUser: updateAuthUser } = useAuth();
   const status = useStatus();
   const [pwOpen, setPwOpen] = useState(false);
@@ -208,6 +208,15 @@ export function AccountSection() {
           </form>
         )}
       </div>
+      )}
+
+      {onSignOut && (
+        <div className="settings-signout">
+          <button type="button" className="settings-signout-btn" onClick={onSignOut}>
+            <LogOut size={15} aria-hidden />
+            Sign out
+          </button>
+        </div>
       )}
     </div>
   );

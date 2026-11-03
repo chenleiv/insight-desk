@@ -2,7 +2,7 @@ import { useState, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import "./tourOverlay.scss";
 
-export type TourPlacement = "right" | "left" | "bottom";
+export type TourPlacement = "right" | "left" | "bottom" | "top";
 
 export type TourStep = {
   selector: string;
@@ -96,6 +96,11 @@ export function TourOverlay({ steps, onDone }: Props) {
     calloutStyle = {
       top: Math.max(16, spotTop + spotH / 2 - 90),
       left: Math.max(16, spotLeft - 280),
+    };
+  } else if (current.placement === "top") {
+    calloutStyle = {
+      bottom: vh - spotTop + 16,
+      left: Math.max(16, spotLeft + spotW / 2 - 125),
     };
   } else {
     calloutStyle = {

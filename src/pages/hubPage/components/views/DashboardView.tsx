@@ -215,38 +215,44 @@ export default function DashboardView({
                   const isFav = !!favoritesMap[doc.id];
 
                   return (
-                    <button
-                      key={String(doc.id)}
-                      type="button"
-                      className="recent-doc-item recent-doc-item-clickable"
-                      onClick={() => onOpenDocument?.(doc.id)}
-                    >
-                      <span className="recent-doc-icon-tile" style={iconStyle}>
-                        <FileText size={16} />
-                      </span>
-                      <div className="doc-info">
-                        <span className="doc-title">{doc.title || "Untitled"}</span>
-                        <span className="doc-time">
-                          {formatRelativeTime(doc.updatedAt ?? doc.createdAt)}
+                    <div key={String(doc.id)} className="recent-doc-item recent-doc-item-clickable recent-doc-row">
+                      <button
+                        type="button"
+                        className="recent-doc-open"
+                        onClick={() => onOpenDocument?.(doc.id)}
+                      >
+                        <span className="recent-doc-icon-tile" style={iconStyle}>
+                          <FileText size={16} />
                         </span>
-                      </div>
-                      <div className="doc-tags">
-                        {primary && (
-                          <span className="doc-panel-row-chip" style={getCategoryChipStyle(primary)}>
-                            {primary}
+                        <div className="doc-info">
+                          <span className="doc-title">{doc.title || "Untitled"}</span>
+                          <span className="doc-time">
+                            {formatRelativeTime(doc.updatedAt ?? doc.createdAt)}
                           </span>
-                        )}
+                        </div>
+                        <div className="doc-tags">
+                          {primary && (
+                            <span className="doc-panel-row-chip" style={getCategoryChipStyle(primary)}>
+                              {primary}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className="recent-doc-star"
+                        onClick={() => void toggleFavorite(doc.id)}
+                        aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+                        aria-pressed={isFav}
+                      >
                         <Star
                           size={14}
                           className={`star-icon ${isFav ? "active" : ""}`}
                           fill={isFav ? "var(--gold)" : "none"}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void toggleFavorite(doc.id);
-                          }}
+                          aria-hidden
                         />
-                      </div>
-                    </button>
+                      </button>
+                    </div>
                   );
                 })
               )}

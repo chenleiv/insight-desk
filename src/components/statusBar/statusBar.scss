@@ -3,7 +3,8 @@
 .statusbar {
     position: fixed;
     left: 50%;
-    bottom: calc(24px + env(safe-area-inset-bottom));
+    // The variable exists only while the phone bottom nav is on screen.
+    bottom: calc(24px + var(--bottom-nav-height, 0px) + env(safe-area-inset-bottom));
     transform: translateX(-50%);
     z-index: 1000;
     width: min(92vw, 460px);

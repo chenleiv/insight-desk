@@ -278,6 +278,28 @@
         margin-top: 4px;
     }
 
+    .settings-signout {
+        padding: 16px 24px;
+        border-top: 1px solid var(--border);
+    }
+
+    .settings-signout-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 10px 18px;
+        border-radius: 8px;
+        border: 1px solid var(--danger-border);
+        background: var(--danger-bg);
+        color: var(--danger-text);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        @include mixins.touch-target;
+    }
+
     .settings-cancel-btn {
         padding: 10px 18px;
         border-radius: 8px;

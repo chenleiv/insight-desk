@@ -128,7 +128,6 @@ describe("hub layout height", () => {
   it("follows the visible area instead of the full layout viewport", () => {
     expect(css).toMatch(/\.hub-layout \{[^}]*height: var\(--app-height, 100dvh\)/);
     expect(css).toMatch(/\.hub-layout \{[^}]*top: var\(--app-top, 0\)/);
-    expect(css).not.toMatch(/\.mobile-doc-picker-sheet \{[^}]*vh/);
   });
 
   it("keeps content out of the safe areas", () => {

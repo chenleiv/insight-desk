@@ -98,11 +98,10 @@ describe("documents panel on page load", () => {
     expect(panel()!.style.width).toBe("320px");
   });
 
-  it("is not shown on mobile, where the documents are in their own picker", () => {
+  it("is not shown on mobile, where the documents are in their own view", () => {
     isMobile.value = true;
     renderHub();
     expect(panel()).toBeNull();
-    expect(document.querySelector(".mobile-drawer")).toBeNull();
   });
 });
 
