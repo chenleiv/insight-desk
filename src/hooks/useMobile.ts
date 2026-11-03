@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 const mqlCache = new Map<string, MediaQueryList>();
 
 function getMql(query: string): MediaQueryList | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || !window.matchMedia) return null;
 
   const cached = mqlCache.get(query);
   if (cached) return cached;
