@@ -139,7 +139,7 @@ ai-workspace/
 │   │   ├── users.js                # Admin user management
 │   │   ├── search.js               # Semantic search over readable documents
 │   │   └── health.js               # Health check
-│   └── scripts/                    # reindex, embed:demo, eval:prod, one-off migrations
+│   └── scripts/                    # reindex, embed:demo, eval:prod
 │
 ├── eval/                           # Retrieval eval (npm run eval) and its results
 ├── docs/                           # EVAL.md, AGENT_WORKFLOW.md
