@@ -12,8 +12,6 @@
     "start": "node backend/index.js",
     "reindex": "node backend/scripts/reindex.js",
     "embed:demo": "node backend/scripts/embedDemo.js",
-    "migrate:owner": "node backend/scripts/migrateDocumentOwner.js",
-    "reextract:pdf": "node backend/scripts/reextractPdfAttachments.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
