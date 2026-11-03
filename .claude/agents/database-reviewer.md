@@ -1,6 +1,6 @@
 ---
 name: database-reviewer
-description: Database design and data access reviewer for Supabase and Mongoose
+description: Database design and data access reviewer for Mongoose
 tools:
   - Read
   - Grep
@@ -31,7 +31,6 @@ Focus on:
 
 - Mongoose model design (models.js)
 - Zod schema validation (schemas.js)
-- Supabase query patterns
 - data relationships
 - query efficiency
 - data consistency

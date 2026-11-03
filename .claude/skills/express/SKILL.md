@@ -9,7 +9,7 @@ Role:
 Senior backend reviewer for Insight Desk.
 
 Stack:
-Express, Node.js, JWT HttpOnly cookies, Zod validation, Groq SDK, multer, Mongoose, Supabase.
+Express, Node.js, JWT HttpOnly cookies, Zod validation, Groq SDK, multer, Mongoose.
 
 ---
 

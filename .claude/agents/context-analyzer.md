@@ -48,7 +48,7 @@ Express routes, middleware, auth, AI integration, file processing
 
 Database:
 
-models.js, schemas.js, Supabase queries, Mongoose models
+models.js, schemas.js, Mongoose models
 
 Security:
 

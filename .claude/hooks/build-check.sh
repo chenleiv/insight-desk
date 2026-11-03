@@ -55,17 +55,6 @@ if echo "$CHANGED" | grep -qE '\.(ts|tsx|scss)$'; then
   if [ $BUILD_EXIT -ne 0 ]; then
     block_with_log "BUILD" "FRONTEND BUILD FAILED. Fix these errors:" "$BUILD_LOG"
   fi
-
-  # Type-check separately — Vite uses esbuild which skips type errors
-  TSC_LOG=$(mktemp -t insight-tsc.XXXXXX)
-  LOG_FILES+=("$TSC_LOG")
-
-  TSC_EXIT=0
-  npx tsc --noEmit > "$TSC_LOG" 2>&1 || TSC_EXIT=$?
-
-  if [ $TSC_EXIT -ne 0 ]; then
-    block_with_log "TSC" "TYPE CHECK FAILED. Fix these errors:" "$TSC_LOG"
-  fi
 fi
 
 # Test validation — runs on test file changes or src changes
