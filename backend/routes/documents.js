@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { logger } from '../logger.js';
 import mongoose from 'mongoose';
-import { GridFSBucket } from 'mongodb';
 import multer from 'multer';
 import { randomUUID } from 'crypto';
 import { Document } from '../models.js';
+import { getAttachmentBucket } from '../attachmentBucket.js';
 import { extractTextFromBuffer } from '../textExtract.js';
 import { getCurrentUser, requireEditor } from '../auth.js';
 import { canAccessDocument, documentScope, isDemoUser, DEMO_LIMITS } from '../access.js';
@@ -73,10 +73,6 @@ async function removeChunks(docIds) {
     } catch (err) {
         logger.error('Deleting chunks failed', { message: err.message });
     }
-}
-
-function getBucket() {
-    return new GridFSBucket(mongoose.connection.db, { bucketName: 'attachments' });
 }
 
 // The largest file multer accepts. A bigger one is rejected with 413 and a message naming the limit.
@@ -266,7 +262,7 @@ router.delete('/:id', requireEditor, async (req, res) => {
         }
         // Delete all GridFS files for this document's attachments
         if (deleted.attachments?.length) {
-            const bucket = getBucket();
+            const bucket = getAttachmentBucket();
             await Promise.all(
                 deleted.attachments
                     .filter(a => a.gridfsId)
@@ -314,7 +310,7 @@ router.get('/:id/attachments/:attachmentId/file', getCurrentUser, async (req, re
         const attachment = doc.attachments.id(req.params.attachmentId);
         if (!attachment || !attachment.gridfsId) return res.status(404).json({ detail: 'Attachment not found' });
 
-        const bucket = getBucket();
+        const bucket = getAttachmentBucket();
         const downloadStream = bucket.openDownloadStream(attachment.gridfsId);
 
         // Served as a download with the type of its allowed extension, never sniffed,
@@ -353,7 +349,7 @@ router.post('/:id/attachments', requireEditor, handleMulterUpload, async (req, r
         const extractedText = await extractTextFromBuffer(file.buffer, file.mimetype);
 
         // Upload to GridFS
-        const bucket = getBucket();
+        const bucket = getAttachmentBucket();
         const uploadStream = bucket.openUploadStream(`${randomUUID()}-${safeName}`, {
             contentType: file.mimetype,
             metadata: { docId: req.params.id, attachmentId: attachmentId.toString() },
@@ -399,7 +395,7 @@ router.delete('/:id/attachments/:attachmentId', requireEditor, async (req, res) 
         if (!attachment) return res.status(404).json({ detail: 'Attachment not found' });
 
         if (attachment.gridfsId) {
-            const bucket = getBucket();
+            const bucket = getAttachmentBucket();
             await bucket.delete(attachment.gridfsId).catch(() => {});
         }
 

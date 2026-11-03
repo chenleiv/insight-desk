@@ -3,7 +3,7 @@
 import PDFDocument from 'pdfkit';
 import { Document as DocxDocument, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 
-export const EXPORT_FORMATS = {
+const EXPORT_FORMATS = {
     md: { ext: 'md', contentType: 'text/markdown; charset=utf-8' },
     pdf: { ext: 'pdf', contentType: 'application/pdf' },
     docx: {

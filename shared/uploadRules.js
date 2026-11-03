@@ -8,7 +8,7 @@ export const FILE_TOO_LARGE_MESSAGE =
 
 // Allowed extensions and the MIME types a browser may send for each. The first is
 // the one stored and served when the browser sends none.
-export const UPLOAD_TYPES = {
+const UPLOAD_TYPES = {
     pdf: ['application/pdf'],
     docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
     xlsx: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
@@ -24,7 +24,7 @@ const GENERIC_MIMES = new Set(['', 'application/octet-stream']);
 // For a file input's accept attribute, e.g. ".pdf,.docx".
 export const UPLOAD_ACCEPT = Object.keys(UPLOAD_TYPES).map((ext) => `.${ext}`).join(',');
 
-export function fileExtension(fileName) {
+function fileExtension(fileName) {
     const match = /\.([^./\\]+)$/.exec(fileName ?? '');
     return match ? match[1].toLowerCase() : '';
 }

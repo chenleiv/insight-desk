@@ -13,7 +13,6 @@ import {
 import { useRef, useState } from "react";
 import Menu from "../../../../components/menu/Menu";
 import { useMobile } from "../../../../hooks/useMobile";
-import { getCategoryChipStyle } from "../../utils/docs";
 import type { SaveStatus } from "../../hooks/useDocumentSave";
 import type { DownloadFormat } from "../../../../api/documentsClient";
 import { UPLOAD_ACCEPT } from "../../../../../shared/uploadRules";
@@ -35,11 +34,7 @@ type EditActions = {
 };
 
 type Props = {
-  title: string;
-  category?: string | undefined;
   isCreating: boolean;
-  variant?: "default" | "drawer";
-  onCancel: () => void;
   onClose?: () => void;
   onDelete?: () => void;
   isDeleting?: boolean;
@@ -54,11 +49,11 @@ type Props = {
   onDownload?: (format: DownloadFormat) => void;
 };
 
-function MaximizeBtn({ isMaximized, className = "", onClick }: { isMaximized: boolean | undefined; className?: string; onClick: () => void }) {
+function MaximizeBtn({ isMaximized, onClick }: { isMaximized: boolean | undefined; onClick: () => void }) {
   const label = isMaximized ? "Exit full screen" : "Full screen";
   return (
     <button type="button"
-      className={`icon-btn ${HEADER_BTN} doc-pane-header-tool-btn demo-mutex-target ${className}`}
+      className={`icon-btn ${HEADER_BTN} doc-pane-header-tool-btn demo-mutex-target`}
       onClick={onClick} data-tooltip={label} data-tooltip-pos="bottom"
       title={label} aria-label={label}>
       {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
@@ -66,9 +61,9 @@ function MaximizeBtn({ isMaximized, className = "", onClick }: { isMaximized: bo
   );
 }
 
-function CloseBtn({ size = 16, className = "", onClick }: { size?: number; className?: string; onClick: () => void }) {
+function CloseBtn({ size = 16, onClick }: { size?: number; onClick: () => void }) {
   return (
-    <button type="button" className={`icon-btn ${HEADER_BTN} doc-pane-close-btn ${className}`}
+    <button type="button" className={`icon-btn ${HEADER_BTN} doc-pane-close-btn`}
       onClick={onClick} data-tooltip="Close" data-tooltip-pos="bottom" aria-label="Close document">
       <X size={size} strokeWidth={2} />
     </button>
@@ -198,14 +193,8 @@ function MoreMenu({ onDownload, onDelete, isDeleting }: {
   );
 }
 
-const Placeholder = () => <span className="doc-pane-grid-placeholder" aria-hidden />;
-
 export function DocumentHeader({
-  title,
-  category,
   isCreating,
-  variant = "default",
-  onCancel,
   onClose,
   onDelete,
   isDeleting = false,
@@ -219,13 +208,12 @@ export function DocumentHeader({
   importDisabled = false,
   onDownload,
 }: Props) {
-  const isDrawer = variant === "drawer";
-  const isPhone = useMobile() && !isDrawer;
+  const isPhone = useMobile();
   // Download would leave out unsaved text and delete would drop the edit, so both wait for Save or Cancel.
   const isEditing = !!editActions;
   const editingHint = "Save or cancel your changes first";
 
-  // ── Default variant: delete btn + window controls ──
+  // ── Delete btn + window controls ──
   const defaultActions = (
     <>
       <SaveStatusChip status={isDeleting ? "deleting" : saveStatus} />
@@ -258,32 +246,14 @@ export function DocumentHeader({
     </>
   );
 
-  // ── Drawer variant: keeps grid layout ──
-  const editActionsDrawer = (
-    <div className="doc-pane-actions-grid" role="toolbar" aria-label="Document actions">
-      {onToggleMaximize ? <MaximizeBtn className="doc-pane-grid-btn" isMaximized={isMaximized} onClick={onToggleMaximize} /> : <Placeholder />}
-      <CloseBtn className="doc-pane-grid-btn" onClick={onCancel} />
-    </div>
-  );
-
   return (
-    <div className={`doc-pane-top-wrapper ${isDrawer ? "doc-pane-top-wrapper--drawer" : ""}`}>
-      <div className={`doc-pane-top ${isDrawer ? "doc-pane-top--drawer" : ""}`}>
+    <div className="doc-pane-top-wrapper">
+      <div className="doc-pane-top">
         {/* Not while a request runs: the document may be created, saved or gone when it ends. */}
         {isPhone && onClose && (
           <BackBtn onClick={onClose} disabled={isDeleting || importDisabled || !!editActions?.isSaving} />
         )}
         <div className="doc-pane-title-container">
-          <div className="doc-pane-title-stack demo-welcome-target">
-            {isDrawer && (
-              <>
-                {title && <p className="doc-pane-title" id="doc-drawer-title" title={title}>{title}</p>}
-                {category && (
-                  <p className="doc-pane-title small doc-pane-category-tag" style={getCategoryChipStyle(category)}>{category}</p>
-                )}
-              </>
-            )}
-          </div>
           {onImportClick && (
             <button
               type="button"
@@ -299,8 +269,8 @@ export function DocumentHeader({
           )}
         </div>
 
-        <div className={`doc-pane-actions${isDrawer ? " doc-pane-actions--drawer-edit" : ""}`}>
-          {isDrawer ? editActionsDrawer : isPhone ? phoneActions : defaultActions}
+        <div className="doc-pane-actions">
+          {isPhone ? phoneActions : defaultActions}
         </div>
       </div>
     </div>

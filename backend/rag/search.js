@@ -3,7 +3,7 @@ import { documentScope } from "../access.js";
 import { embed } from "./embed.js";
 import { cosineSimilarity } from "./similarity.js";
 
-export const DEFAULT_SEARCH_RESULTS = 5;
+const DEFAULT_SEARCH_RESULTS = 5;
 
 /**
  * Semantic search: return the `k` chunks whose meaning is closest to `query`,

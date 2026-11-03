@@ -71,15 +71,9 @@ export const qualityQuerySchema = z.object({
   days: z.enum(['7', '30']).transform(Number),
 });
 
-// Search Schema (query string values arrive as strings)
-export const searchQuerySchema = z.object({
-  q: z.string().trim().min(1, 'Query is required').max(500),
-  k: z.coerce.number().int().min(1).max(20).optional(),
-});
-
 // Import Bulk Schema
 // Every imported chunk is embedded on the CPU, so one request is capped.
-export const MAX_IMPORT_DOCUMENTS = 50;
+const MAX_IMPORT_DOCUMENTS = 50;
 export const importBulkSchema = z.object({
   mode: z.enum(['append', 'replace']),
   documents: z.array(documentSchema).max(MAX_IMPORT_DOCUMENTS),

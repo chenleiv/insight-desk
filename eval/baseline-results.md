@@ -1,3 +1,5 @@
+> Historical documentation: these results predate the RAG changes and describe code that no longer exists.
+
 # Baseline results, 2026-10-13
 
 Measured by hand on branch `rag-update`, before any RAG changes. Questions are defined in `questions.json`.

@@ -14,7 +14,7 @@ const menuItems = () => [...document.querySelectorAll<HTMLButtonElement>('[role=
 
 function render(props: Partial<Parameters<typeof DocumentHeader>[0]> = {}) {
   act(() => root.render(
-    <DocumentHeader title="Handbook" isCreating={false} onCancel={() => {}} onDownload={onDownload} {...props} />,
+    <DocumentHeader isCreating={false} onDownload={onDownload} {...props} />,
   ));
 }
 

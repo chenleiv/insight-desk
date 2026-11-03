@@ -99,7 +99,7 @@ Check:
 
 Detect:
 - API keys in source code
-- Groq/Supabase keys exposed
+- Groq keys exposed
 - .env leaks in client bundle
 
 ---

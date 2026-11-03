@@ -11,14 +11,6 @@ dist
 dist-ssr
 *.local
 
-backend/.venv/
-backend/__pycache__/
-**/__pycache__/
-*.pyc
-
-backend/storage/*.json
-backend/storage/documents.json
-
 .env
 .env.*
 !.env.example
@@ -34,11 +26,6 @@ backend/storage/documents.json
 *.njsproj
 *.sln
 *.sw?
-# Wrangler state
-.wrangler/
-
-# Dev artifacts
-design-preview.html
 
 # Local mongod binary for mongodb-memory-server
 tools/mongodb/

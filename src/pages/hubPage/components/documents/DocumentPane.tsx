@@ -25,12 +25,11 @@ import { useMobile } from "../../../../hooks/useMobile";
 import { finishTour, useGuideDone } from "../../utils/guides";
 import { DocumentHeader } from "./DocumentHeader";
 import { DocumentEdit } from "./DocumentEdit";
-import type { DocumentEditHandle } from "./DocumentEdit";
 import useConfirm from "../../../../hooks/useConfirm";
 import { toInput, emptyInput, isSameInput, isInputValid } from "../../utils/documentForm";
 import { DocumentDetailSkeleton } from "../../../../components/skeleton/Skeleton";
 import { Loader } from "../../../../components/loader/Loader";
-import { Maximize2, Save, Paperclip } from "lucide-react";
+import { Maximize2 } from "lucide-react";
 import { useDocumentSave } from "../../hooks/useDocumentSave";
 import { useDocumentAttachments } from "../../hooks/useDocumentAttachments";
 import { DISCARD_MESSAGE } from "../../hooks/useUnsavedChangesGuard";
@@ -41,7 +40,6 @@ type Props = {
   maxContentLength?: number | undefined;
   maxAttachments?: number | undefined;
   isCreating: boolean;
-  variant?: "default" | "drawer";
   onClose?: () => void;
   onCancelCreate: () => void;
   onCreated: (doc: DocumentItem) => void;
@@ -65,7 +63,6 @@ export default function DocumentPane({
   maxContentLength,
   maxAttachments,
   isCreating,
-  variant = "default",
   onClose,
   onCancelCreate,
   onCreated,
@@ -88,7 +85,6 @@ export default function DocumentPane({
   const [opensDocument] = useState(() => !isCreating && !!doc);
   const showDocTour = !useGuideDone("doc") && opensDocument;
   const showNewDocTour = !useGuideDone("newDoc") && isCreating;
-  const editRef = useRef<DocumentEditHandle>(null);
   const escapeRef = useRef<(e: KeyboardEvent) => void>(() => {});
   const importFileRef = useRef<HTMLInputElement>(null);
 
@@ -359,7 +355,6 @@ export default function DocumentPane({
     return <EmptyPane hasDocs={hasDocs} />;
   }
 
-  const isDrawer = variant === "drawer";
   const isSaving = saveStatus === "saving" && !isCreating;
   const headerStatus =
     saveStatus === "saving" || saveStatus === "error" ? saveStatus
@@ -369,16 +364,12 @@ export default function DocumentPane({
   return (
     <>
     <form
-      className={`doc-pane doc-pane--editing ${isDrawer ? "doc-pane--drawer" : ""}`}
+      className="doc-pane doc-pane--editing"
       onSubmit={isCreating ? handleCreateSubmit : (e) => e.preventDefault()}
       aria-busy={isCreationPending}
     >
       <DocumentHeader
-        title={isCreating ? "New document" : (doc?.title ?? "")}
-        category={doc?.category}
         isCreating={isCreating}
-        variant={variant}
-        onCancel={handleCancel}
         saveStatus={isCreating ? undefined : headerStatus}
         {...(canEdit && !isCreating && doc && !isEditing && { onEdit: () => setIsEditing(true) })}
         {...(canEdit && !isCreating && doc && isEditing && {
@@ -428,7 +419,6 @@ export default function DocumentPane({
       )}
 
       <DocumentEdit
-        ref={editRef}
         form={form}
         onChange={setForm}
         isCreating={isCreating}
@@ -450,7 +440,7 @@ export default function DocumentPane({
         initialScrollTop={0}
       />
 
-      {canEdit && isCreating && !isDrawer && (
+      {canEdit && isCreating && (
         <div className={`doc-pane-save-bar${isDirty || isCreating ? " doc-pane-save-bar--visible" : ""}`}>
           <button type="button" className="doc-pane-cancel-btn" onClick={handleCancel} disabled={isCreationPending}>
             Discard
@@ -463,37 +453,6 @@ export default function DocumentPane({
           >
             {isCreationPending ? "Creating document…" : "Create"}
           </button>
-        </div>
-      )}
-
-      {canEdit && isCreating && isDrawer && (
-        <div className="doc-pane-modal-footer">
-          <div className="doc-pane-footer-attach">
-            <button
-              type="button"
-              className="footer-attach-btn"
-              disabled={isUploading || isCreationPending}
-              onClick={() => editRef.current?.triggerAttach()}
-              title="Attach a file"
-            >
-              <Paperclip size={14} />
-              {isUploading ? "Uploading…" : "Attach"}
-            </button>
-          </div>
-          <div className="doc-pane-modal-footer-actions">
-            <button type="button" className="doc-pane-cancel-btn" onClick={handleCancel} disabled={isCreationPending}>
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="primary-btn doc-pane-save-btn--drawer doc-pane-create-btn"
-              disabled={!isDirty || !isValid || isCreationPending}
-              aria-busy={isCreationPending}
-            >
-              <Save size={15} strokeWidth={2} aria-hidden />
-              {isCreationPending ? "Creating document…" : "Create"}
-            </button>
-          </div>
         </div>
       )}
     </form>

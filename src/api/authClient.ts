@@ -1,7 +1,7 @@
 import type { AuthUser } from "../auth/authTypes";
 import { apiFetch } from "./base";
 
-export type LoginResponse = {
+type LoginResponse = {
   user: AuthUser;
 };
 

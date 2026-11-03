@@ -1,7 +1,7 @@
 import { RetrievalLog } from "../models.js";
 
 // Top-score buckets: [label, lower bound inclusive]. The first matches the chat's 0.3 threshold.
-export const SCORE_BUCKETS = [
+const SCORE_BUCKETS = [
   ["< 0.3", -Infinity],
   ["0.3 - 0.4", 0.3],
   ["0.4 - 0.5", 0.4],
