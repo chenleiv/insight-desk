@@ -35,7 +35,7 @@ After this change, the "(current)" row of `npm run eval` is 600 / 120, so the 80
 - The 14 demo documents cover very different topics, so picking the right document is easier than in a workspace of similar documents.
 - The questions were written after reading the documents, so they tend to reuse the documents' wording.
 - The demo documents have no attachments, so attachment chunking is not covered.
-- Only retrieval is measured. Whether Groq answers correctly from the retrieved chunks is not.
+- This test measures retrieval only. Answer quality is compared separately, see [Comparing prompt wordings](#comparing-prompt-wordings).
 
 ## Existing documents
 
@@ -46,9 +46,8 @@ Documents already stored in MongoDB keep the chunks and embeddings built with th
 1. **More questions**, especially paraphrases and questions that span two documents, so a one-question difference stops deciding the result.
 2. **Harder documents**: several documents on similar topics, and documents with attachments.
 3. **Questions written without reading the documents** (or taken from real usage), so they do not copy the documents' wording.
-4. **Not-in-docs questions** with a similarity threshold, to measure whether retrieval returns nothing when it should.
-5. **Answer quality**, not only retrieval: send the top chunks to the model and score the answer against `expected`.
-6. **Chunk-level hits** (the chunk that holds the answer, not just the right document) and MRR, for a finer signal.
+4. **Automatic answer scoring**: `npm run eval:answers` leaves the grading to a person, so score answers against `expected` automatically.
+5. **Chunk-level hits** (the chunk that holds the answer, not just the right document) and MRR, for a finer signal.
 
 ## Near-miss suggestions (not implemented)
 

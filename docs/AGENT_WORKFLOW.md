@@ -63,4 +63,4 @@ router.get('/health', (req, res) => {
 
 - **What I learned:** a soft rule in CLAUDE.md is not enough on its own; a hard deny rule in settings.json, plus a plan-then-approve loop, is what keeps the agent scoped and away from secrets.
 - **What is still unclear:** the Bash gap (`cat backend/.env`) is now partly closed: the sandbox blocks these reads while test, lint, and build still run inside it. It stays open whenever the sandbox is disabled, or when a single command is approved to run outside it.
-- **Next step:** fix the 4 existing lint errors in `TourOverlay.tsx` as a separate task, so "done" can mean a clean lint.
+- **Follow-up:** the 4 lint errors in `TourOverlay.tsx` were fixed in a separate task, so "done" now includes a clean lint.
