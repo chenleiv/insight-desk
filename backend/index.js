@@ -14,7 +14,6 @@ import authRouter, { seedUsersIfEmpty } from './auth.js';
 import aiRouter, { loadAIConfig } from './ai.js';
 import documentsRouter from './routes/documents.js';
 import usersRouter from './routes/users.js';
-import searchRouter from './routes/search.js';
 import healthRouter from './routes/health.js';
 import { repairMissingEmbeddings } from './rag/embedMissing.js';
 import { startDemoCleanup } from './demo.js';
@@ -72,7 +71,6 @@ app.use('/api/auth', authRouter);
 app.use(aiRouter);
 app.use('/api/documents', documentsRouter);
 app.use('/api/users', usersRouter);
-app.use(searchRouter);
 
 // Health check
 app.use(healthRouter);

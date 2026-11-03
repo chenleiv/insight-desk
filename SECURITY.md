@@ -40,7 +40,6 @@ Security controls in Insight Desk and the tests that guard them.
 | --- | --- | --- |
 | JSON request body | 2 MB (`JSON_BODY_LIMIT` in `backend/middleware/setup.js`) | 413 `Request body too large` |
 | Chat message | 2000 characters (`aiChatSchema`) | 400, the model is not called |
-| Search query | 500 characters | 400 |
 | Document content | 500,000 characters | 400 |
 | Bulk import | 50 documents | 400 |
 | Document download as PDF or Word | 200,000 characters of content (`MAX_EXPORT_CHARS`) | 422, suggests Markdown |
