@@ -1,12 +1,11 @@
 import { readFileSync } from 'fs';
 import { randomUUID } from 'crypto';
-import mongoose from 'mongoose';
-import { GridFSBucket } from 'mongodb';
 import { User, Document, Chunk } from './models.js';
 import { deleteDocumentChunks } from './rag/syncChunks.js';
 import { buildDocumentChunks } from './rag/buildChunks.js';
 import { embeddingKey } from './rag/embeddingInput.js';
 import { logger } from './logger.js';
+import { getAttachmentBucket } from './attachmentBucket.js';
 
 export const DEMO_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -46,7 +45,7 @@ async function removeDemoWorkspaces(userFilter) {
 
     const fileIds = docs.flatMap((d) => (d.attachments ?? []).map((a) => a.gridfsId).filter(Boolean));
     if (fileIds.length) {
-        const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'attachments' });
+        const bucket = getAttachmentBucket();
         await Promise.all(fileIds.map((id) => bucket.delete(id).catch(() => {})));
     }
 
