@@ -56,18 +56,6 @@
     border: 0;
 }
 
-.doc-row-skeleton {
-    padding: 1rem;
-    border-bottom: 1px solid var(--border, #e2e8f0);
-    width: 100%;
-
-    &-main {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-}
-
 .doc-detail-skeleton {
     flex: 1;
     min-height: 0;
