@@ -18,8 +18,13 @@ describe("bottom nav layout", () => {
     expect(hub).toMatch(/\.hub-layout--bottom-nav \{\s*padding-bottom: 0/);
   });
 
-  it("is a 36px line for the demo banner on phones", () => {
+  it("is a 36px line for the demo banner", () => {
     expect(hub).toMatch(/\.demo-banner-toggle \{[^}]*height: 36px/);
+  });
+
+  it("lets the workspace shrink, so the open demo banner cannot push it out of view", () => {
+    expect(hub).toMatch(/\.demo-banner \{[^}]*flex-shrink: 0/);
+    expect(hub).toMatch(/\.hub-body \{[^}]*flex: 1;[^}]*min-height: 0/);
   });
 
   it("no longer carries the drawer or the bottom sheet", () => {

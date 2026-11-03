@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import DemoBanner from "../DemoBanner";
 
-const DETAILS = "Demo workspace: your own private copy of the sample documents, deleted when you sign out. "
+const DETAILS = "Demo workspace: your own private copy of the sample documents, reset when you sign out. "
   + "Edit, add and chat freely. "
   + "Limits: 20 documents, 20,000 characters and 1 attachment per document. Import and admin settings are disabled.";
 
@@ -12,6 +12,7 @@ let root: Root;
 
 const toggle = () => container.querySelector<HTMLButtonElement>(".demo-banner-toggle")!;
 const details = () => container.querySelector<HTMLElement>(".demo-banner-details")!;
+const summary = () => container.querySelector(".demo-banner-summary")!;
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -26,22 +27,36 @@ afterEach(() => {
 });
 
 describe("DemoBanner", () => {
-  it("shows the full text in one text node on wide screens", () => {
-    act(() => root.render(<DemoBanner />));
-    const span = container.querySelector(".demo-banner span")!;
-    expect(span.textContent).toBe(DETAILS);
-    expect(span.childNodes).toHaveLength(1);
-    expect(toggle()).toBeNull();
-  });
-
-  it("starts as one line on phones, with the details hidden", () => {
-    act(() => root.render(<DemoBanner compact />));
+  it.each([
+    ["wide screens", false, "Demo workspace · Your changes reset when you sign out · Details"],
+    ["phones", true, "Demo workspace · Details"],
+  ])("starts as one text node on %s, with the details hidden", (_name, compact, text) => {
+    act(() => root.render(<DemoBanner compact={compact} />));
+    expect(summary().textContent).toBe(text);
+    expect(summary().childNodes).toHaveLength(1);
     expect(toggle().getAttribute("aria-expanded")).toBe("false");
     expect(details().hidden).toBe(true);
   });
 
-  it("opens and closes the details on tap", () => {
-    act(() => root.render(<DemoBanner compact />));
+  it("is a real button, so the keyboard can reach and press it", () => {
+    act(() => root.render(<DemoBanner />));
+    expect(toggle().tagName).toBe("BUTTON");
+    expect(toggle().type).toBe("button");
+    toggle().focus();
+    expect(document.activeElement).toBe(toggle());
+  });
+
+  it("collapses again on a new load", () => {
+    act(() => root.render(<DemoBanner />));
+    act(() => toggle().click());
+    act(() => root.unmount());
+    root = createRoot(container);
+    act(() => root.render(<DemoBanner />));
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it.each([[false], [true]])("opens and closes the same details (compact: %s)", (compact) => {
+    act(() => root.render(<DemoBanner compact={compact} />));
     act(() => toggle().click());
     expect(toggle().getAttribute("aria-expanded")).toBe("true");
     expect(details().hidden).toBe(false);
