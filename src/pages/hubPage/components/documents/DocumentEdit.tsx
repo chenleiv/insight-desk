@@ -1,5 +1,5 @@
 import "./notionEditor.scss";
-import React, { useMemo, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import { Clock, Paperclip, ExternalLink, X, Plus, Lock } from "lucide-react";
 import type { DocumentInput, DocumentItem } from "../../../../api/documentsClient";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
@@ -37,11 +37,7 @@ const UPLOAD_STATUS_TEXT: Record<UploadStatus["state"], (name: string) => string
   failed: (name) => `Upload of ${name} failed.`,
 };
 
-export interface DocumentEditHandle {
-  triggerAttach: () => void;
-}
-
-export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
+export function DocumentEdit({
   form,
   onChange,
   isCreating,
@@ -60,7 +56,7 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
   maxAttachments,
 
   initialScrollTop = 0,
-}, ref) => {
+}: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
@@ -76,10 +72,6 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
     : "";
   const attachLimitReached =
     maxAttachments !== undefined && existingAttachments.length + pendingFiles.length >= maxAttachments;
-
-  useImperativeHandle(ref, () => ({
-    triggerAttach: () => { if (!attachLimitReached && !attachmentsDisabled) fileInputRef.current?.click(); },
-  }));
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     onChange({ ...form, [e.target.name]: e.target.value });
@@ -243,6 +235,4 @@ export const DocumentEdit = forwardRef<DocumentEditHandle, Props>(({
       />
     </div>
   );
-});
-
-DocumentEdit.displayName = "DocumentEdit";
+}

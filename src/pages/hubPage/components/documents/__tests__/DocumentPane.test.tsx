@@ -475,7 +475,7 @@ describe("DocumentPane Create", () => {
   });
   afterEach(() => window.removeEventListener("keydown", onHubKey));
 
-  function CreateHarness({ variant = "default" }: { variant?: "default" | "drawer" }) {
+  function CreateHarness() {
     const [queryClient] = useState(() => new QueryClient());
     return (
       <QueryClientProvider client={queryClient}>
@@ -485,7 +485,6 @@ describe("DocumentPane Create", () => {
             doc={null}
             canEdit
             isCreating
-            variant={variant}
             onCancelCreate={onCancelCreate}
             onCreated={onCreated}
             onSaved={() => {}}
@@ -564,16 +563,6 @@ describe("DocumentPane Create", () => {
     expect(createStatus()!.textContent).toBe("");
   });
 
-  it("shows the pending text in the drawer variant too", async () => {
-    createDocument.mockImplementationOnce(() => later<DocumentItem>().promise);
-    render(<CreateHarness variant="drawer" />);
-    fill(INPUT);
-    await click(createBtn());
-    expect(createBtn()!.disabled).toBe(true);
-    expect(createBtn()!.textContent).toBe("Creating document…");
-    expect(createStatus()!.textContent).toBe("Creating document… Preparing it for search.");
-  });
-
   it("stays locked until every file upload has finished", async () => {
     const upload = later<Attachment>();
     uploadAttachment.mockImplementationOnce(() => upload.promise);
@@ -643,20 +632,17 @@ describe("DocumentPane Create", () => {
     expect(listed.sort()).toEqual(accepted.sort());
   });
 
-  it.each(["default", "drawer"] as const)(
-    "keeps the %s create button disabled, with its text and no spinner, while creating",
-    async (variant) => {
-      createDocument.mockImplementationOnce(() => later<DocumentItem>().promise);
-      render(<CreateHarness variant={variant} />);
-      fill(INPUT);
-      await click(createBtn());
-      expect(createBtn()!.disabled).toBe(true);
-      expect(createBtn()!.textContent).toBe("Creating document…");
-      expect(createBtn()!.querySelector(".icon-spin")).toBeNull();
-      // The top indicator keeps its own spinner.
-      expect(createStatus()!.querySelector(".icon-spin")).not.toBeNull();
-    },
-  );
+  it("keeps the create button disabled, with its text and no spinner, while creating", async () => {
+    createDocument.mockImplementationOnce(() => later<DocumentItem>().promise);
+    render(<CreateHarness />);
+    fill(INPUT);
+    await click(createBtn());
+    expect(createBtn()!.disabled).toBe(true);
+    expect(createBtn()!.textContent).toBe("Creating document…");
+    expect(createBtn()!.querySelector(".icon-spin")).toBeNull();
+    // The top indicator keeps its own spinner.
+    expect(createStatus()!.querySelector(".icon-spin")).not.toBeNull();
+  });
 });
 
 describe("DocumentPane attachment removal", () => {

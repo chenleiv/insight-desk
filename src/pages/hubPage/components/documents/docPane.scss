@@ -20,20 +20,6 @@
     padding: 0;
     container-type: inline-size;
 
-    &.doc-pane--drawer {
-        height: 100%;
-        min-height: 0;
-        background: transparent;
-
-        .doc-pane-body--edit {
-            padding: 22px 20px 20px;
-        }
-
-        .doc-pane-body.doc-pane-anim {
-            padding: 22px 20px 20px;
-        }
-    }
-
     .doc-pane-empty {
         flex: 1;
         display: flex;
@@ -93,11 +79,6 @@
         padding: 16px 24px 0px 14px;
         background: var(--bg);
 
-        &.doc-pane-top-wrapper--drawer {
-            padding: 10px 14px 0;
-            background: transparent;
-        }
-
         @include mixins.mobile {
             padding: 12px 18px 0;
         }
@@ -110,66 +91,14 @@
         padding-bottom: 12px;
         border-bottom: 1px solid var(--border);
 
-        &.doc-pane-top--drawer {
-            flex-direction: row;
-            align-items: center;
-            gap: 8px;
-            padding-bottom: 10px;
-
-            .doc-pane-title-container {
-                flex: 1;
-                min-width: 0;
-            }
-
-            .doc-pane-actions {
-                flex-shrink: 0;
-                margin-left: auto;
-            }
-        }
-
         .doc-pane-title-container {
             flex: 1;
             min-width: 0;
-
-            .doc-pane-title-stack {
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-            }
 
             .notion-title,
             .notion-title-input {
                 margin: 0;
             }
-        }
-
-        .doc-pane-title {
-            font-size: 26px;
-            font-weight: 700;
-            margin: 0;
-            letter-spacing: -0.01em;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .small {
-            font-size: 13px;
-            font-weight: 600;
-            color: #ffffff;
-            background: var(--primary);
-            padding: 4px 10px;
-            border-radius: 6px;
-            display: inline-block;
-            margin-top: 0;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .doc-pane-title.small.doc-pane-category-tag {
-            border: 1px solid;
-            width: fit-content;
-            max-width: 100%;
         }
 
         .doc-pane-header-title-edit-row {
@@ -354,79 +283,6 @@
         flex-shrink: 0;
         align-items: center;
 
-        &.doc-pane-actions--drawer-edit {
-            align-items: center;
-            justify-content: flex-end
-        }
-
-        .doc-pane-actions-grid {
-            display: flex;
-            gap: 8px;
-
-        }
-
-        .doc-pane-grid-placeholder {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        .doc-pane-grid-btn {
-            box-sizing: border-box;
-            width: 36px;
-            height: 36px;
-            min-width: 36px;
-            min-height: 36px;
-            padding: 0 !important;
-            margin: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: var(--panel);
-            box-shadow: none;
-
-            &:hover {
-                border-color: var(--primary);
-                background: var(--soft);
-                transform: none;
-            }
-
-            &.doc-pane-edit:hover {
-                transform: none;
-                box-shadow: none;
-            }
-
-            &.danger:hover {
-                border-color: var(--danger-border);
-                background: var(--danger-bg);
-            }
-
-            svg {
-                flex-shrink: 0;
-            }
-        }
-
-
-        .doc-pane-edit-drawer-toolbar-content {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex: 1;
-            min-width: 0;
-        }
-
-        .doc-pane-edit-drawer-toolbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            width: 100%;
-        }
-
         .doc-pane-header-tool-btn {
             border-radius: 8px;
             width: 36px;
@@ -444,27 +300,6 @@
             width: 36px;
             height: 36px;
             flex-shrink: 0;
-        }
-
-        .doc-pane-save-btn--drawer {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            box-sizing: border-box;
-            height: 36px;
-            min-height: 36px;
-            padding: 0 14px;
-            gap: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            line-height: 1;
-            border-radius: 8px;
-            box-shadow: none;
-
-            &:hover:not(:disabled) {
-                transform: none;
-                box-shadow: 0 2px 10px color-mix(in srgb, var(--primary) 35%, transparent);
-            }
         }
 
         .doc-pane-close-btn {
@@ -496,18 +331,6 @@
                 border-color: var(--primary);
                 box-shadow: 0 4px 12px var(--primary-bg);
                 transform: translateY(-1px);
-            }
-        }
-
-        .doc-pane-actions-grid .doc-pane-edit,
-        .doc-pane-actions-grid .icon-btn.danger {
-            padding: 0 !important;
-            border-radius: 8px;
-            box-shadow: none;
-
-            &:hover {
-                transform: none;
-                box-shadow: none;
             }
         }
 
@@ -815,26 +638,7 @@
     }
 }
 
-/* ===== Modal footer (Save / Cancel bar at bottom) ===== */
-.doc-pane-modal-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 10px 16px;
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
-    background: var(--panel);
-
-    .doc-pane-modal-footer-actions {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-left: auto;
-    }
-}
-
-/* ===== Floating save bar (Notion-style, default variant) ===== */
+/* ===== Floating save bar (Notion-style) ===== */
 .doc-pane-save-bar {
     display: flex;
     align-items: center;
