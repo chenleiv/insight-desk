@@ -227,6 +227,69 @@
                     }
                 }
 
+                // The open button covers the whole row, and the star sits above it as its own button.
+                &.recent-doc-row {
+                    position: relative;
+                    gap: 12px;
+
+                    &:has(.recent-doc-open:focus-visible) {
+                        outline: 2px solid var(--primary);
+                        outline-offset: 2px;
+                    }
+                }
+
+                .recent-doc-open {
+                    flex: 1;
+                    min-width: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    padding: 0;
+                    border: none;
+                    background: transparent;
+                    cursor: pointer;
+                    font: inherit;
+                    color: inherit;
+                    text-align: left;
+
+                    &:focus-visible {
+                        outline: none;
+                    }
+
+                    &::before {
+                        content: "";
+                        position: absolute;
+                        inset: 0;
+                    }
+                }
+
+                .recent-doc-star {
+                    position: relative;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                    padding: 0;
+                    border: none;
+                    background: transparent;
+                    cursor: pointer;
+                    @include mixins.touch-target;
+
+                    // The larger target must not make the row taller than its 36px icon tile.
+                    @media (pointer: coarse) {
+                        margin-block: -4px;
+                    }
+
+                    .star-icon {
+                        color: var(--muted);
+
+                        &.active {
+                            color: var(--gold);
+                            fill: var(--gold);
+                        }
+                    }
+                }
+
                 .recent-doc-icon-tile {
                     width: 36px;
                     height: 36px;
@@ -263,16 +326,6 @@
                     display: flex;
                     align-items: center;
                     gap: 12px;
-
-
-                    .star-icon {
-                        color: var(--muted);
-
-                        &.active {
-                            color: var(--gold);
-                            fill: var(--gold);
-                        }
-                    }
                 }
             }
         }

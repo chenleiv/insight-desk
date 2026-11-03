@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useResize } from "../../hooks/useResize";
 import { useMobile } from "../../hooks/useMobile";
 import { useViewportHeight } from "../../hooks/useViewportHeight";
+import { useKeyboardOpen } from "../../hooks/useKeyboardOpen";
 
 import TopBar from "./components/layout/TopBar";
 import AIAssistantView from "./components/views/AIAssistantView";
@@ -30,14 +31,14 @@ import DashboardView from "./components/views/DashboardView";
 import SettingsView from "./components/views/SettingsView";
 import QualityView from "./components/views/QualityView";
 import ImportPreviewDialog from "./components/dialogs/ImportPreviewDialog";
-import MobileDrawer from "./components/layout/MobileDrawer";
+import BottomNav, { type BottomNavTab } from "./components/layout/BottomNav";
 import DemoBanner from "./components/layout/DemoBanner";
 import { useDocumentOrdering } from "./hooks/useDocumentOrdering";
 import { useImportExport } from "./hooks/useImportExport";
 import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
 import { WelcomeModal } from "./components/dialogs/WelcomeModal";
 import { TourOverlay } from "./components/dialogs/TourOverlay";
-import { HUB_TOUR_STEPS } from "./components/dialogs/tourSteps";
+import { HUB_TOUR_STEPS, MOBILE_HUB_TOUR_STEPS } from "./components/dialogs/tourSteps";
 import { markGuideDone, skipAllGuides, useGuideDone } from "./utils/guides";
 
 export default function HubPage() {
@@ -46,6 +47,8 @@ export default function HubPage() {
   const confirm = useConfirm();
   const isMobile = useMobile(767);
   useViewportHeight();
+  const keyboardOpen = useKeyboardOpen();
+  const navigate = useNavigate();
 
   const isAdmin = user?.role === "admin";
   const isDemo = user?.role === "demo";
@@ -97,7 +100,17 @@ export default function HubPage() {
     creatingKey === location.key ? { kind: "creating" }
     : missingDocId ? { kind: "ai" }
     : urlView.kind === "quality" && !canViewQuality ? { kind: "ai" }
+    // Wider screens always show the list in the side panel.
+    : urlView.kind === "documents" && !isMobile ? { kind: "ai" }
+    : urlView.kind === "new" ? (canCreateDocs ? { kind: "creating" } : { kind: isMobile ? "documents" : "ai" })
     : urlView;
+  // Where closing a view leads: phones have no side panel, so back to the list.
+  const homeView: ActiveView = { kind: isMobile ? "documents" : "ai" };
+
+  // The chat stays mounted on phones once opened, so switching tabs keeps an answer that is
+  // still on its way and an unsent draft.
+  const [chatVisited, setChatVisited] = useState(activeView.kind === "ai");
+  if (activeView.kind === "ai" && !chatVisited) setChatVisited(true);
 
   // Each view change is a history entry, so back/forward move between views.
   function setActiveView(view: ActiveView, options?: { replace?: boolean }) {
@@ -114,8 +127,6 @@ export default function HubPage() {
     if (missingDocId) setSearchParams(new URLSearchParams(), { replace: true });
   }, [missingDocId, setSearchParams]);
 
-  const [mobileDocPickerOpen, setMobileDocPickerOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const showWelcome = !useGuideDone("welcome");
   const [showTour, setShowTour] = useState(false);
 
@@ -211,16 +222,15 @@ export default function HubPage() {
 
   async function goToCreate() {
     if (!(await guardDirty())) return;
-    setActiveView({ kind: "creating" });
+    setActiveView({ kind: isMobile ? "new" : "creating" });
   }
 
   function goToDocument(id: string) {
     if (isPaneDirty) {
-      void guardDirty().then((ok) => { if (ok) { setActiveView({ kind: "doc", id }); setMobileDocPickerOpen(false); } });
+      void guardDirty().then((ok) => { if (ok) setActiveView({ kind: "doc", id }); });
       return;
     }
     setActiveView({ kind: "doc", id });
-    setMobileDocPickerOpen(false);
   }
 
   // Logout ends the session and the hub unmounts before any navigation blocker runs,
@@ -230,7 +240,22 @@ export default function HubPage() {
   }
 
   function closeView() {
-    void guardDirty().then((ok) => { if (ok) setActiveView({ kind: "ai" }); });
+    void guardDirty().then((ok) => { if (ok) setActiveView(homeView); });
+  }
+
+  // A tab goes to its own screen and never toggles, unlike the desktop top bar buttons.
+  function goToTab(tab: BottomNavTab) {
+    void guardDirty().then((ok) => { if (ok) setActiveView({ kind: tab }); });
+  }
+
+  function cancelCreate() {
+    clearDirty();
+    // The form has its own history entry here, so leave it the way Back would.
+    if (urlView.kind === "new" && location.key !== "default") {
+      navigate(-1);
+      return;
+    }
+    setActiveView(homeView, { replace: urlView.kind === "new" });
   }
 
   function handleCreated(doc: DocumentItem) {
@@ -241,7 +266,8 @@ export default function HubPage() {
       saveJson(orderKey, next);
       return next;
     });
-    setActiveView({ kind: "doc", id: doc.id });
+    // Replace the form's own entry, so Back does not reopen an empty form.
+    setActiveView({ kind: "doc", id: doc.id }, { replace: urlView.kind === "new" });
   }
 
   async function onDelete(doc: DocumentItem) {
@@ -263,7 +289,7 @@ export default function HubPage() {
         return next;
       });
       // Replace, so Back does not return to the deleted document.
-      if (wasActive) setActiveView({ kind: "ai" }, { replace: true });
+      if (wasActive) setActiveView(homeView, { replace: true });
       status.show({ kind: "success", message: "Document deleted." });
     } catch (e) {
       status.show({
@@ -304,9 +330,9 @@ export default function HubPage() {
   };
 
   return (
-    <div className="hub-layout">
+    <div className={`hub-layout${isMobile ? " hub-layout--bottom-nav" : ""}`}>
 
-      {isDemo && <DemoBanner />}
+      {isDemo && <DemoBanner compact={isMobile} />}
 
       <TopBar
         activeView={activeView.kind}
@@ -315,9 +341,7 @@ export default function HubPage() {
         {...(canViewQuality ? { onOpenQuality: goToQuality } : {})}
         onOpenAI={goToAI}
         isMobile={isMobile}
-        onMenuClick={() => setDrawerOpen(true)}
         onSignOut={signOut}
-        {...(isMobile ? { onOpenDocPicker: () => setMobileDocPickerOpen(true) } : {})}
       />
 
       <div className="hub-body">
@@ -356,8 +380,19 @@ export default function HubPage() {
         )}
 
         <main className="hub-main">
-          {activeView.kind === "ai" && (
+          {!isMobile && activeView.kind === "ai" && (
             <AIAssistantView onOpenDocument={goToDocument} />
+          )}
+          {isMobile && chatVisited && (
+            <div className={`hub-keepalive${activeView.kind === "ai" ? "" : " hub-keepalive--hidden"}`}>
+              <AIAssistantView onOpenDocument={goToDocument} />
+            </div>
+          )}
+          {/* Stays mounted so the filter and scroll position survive opening a document and Back. */}
+          {isMobile && (
+            <div className={`hub-keepalive hub-documents${activeView.kind === "documents" ? "" : " hub-keepalive--hidden"}`}>
+              <DocPanel {...docPanelProps} />
+            </div>
           )}
           {activeView.kind === "dashboard" && (
             <div className="hub-view-scroll">
@@ -375,7 +410,11 @@ export default function HubPage() {
           )}
           {activeView.kind === "settings" && (
             <div className="hub-view-scroll">
-              <SettingsView showAdminTabs={isAdmin || isDemo} adminReadOnly={isDemo} />
+              <SettingsView
+                showAdminTabs={isAdmin || isDemo}
+                adminReadOnly={isDemo}
+                {...(isMobile ? { onSignOut: signOut } : {})}
+              />
             </div>
           )}
           {activeView.kind === "quality" && (
@@ -391,10 +430,7 @@ export default function HubPage() {
               maxContentLength={isDemo ? DEMO_LIMITS.contentLength : undefined}
               maxAttachments={isDemo ? DEMO_LIMITS.attachmentsPerDocument : undefined}
               isCreating={activeView.kind === "creating"}
-              onCancelCreate={() => {
-                clearDirty();
-                setActiveView({ kind: "ai" });
-              }}
+              onCancelCreate={cancelCreate}
               onCreated={handleCreated}
               hasDocs={docs.length > 0}
               loading={docsLoading}
@@ -409,7 +445,7 @@ export default function HubPage() {
             />
           )}
 
-          {activeView.kind === "doc" && (
+          {!isMobile && activeView.kind === "doc" && (
             <div className="brainy-fab-wrap">
               <button
                 type="button"
@@ -427,29 +463,8 @@ export default function HubPage() {
 
       </div>
 
-      {/* Mobile navigation drawer */}
-      {drawerOpen && isMobile && (
-        <MobileDrawer
-          onDashboard={goToDashboard}
-          onSettings={goToSettings}
-          {...(canViewQuality ? { onQuality: goToQuality } : {})}
-          onClose={() => setDrawerOpen(false)}
-          onSignOut={signOut}
-        />
-      )}
-
-      {/* Mobile document picker */}
-      {mobileDocPickerOpen && isMobile && (
-        <div className="mobile-doc-picker-overlay" onClick={() => setMobileDocPickerOpen(false)}>
-          <div className="mobile-doc-picker-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="mobile-doc-picker-handle" />
-            <DocPanel
-              {...docPanelProps}
-              onOpenDocument={(id) => { setMobileDocPickerOpen(false); goToDocument(id); }}
-              onNew={() => { setMobileDocPickerOpen(false); void goToCreate(); }}
-            />
-          </div>
-        </div>
+      {isMobile && !keyboardOpen && (
+        <BottomNav activeView={activeView.kind} showQuality={canViewQuality} onSelect={goToTab} />
       )}
 
       {/* Welcome modal — shown on first visit */}
@@ -470,7 +485,7 @@ export default function HubPage() {
 
       {showTour && (
         <TourOverlay
-          steps={HUB_TOUR_STEPS}
+          steps={isMobile ? MOBILE_HUB_TOUR_STEPS : HUB_TOUR_STEPS}
           onDone={(outcome) => {
             if (outcome === "skipped") skipAllGuides();
             setShowTour(false);

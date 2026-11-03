@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, BrainCircuit, FileText, LayoutDashboard, LogOut, Menu, Moon, Settings, Sun } from "lucide-react";
+import { BarChart3, BrainCircuit, LayoutDashboard, LogOut, Moon, Settings, Sun } from "lucide-react";
 import { useAuth } from "../../../../auth/useAuth";
 import { useTheme } from "../../../../hooks/useTheme";
 import { getInitials } from "../../../../utils/initials";
@@ -11,13 +11,11 @@ type Props = {
   // Shown only to users who may read the quality metrics.
   onOpenQuality?: () => void;
   onOpenAI: () => void;
-  onOpenDocPicker?: () => void;
   isMobile: boolean;
-  onMenuClick: () => void;
   onSignOut: () => void;
 };
 
-export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, onOpenQuality, onOpenAI, onOpenDocPicker, isMobile, onMenuClick, onSignOut }: Props) {
+export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, onOpenQuality, onOpenAI, isMobile, onSignOut }: Props) {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
@@ -94,31 +92,6 @@ export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, on
       </div>
 
       <div className="topbar-actions">
-        {isMobile && isSecondaryView && (
-          <button
-            type="button"
-            className="topbar-icon-btn"
-            onClick={onOpenAI}
-            aria-label="Ask Brainy"
-            data-tooltip="Ask Brainy"
-            data-tooltip-pos="bottom"
-          >
-            <BrainCircuit size={16} />
-          </button>
-        )}
-        {isMobile && onOpenDocPicker && (
-          <button
-            type="button"
-            className="topbar-icon-btn"
-            onClick={onOpenDocPicker}
-            aria-label="Open documents"
-            data-tooltip="Documents"
-            data-tooltip-pos="bottom"
-          >
-            <FileText size={16} />
-          </button>
-        )}
-
         <button
           type="button"
           className="topbar-icon-btn"
@@ -166,17 +139,6 @@ export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, on
               </div>
             )}
           </div>
-        )}
-
-        {isMobile && (
-          <button
-            type="button"
-            className="topbar-icon-btn"
-            onClick={onMenuClick}
-            aria-label="Menu"
-          >
-            <Menu size={16} strokeWidth={2} />
-          </button>
         )}
       </div>
 

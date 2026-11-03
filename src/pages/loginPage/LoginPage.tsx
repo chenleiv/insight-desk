@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, BrainCircuit, Sun, Moon } from "lucide-react";
 import { login, register, startDemo } from "../../api/authClient";
 import { useAuth } from "../../auth/useAuth";
+import { safeReturnPath } from "../../auth/returnPath";
 import { useStatus } from "../../components/statusBar/useStatus";
 import { useTheme } from "../../hooks/useTheme";
 import { Loader } from "../../components/loader/Loader";
@@ -24,10 +25,7 @@ export default function LoginPage() {
   const [demoPending, setDemoPending] = useState(false);
   const [demoSlow, setDemoSlow] = useState(false);
 
-  const redirectTo = (() => {
-    const state = location.state as LoginLocationState | null;
-    return state?.from?.pathname ?? "/hub";
-  })();
+  const redirectTo = safeReturnPath((location.state as LoginLocationState | null)?.from);
 
   const [error, formAction, isPending] = useActionState(
     async (_prev: string | null, formData: FormData) => {

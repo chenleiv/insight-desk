@@ -26,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
   const [isReady, setIsReady] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [signedOut, setSignedOut] = useState(false);
   /** Whether a user is signed in, readable at once by the 401 handler before React re-renders. */
   const signedInRef = useRef(user !== null);
   const queryClient = useQueryClient();
@@ -86,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function doLogout() {
+    setSignedOut(true);
     signedInRef.current = false;
     sessionEstablishedByLogin.current = false;
     setUser(null);
@@ -139,11 +141,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isReady,
         isAuthed: !!user,
         sessionExpired,
+        signedOut,
         favoritesMap,
         loginSuccess: (u) => {
           sessionEstablishedByLogin.current = true;
           signedInRef.current = true;
           setSessionExpired(false);
+          setSignedOut(false);
           resetSessionState();
           setUser(u);
           saveUserToStorage(u);

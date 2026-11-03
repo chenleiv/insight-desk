@@ -224,3 +224,14 @@ describe("TourOverlay outcome", () => {
     expect(onDone).not.toHaveBeenCalled();
   });
 });
+
+describe("TourOverlay top placement", () => {
+  it("anchors the callout above a target at the bottom of the screen", () => {
+    addTarget("target-nav");
+    setBox(".target-nav", { top: 700, left: 100, width: 80, height: 56 });
+    render(<TourOverlay steps={[{ selector: ".target-nav", title: "Nav", description: "Tabs", placement: "top" }]} onDone={() => {}} />);
+    // The spotlight starts 8px above the target, and the callout ends 16px above that.
+    expect(callout()!.style.bottom).toBe(`${window.innerHeight - 692 + 16}px`);
+    expect(callout()!.style.top).toBe("");
+  });
+});

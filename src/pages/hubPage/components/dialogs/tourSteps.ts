@@ -24,6 +24,31 @@ export const HUB_TOUR_STEPS: TourStep[] = [
   },
 ];
 
+// Phones have no side panel or top navigation, so the steps point at the bottom nav.
+export const MOBILE_HUB_TOUR_STEPS: TourStep[] = [
+  {
+    selector: ".bottom-nav-item--documents",
+    title: "📄 Document list",
+    description:
+      "All your documents live here. Tap any document to open it.\n\n⭐ Star — mark as favourite",
+    placement: "top",
+  },
+  {
+    selector: ".bottom-nav-item--ai",
+    title: "🧠 Brainy AI",
+    description:
+      "Ask Brainy anything about your documents — summaries, Q&A, comparisons. It finds the relevant documents for you.",
+    placement: "top",
+  },
+  {
+    selector: ".bottom-nav",
+    title: "Navigation",
+    description:
+      "Dashboard — an overview of all your documents.\n\nSettings — your account, signing out, and team members.",
+    placement: "top",
+  },
+];
+
 export const DOC_TOUR_STEPS: TourStep[] = [
   {
     selector: ".doc-pane-edit-btn",
