@@ -1,3 +1,5 @@
+@use "../../styles/mixins";
+
 .confirm-overlay {
     position: fixed;
     inset: 0;
@@ -7,6 +9,11 @@
     justify-content: center;
     z-index: 1000;
     backdrop-filter: blur(2px);
+
+    // Back can ask about unsaved changes during a tour, whose backdrop ignores taps on phones.
+    @include mixins.phone {
+        z-index: 9100;
+    }
 }
 
 .confirm-modal {

@@ -15,7 +15,13 @@ import { useStatus } from "../../../../components/statusBar/useStatus";
 import { parseImportFile } from "../../utils/parseImportFile";
 import { EmptyPane } from "../dialogs/EmptyPane";
 import { TourOverlay } from "../dialogs/TourOverlay";
-import { DOC_TOUR_STEPS, NEW_DOC_TOUR_STEPS } from "../dialogs/tourSteps";
+import {
+  DOC_TOUR_STEPS,
+  MOBILE_DOC_TOUR_STEPS,
+  MOBILE_NEW_DOC_TOUR_STEPS,
+  NEW_DOC_TOUR_STEPS,
+} from "../dialogs/tourSteps";
+import { useMobile } from "../../../../hooks/useMobile";
 import { finishTour, useGuideDone } from "../../utils/guides";
 import { DocumentHeader } from "./DocumentHeader";
 import { DocumentEdit } from "./DocumentEdit";
@@ -77,6 +83,7 @@ export default function DocumentPane({
 }: Props) {
   const status = useStatus();
   const confirm = useConfirm();
+  const isPhone = useMobile();
   // Decided on mount, so a document that finishes loading later does not start a tour.
   const [opensDocument] = useState(() => !isCreating && !!doc);
   const showDocTour = !useGuideDone("doc") && opensDocument;
@@ -493,13 +500,13 @@ export default function DocumentPane({
 
     {showDocTour && (
       <TourOverlay
-        steps={DOC_TOUR_STEPS}
+        steps={isPhone ? MOBILE_DOC_TOUR_STEPS : DOC_TOUR_STEPS}
         onDone={(outcome) => finishTour("doc", outcome)}
       />
     )}
     {showNewDocTour && (
       <TourOverlay
-        steps={NEW_DOC_TOUR_STEPS}
+        steps={isPhone ? MOBILE_NEW_DOC_TOUR_STEPS : NEW_DOC_TOUR_STEPS}
         onDone={(outcome) => finishTour("newDoc", outcome)}
       />
     )}

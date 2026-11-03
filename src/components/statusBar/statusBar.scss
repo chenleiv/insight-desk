@@ -14,6 +14,12 @@
     box-shadow: var(--shadow-elevated);
 
     animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+    // Above the chat input while it is on screen, and above the keyboard on iOS, which covers
+    // the bottom of the layout viewport instead of shrinking it.
+    @include mixins.phone {
+        bottom: calc(24px + var(--bottom-nav-height, 0px) + var(--chat-input-offset, 0px) + var(--keyboard-overlap, 0px) + env(safe-area-inset-bottom));
+    }
 }
 
 .statusbar-inner {

@@ -12,7 +12,7 @@ An AI-powered document workspace for teams. Upload PDF, DOCX, and Excel files �
 - **Create, edit, and categorize** documents with rich text content
 - **File attachments** — attach PDF, DOCX, and Excel files; text is automatically extracted and indexed
 - **Drag-to-resize sidebar** — resizable document panel with auto-collapse/expand behavior
-- **Persistent ordering** — document order saved per user via localStorage
+- **Stable document order** — new documents go to the top and the list keeps its order, saved per user via localStorage; documents cannot be reordered by hand
 - **Favorites** — bookmark documents per user account
 - **Import / Export** — backup and restore your knowledge base as JSON (with preview before import)
 - **Download a document** — save one document as Markdown, PDF, or Word (.docx). Anyone who can read the

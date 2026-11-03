@@ -71,6 +71,7 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
   const [promptModalOpen, setPromptModalOpen] = useState(false);
   const [promptText, setPromptText] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!promptModalOpen || promptText !== null) return;
@@ -281,6 +282,23 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
     return () => window.removeEventListener("resize", fitToText);
   }, [isPhone, input]);
 
+  // The input grows with its text, and toasts have to stay above it.
+  useEffect(() => {
+    const el = inputSectionRef.current;
+    if (!isPhone || !el) return;
+    const { style } = document.documentElement;
+    function publish() {
+      if (el) style.setProperty("--chat-input-height", `${el.offsetHeight}px`);
+    }
+    publish();
+    const onResize = new ResizeObserver(publish);
+    onResize.observe(el);
+    return () => {
+      onResize.disconnect();
+      style.removeProperty("--chat-input-height");
+    };
+  }, [isPhone]);
+
   function handleInputKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key !== "Enter" || e.shiftKey) return;
     // A phone keyboard has no Shift+Enter habit, so Enter is the only way to a new line there.
@@ -428,7 +446,7 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
         )}
       </div>
 
-      <div className="ai-input-section">
+      <div className="ai-input-section" ref={inputSectionRef}>
         <div className="ai-composer-container">
           <textarea
             ref={inputRef}

@@ -128,6 +128,30 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("input height for toasts", () => {
+  const published = () => document.documentElement.style.getPropertyValue("--chat-input-height");
+
+  it("follows the input on a phone and is gone with the chat", () => {
+    const height = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(68);
+    renderChat();
+    expect(published()).toBe("68px");
+
+    height.mockReturnValue(120);
+    act(() => resizeCallbacks.forEach((callback) => callback()));
+    expect(published()).toBe("120px");
+
+    act(() => root.render(null));
+    expect(published()).toBe("");
+    height.mockRestore();
+  });
+
+  it("is not published on wider screens", () => {
+    screen.phoneWidth = false;
+    renderChat();
+    expect(published()).toBe("");
+  });
+});
+
 describe("Enter in the input", () => {
   it("adds a new line on a phone", () => {
     renderChat();

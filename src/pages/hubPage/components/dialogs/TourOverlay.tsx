@@ -1,5 +1,6 @@
 import { useState, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import { useMobile } from "../../../../hooks/useMobile";
 import "./tourOverlay.scss";
 
 export type TourPlacement = "right" | "left" | "bottom" | "top";
@@ -17,14 +18,21 @@ const PAD = 8;
 const EDGE = 16;
 // Matches .tour-callout width in tourOverlay.scss
 const CALLOUT_W = 250;
+const PHONE_CALLOUT_W = 320;
+const PHONE_GAP = 16;
+// With less room than this on both sides of the target, the bubble goes over the target.
+const PHONE_MIN_ROOM = 200;
 
 function subscribe(onChange: () => void) {
   window.addEventListener("resize", onChange);
   // Capture phase also catches scrolling inside nested containers
   window.addEventListener("scroll", onChange, true);
+  // iOS moves only the visual viewport when the on-screen keyboard closes.
+  window.visualViewport?.addEventListener("resize", onChange);
   return () => {
     window.removeEventListener("resize", onChange);
     window.removeEventListener("scroll", onChange, true);
+    window.visualViewport?.removeEventListener("resize", onChange);
   };
 }
 
@@ -44,6 +52,43 @@ function parseLayoutKey(key: string): { vw: number; vh: number; rect: Rect | nul
   return { vw, vh, rect };
 }
 
+// The bubble's height depends on its text, so it gets the room on its side as a limit and scrolls
+// inside it. --tour-room is read by .tour-callout--phone, which also takes off the safe areas.
+function phoneCallout(
+  placement: TourPlacement,
+  spot: { top: number; bottom: number; left: number; right: number } | null,
+  vw: number,
+  vh: number
+): { style: React.CSSProperties; docked: boolean } {
+  const width = Math.min(PHONE_CALLOUT_W, vw - EDGE * 2);
+  const withRoom = (style: React.CSSProperties, room: number) =>
+    ({ width, ...style, "--tour-room": `${room}px` }) as React.CSSProperties;
+
+  if (!spot) {
+    const top = Math.max(EDGE, vh / 2 - 90);
+    return { style: withRoom({ top, left: (vw - width) / 2 }, vh - top - EDGE), docked: false };
+  }
+
+  const centered = (spot.left + spot.right) / 2 - width / 2;
+  const left = Math.max(EDGE, Math.min(centered, vw - width - EDGE));
+  // A target that is partly off screen still has its bubble on screen.
+  const top = Math.max(0, Math.min(spot.top, vh));
+  const bottom = Math.max(0, Math.min(spot.bottom, vh));
+  const above = top - PHONE_GAP - EDGE;
+  const below = vh - bottom - PHONE_GAP - EDGE;
+
+  if (Math.max(above, below) < PHONE_MIN_ROOM) {
+    return { style: withRoom({ left }, vh - EDGE * 2), docked: true };
+  }
+
+  const wantsAbove = placement === "top";
+  const useAbove = (wantsAbove ? above : below) >= PHONE_MIN_ROOM ? wantsAbove : !wantsAbove;
+  const style = useAbove
+    ? withRoom({ bottom: vh - top + PHONE_GAP, left }, above)
+    : withRoom({ top: bottom + PHONE_GAP, left }, below);
+  return { style, docked: false };
+}
+
 export type TourOutcome = "completed" | "skipped";
 
 type Props = {
@@ -52,6 +97,7 @@ type Props = {
 };
 
 export function TourOverlay({ steps, onDone }: Props) {
+  const isPhone = useMobile();
   const [step, setStep] = useState(0);
 
   const current = steps[step];
@@ -73,6 +119,15 @@ export function TourOverlay({ steps, onDone }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [step, steps.length, onDone]);
 
+  // The keyboard would cover the bubble and hide the bottom nav the steps point at.
+  useEffect(() => {
+    if (isPhone && document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  }, [isPhone]);
+
+  useEffect(() => {
+    if (isPhone) document.querySelector(current.selector)?.scrollIntoView?.({ block: "nearest" });
+  }, [isPhone, current.selector]);
+
   const isLast = step === steps.length - 1;
 
   const spotTop = (rect?.top ?? 0) - PAD;
@@ -81,7 +136,16 @@ export function TourOverlay({ steps, onDone }: Props) {
   const spotH = (rect?.height ?? 0) + PAD * 2;
 
   let calloutStyle: React.CSSProperties;
-  if (!rect) {
+  let docked = false;
+  if (isPhone) {
+    const spot = rect && {
+      top: spotTop,
+      bottom: spotTop + spotH,
+      left: spotLeft,
+      right: spotLeft + spotW,
+    };
+    ({ style: calloutStyle, docked } = phoneCallout(current.placement, spot, vw, vh));
+  } else if (!rect) {
     // Target not found: center the callout so the step is still readable
     calloutStyle = {
       top: Math.max(EDGE, vh / 2 - 90),
@@ -113,8 +177,25 @@ export function TourOverlay({ steps, onDone }: Props) {
     calloutStyle.left = Math.max(EDGE, Math.min(calloutStyle.left, vw - CALLOUT_W - EDGE));
   }
 
+  const skipButton = (
+    <button
+      type="button"
+      className="tour-skip"
+      onClick={(e) => {
+        e.stopPropagation();
+        onDone("skipped");
+      }}
+    >
+      Skip tour
+    </button>
+  );
+
   return createPortal(
-    <div className={`tour-backdrop${rect ? "" : " tour-backdrop--dim"}`} onClick={() => onDone("skipped")}>
+    // On phones a stray tap must not end every guide, so only the Skip button does.
+    <div
+      className={`tour-backdrop${rect ? "" : " tour-backdrop--dim"}`}
+      onClick={isPhone ? undefined : () => onDone("skipped")}
+    >
       {rect && (
         <div
           className="tour-spotlight"
@@ -124,7 +205,7 @@ export function TourOverlay({ steps, onDone }: Props) {
       )}
 
       <div
-        className="tour-callout"
+        className={`tour-callout${isPhone ? " tour-callout--phone" : ""}${docked ? " tour-callout--docked" : ""}`}
         style={calloutStyle}
         onClick={(e) => e.stopPropagation()}
       >
@@ -132,6 +213,8 @@ export function TourOverlay({ steps, onDone }: Props) {
         <p className="tour-callout-title">{current.title}</p>
         <p className="tour-callout-desc" style={{ whiteSpace: "pre-line" }}>{current.description}</p>
         <div className="tour-callout-nav">
+          {/* In the bubble on phones: at the bottom of the screen it would cover the bottom nav. */}
+          {isPhone && skipButton}
           {step > 0 && (
             <button type="button" className="tour-btn tour-btn--back" onClick={() => setStep((s) => s - 1)}>
               ← Back
@@ -147,16 +230,7 @@ export function TourOverlay({ steps, onDone }: Props) {
         </div>
       </div>
 
-      <button
-        type="button"
-        className="tour-skip"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDone("skipped");
-        }}
-      >
-        Skip tour
-      </button>
+      {!isPhone && skipButton}
     </div>,
     document.body
   );
