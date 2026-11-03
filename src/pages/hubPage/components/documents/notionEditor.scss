@@ -2,7 +2,6 @@
 
 /* Hard reset: prevent global input/textarea styles from bleeding into notion fields */
 .notion-title-input,
-.notion-summary-input,
 .notion-content-input {
     border: none !important;
     box-shadow: none !important;
@@ -33,16 +32,6 @@
     &.notion-doc-body--edit {
         padding-top: 14px;
     }
-}
-
-.notion-title {
-    font-size: 34px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
-    color: var(--text);
-    margin: 8px 0 20px;
-    word-break: break-word;
 }
 
 .notion-title-input {
@@ -91,19 +80,6 @@
     flex-wrap: wrap;
     margin-bottom: 12px;
 }
-
-.notion-category-chip {
-    display: inline-flex;
-    align-items: center;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    border: 1px solid;
-    border-radius: 6px;
-    padding: 3px 10px;
-}
-
 
 .notion-category-wrapper {
     display: inline-grid;
@@ -166,50 +142,6 @@
     }
 }
 
-.notion-category-select {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--muted);
-    background: transparent;
-    border: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
-    border-radius: 6px;
-    padding: 3px 24px 3px 10px;
-    font-family: inherit;
-    outline: none;
-    cursor: pointer;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 8px center;
-    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
-
-    &[data-filled="true"] {
-        background-color: var(--primary);
-        color: var(--primary-text);
-        border-color: transparent;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23fff' stroke-opacity='0.7' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 8px center;
-
-        option {
-            background: var(--panel);
-            color: var(--text);
-        }
-    }
-
-    &:focus {
-        border-color: var(--primary);
-        outline: none;
-        box-shadow: 0 0 0 2px var(--primary-bg);
-    }
-
-    &[data-filled="true"]:focus {
-        box-shadow: 0 0 0 2px var(--primary-bg);
-    }
-}
-
 .notion-date {
     display: inline-flex;
     align-items: center;
@@ -227,44 +159,6 @@
     color: var(--muted);
     background: var(--soft);
     border-radius: 999px;
-}
-
-.notion-summary {
-    font-size: 15px;
-    line-height: 1.65;
-    color: color-mix(in srgb, var(--text) 70%, var(--muted));
-    margin: 0 0 18px;
-    white-space: pre-wrap;
-}
-
-.notion-summary-input {
-    width: 100%;
-    font-size: 15px;
-    line-height: 1.5;
-    color: color-mix(in srgb, var(--text) 70%, var(--muted));
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    outline: none;
-    resize: none;
-    padding: 0;
-    margin-bottom: 18px;
-    font-family: inherit;
-    overflow: hidden;
-
-    &::placeholder {
-        color: var(--secondery-text);
-        opacity: 0.6;
-    }
-
-    &:focus,
-    &:hover:not(:focus) {
-        border: none !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        outline: none !important;
-    }
 }
 
 .notion-divider {
@@ -341,11 +235,6 @@
         opacity: 0.5;
         cursor: not-allowed;
     }
-}
-
-.notion-import-error {
-    font-size: 12px;
-    color: var(--danger-text);
 }
 
 .notion-att-chips {

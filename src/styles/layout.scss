@@ -1,7 +1,6 @@
 @use "mixins";
 
-.primary-btn,
-.btn-primary {
+.primary-btn {
   @include mixins.btn-primary;
 }
 
@@ -101,7 +100,6 @@
           background: var(--panel);
         }
 
-        &.is-active,
         &[aria-current="page"] {
           background: var(--primary);
           color: var(--primary-text);

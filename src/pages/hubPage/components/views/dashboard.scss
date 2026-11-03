@@ -300,10 +300,6 @@
                     flex-shrink: 0;
                 }
 
-                .doc-icon {
-                    color: var(--muted);
-                }
-
                 .doc-info {
                     flex: 1;
                     display: flex;
@@ -329,28 +325,5 @@
                 }
             }
         }
-
-        .ai-activity-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-
-        }
     }
 }
-
-
-.card-attachment-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--muted);
-    background: var(--soft);
-    border-radius: 20px;
-    padding: 2px 7px 2px 5px;
-    line-height: 1;
-    white-space: nowrap;
-}
-
