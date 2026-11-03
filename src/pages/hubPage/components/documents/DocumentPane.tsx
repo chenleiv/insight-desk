@@ -369,9 +369,7 @@ export default function DocumentPane({
       aria-busy={isCreationPending}
     >
       <DocumentHeader
-        title={isCreating ? "New document" : (doc?.title ?? "")}
         isCreating={isCreating}
-        onCancel={handleCancel}
         saveStatus={isCreating ? undefined : headerStatus}
         {...(canEdit && !isCreating && doc && !isEditing && { onEdit: () => setIsEditing(true) })}
         {...(canEdit && !isCreating && doc && isEditing && {

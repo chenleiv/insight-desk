@@ -34,9 +34,7 @@ type EditActions = {
 };
 
 type Props = {
-  title: string;
   isCreating: boolean;
-  onCancel: () => void;
   onClose?: () => void;
   onDelete?: () => void;
   isDeleting?: boolean;

@@ -22,7 +22,7 @@ const menuItem = (label: string) => menuItems().find((b) => b.textContent === la
 
 function render(props: Partial<Parameters<typeof DocumentHeader>[0]> = {}) {
   act(() => root.render(
-    <DocumentHeader title="Handbook" isCreating={false} onCancel={() => {}} onClose={onClose} {...props} />,
+    <DocumentHeader isCreating={false} onClose={onClose} {...props} />,
   ));
 }
 
