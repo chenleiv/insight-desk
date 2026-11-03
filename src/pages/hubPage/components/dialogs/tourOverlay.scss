@@ -7,6 +7,11 @@
   z-index: 9000;
   cursor: pointer;
 
+  // A tap here does nothing on phones.
+  @include mixins.phone {
+    cursor: default;
+  }
+
   // No spotlight to cast the shadow when the target is missing
   &--dim {
     background: rgba(0, 0, 0, 0.58);
@@ -39,6 +44,33 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   cursor: default;
   animation: tour-callout-in 0.2s ease;
+
+  // Phones set the width and position from TourOverlay.tsx.
+  &--phone {
+    max-height: calc(var(--tour-room) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y: auto;
+
+    .tour-skip {
+      position: static;
+      transform: none;
+      margin-right: auto;
+      padding: 6px 4px;
+      background: none;
+      backdrop-filter: none;
+      border: none;
+      color: var(--muted);
+
+      &:hover {
+        color: var(--text);
+        background: none;
+      }
+    }
+  }
+
+  &--docked {
+    bottom: calc(16px + var(--bottom-nav-height, 0px) + env(safe-area-inset-bottom));
+    max-height: calc(var(--tour-room) - var(--bottom-nav-height, 0px) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
 }
 
 .tour-step-counter {

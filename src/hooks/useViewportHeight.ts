@@ -6,6 +6,7 @@ const ZOOM_TOLERANCE = 1.01;
 /**
  * Publishes the visible area as --app-height and --app-top, because iOS keeps the layout
  * viewport full size under the on-screen keyboard and moves the visual viewport instead.
+ * --keyboard-overlap is how much of the layout viewport's bottom that leaves covered.
  */
 export function useViewportHeight() {
   useEffect(() => {
@@ -17,6 +18,8 @@ export function useViewportHeight() {
       if (viewport!.scale > ZOOM_TOLERANCE) return;
       style.setProperty("--app-height", `${viewport!.height}px`);
       style.setProperty("--app-top", `${viewport!.offsetTop}px`);
+      const overlap = window.innerHeight - viewport!.offsetTop - viewport!.height;
+      style.setProperty("--keyboard-overlap", `${Math.max(0, overlap)}px`);
     }
 
     apply();
@@ -27,6 +30,7 @@ export function useViewportHeight() {
       viewport.removeEventListener("scroll", apply);
       style.removeProperty("--app-height");
       style.removeProperty("--app-top");
+      style.removeProperty("--keyboard-overlap");
     };
   }, []);
 }

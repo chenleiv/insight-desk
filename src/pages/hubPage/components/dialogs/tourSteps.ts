@@ -88,3 +88,44 @@ export const NEW_DOC_TOUR_STEPS: TourStep[] = [
     placement: "right",
   },
 ];
+
+// Same number of steps as the wider versions: rotating a phone can swap them mid-tour.
+export const MOBILE_DOC_TOUR_STEPS: TourStep[] = [
+  {
+    selector: ".doc-pane-edit-btn",
+    title: "✏️ Edit",
+    description:
+      "Documents open read-only. Tap Edit to make changes, then Save or Cancel.\n\nExport and Delete are in the ⋮ menu.",
+    placement: "bottom",
+  },
+  {
+    selector: ".notion-att-chips",
+    title: "📎 Attachments",
+    description:
+      "Attach files here — PDF, Word, Excel. The text is extracted automatically so Brainy AI can read them.",
+    placement: "bottom",
+  },
+];
+
+export const MOBILE_NEW_DOC_TOUR_STEPS: TourStep[] = [
+  {
+    selector: ".notion-content-input",
+    title: "✏️ Start writing",
+    description: "Type your content here.",
+    placement: "top",
+  },
+  {
+    selector: ".doc-pane-import-btn",
+    title: "Import text from file",
+    description:
+      "Tap here to extract text from a PDF, Word, or Excel file and put it straight into the document.",
+    placement: "bottom",
+  },
+  {
+    selector: ".notion-att-chip--add",
+    title: "📎 Add file",
+    description:
+      "Attach a raw file to this document. Brainy AI will be able to read its contents.",
+    placement: "bottom",
+  },
+];

@@ -9,6 +9,11 @@
     width: 100%;
     container-type: inline-size;
 
+    // .hub-view-scroll already keeps 16px on each side there.
+    @include mixins.phone {
+        padding: 16px 0;
+    }
+
     .settings-tabs {
         display: flex;
         gap: 4px;
@@ -33,6 +38,11 @@
             cursor: pointer;
             transition: all 0.18s ease;
             @include mixins.touch-target;
+
+            // Keeps all three tabs on a 320px screen.
+            @include mixins.phone {
+                padding: 8px 12px;
+            }
 
             &:hover:not(.active) {
                 color: var(--text);

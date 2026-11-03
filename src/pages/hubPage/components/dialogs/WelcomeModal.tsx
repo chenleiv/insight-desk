@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { useMobile } from "../../../../hooks/useMobile";
 import "./welcomeModal.scss";
 
 type Props = {
@@ -7,8 +8,11 @@ type Props = {
 };
 
 export function WelcomeModal({ onClose, onStartTour }: Props) {
+  const isPhone = useMobile();
+
   return (
-    <div className="welcome-overlay" onClick={onClose}>
+    // Closing skips every guide, which on phones must not happen on a stray tap.
+    <div className="welcome-overlay" onClick={isPhone ? undefined : onClose}>
       <div
         className="welcome-modal"
         onClick={(e) => e.stopPropagation()}

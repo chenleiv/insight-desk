@@ -634,6 +634,11 @@
   }
 }
 
+// The chat stays mounted behind the other tabs on phones, so toasts clear it only while it shows.
+:root:has(.hub-keepalive:not(.hub-keepalive--hidden) .ai-input-section) {
+  --chat-input-offset: var(--chat-input-height, 0px);
+}
+
 // Phone screens only. Last in the file, to override the base rules and the block above, which also matches a narrow desktop pane.
 @include mixins.phone {
   .ai-assistant-content {

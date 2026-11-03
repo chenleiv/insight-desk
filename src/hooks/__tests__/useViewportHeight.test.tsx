@@ -33,6 +33,21 @@ afterEach(() => {
 });
 
 describe("useViewportHeight", () => {
+  it("publishes how much of the layout viewport the keyboard covers", () => {
+    vi.spyOn(window, "innerHeight", "get").mockReturnValue(640);
+    act(() => root.render(<Probe />));
+    expect(prop("--keyboard-overlap")).toBe("0px");
+
+    viewport.height = 340;
+    viewport.offsetTop = 20;
+    act(() => { viewport.dispatchEvent(new Event("resize")); });
+    expect(prop("--keyboard-overlap")).toBe("280px");
+
+    act(() => root.render(null));
+    expect(prop("--keyboard-overlap")).toBe("");
+    vi.restoreAllMocks();
+  });
+
   it("publishes the visible height and offset on mount", () => {
     act(() => root.render(<Probe />));
     expect(prop("--app-height")).toBe("640px");

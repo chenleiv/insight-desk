@@ -7,6 +7,7 @@ import { StatusContext, type StatusApi } from "../../../components/statusBar/sta
 import { ConfirmContext, type ConfirmFn } from "../../../components/confirmModal/confirmContext";
 import type { DocumentItem } from "../../../api/documentsClient";
 import HubPage from "../HubPage";
+import { resetGuides } from "../utils/guides";
 
 // Stable values, as the real query hook returns: a new array per render would never settle.
 const { auth, screen, keyboard, documents, setDocs, deleteDocument } = vi.hoisted(() => ({
@@ -274,6 +275,105 @@ describe("hub navigation on phones", () => {
     await tap(".welcome-cta");
     expect(q(".tour-callout-title")!.textContent).toContain("Document list");
     expect(q(".tour-spotlight")).not.toBeNull();
+  });
+});
+
+describe("guides on phones", () => {
+  const stored = () => [
+    localStorage.getItem("insight-desk:welcomed"),
+    localStorage.getItem("insight-desk:doc-toured"),
+    localStorage.getItem("insight-desk:new-doc-toured"),
+  ];
+
+  function renderFirstVisit() {
+    localStorage.removeItem("insight-desk:welcomed");
+    renderHub();
+  }
+
+  async function tapText(text: string) {
+    const target = [...document.querySelectorAll<HTMLElement>("button")].find((b) => b.textContent === text);
+    await act(async () => { target!.click(); });
+  }
+
+  it("keeps the welcome and every guide after a tap outside it", async () => {
+    renderFirstVisit();
+    await tap(".welcome-overlay");
+    expect(q(".welcome-modal")).not.toBeNull();
+    expect(stored()).toEqual([null, null, null]);
+  });
+
+  it.each([".welcome-skip", ".welcome-close"])("skips every guide from the welcome's explicit %s", async (selector) => {
+    renderFirstVisit();
+    await tap(selector);
+    expect(q(".welcome-modal")).toBeNull();
+    expect(stored()).toEqual(["1", "1", "1"]);
+  });
+
+  it("keeps the tour and the other guides after a tap outside the bubble", async () => {
+    renderFirstVisit();
+    await tap(".welcome-cta");
+    await tap(".tour-backdrop");
+    expect(q(".tour-callout")).not.toBeNull();
+    expect(stored()).toEqual(["1", null, null]);
+  });
+
+  it("skips every guide from the Skip button", async () => {
+    renderFirstVisit();
+    await tap(".welcome-cta");
+    await tap(".tour-skip");
+    expect(q(".tour-callout")).toBeNull();
+    expect(stored()).toEqual(["1", "1", "1"]);
+  });
+
+  it("spotlights a real bottom nav element on every step, and finishing leaves the other guides", async () => {
+    renderFirstVisit();
+    await tap(".welcome-cta");
+    for (const title of ["Document list", "Brainy AI", "Navigation"]) {
+      expect(q(".tour-callout-title")!.textContent).toContain(title);
+      expect(q(".tour-spotlight")).not.toBeNull();
+      await tap(".tour-btn--primary");
+    }
+    expect(q(".tour-callout")).toBeNull();
+    expect(q(".bottom-nav")).not.toBeNull();
+    expect(stored()).toEqual(["1", null, null]);
+  });
+
+  it("starts over from Show the guides again in the settings", async () => {
+    renderHub();
+    await tap(".bottom-nav-item--settings");
+    await tapText("Show the guides again");
+    expect(q(".welcome-modal")).not.toBeNull();
+    await tap(".welcome-cta");
+    expect(q(".tour-callout-title")!.textContent).toContain("Document list");
+    expect(q(".bottom-nav")).not.toBeNull();
+  });
+
+  it("still asks about unsaved changes when Back is used during a tour, and leaves the draft on no", async () => {
+    renderHub("/hub", "/hub?view=new");
+    await tap(".pane-dirty");
+    act(() => resetGuides());
+    await tap(".welcome-cta");
+    confirm.mockResolvedValue(false);
+
+    await back();
+
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(search()).toBe("?view=new");
+    expect(q(".tour-callout")).not.toBeNull();
+  });
+
+  it("still asks about unsaved changes on a tab after the tour ends", async () => {
+    renderHub("/hub?view=new");
+    await tap(".pane-dirty");
+    act(() => resetGuides());
+    await tap(".welcome-cta");
+    await tap(".tour-skip");
+    confirm.mockResolvedValue(false);
+
+    await tap(".bottom-nav-item--settings");
+
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(search()).toBe("?view=new");
   });
 });
 

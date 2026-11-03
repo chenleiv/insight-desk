@@ -6,6 +6,10 @@ import { compile } from "sass";
 const hub = compile("src/pages/hubPage/hubPage.scss").css;
 const toasts = compile("src/components/statusBar/statusBar.scss").css;
 const dashboard = compile("src/pages/hubPage/components/views/dashboard.scss").css;
+const chat = compile("src/pages/hubPage/components/views/aiAssistant.scss").css;
+const settings = compile("src/pages/hubPage/components/views/settings.scss").css;
+const tour = compile("src/pages/hubPage/components/dialogs/tourOverlay.scss").css;
+const confirmDialog = compile("src/components/confirmModal/confirmDialog.scss").css;
 
 describe("bottom nav layout", () => {
   it("publishes its height only while it is on screen", () => {
@@ -35,6 +39,44 @@ describe("bottom nav layout", () => {
 describe("toasts", () => {
   it("sit above the bottom nav and the safe area, and fall back to no offset without the nav", () => {
     expect(toasts).toMatch(/\.statusbar \{[^}]*bottom: calc\(24px \+ var\(--bottom-nav-height, 0px\) \+ env\(safe-area-inset-bottom\)\)/);
+  });
+});
+
+describe("toasts on phones", () => {
+  const PHONE = /@media \(max-width: 767px\) \{/.source;
+
+  it("also clear the chat input and the keyboard, only at phone widths", () => {
+    expect(toasts).toMatch(new RegExp(`${PHONE}\\s*\\.statusbar \\{\\s*bottom: calc\\(24px \\+ var\\(--bottom-nav-height, 0px\\) \\+ var\\(--chat-input-offset, 0px\\) \\+ var\\(--keyboard-overlap, 0px\\) \\+ env\\(safe-area-inset-bottom\\)\\)`));
+  });
+
+  it("count the chat input only while the chat is the visible tab", () => {
+    expect(chat).toMatch(/:root:has\(\.hub-keepalive:not\(\.hub-keepalive--hidden\) \.ai-input-section\) \{\s*--chat-input-offset: var\(--chat-input-height, 0px\)/);
+  });
+});
+
+describe("settings on phones", () => {
+  it("leaves the side margins to the view wrapper, keeping 32px elsewhere", () => {
+    expect(settings).toMatch(/\.settings-view \{[^}]*padding: 32px/);
+    expect(settings).toMatch(/@media \(max-width: 767px\) \{\s*\.settings-view \{\s*padding: 16px 0/);
+  });
+});
+
+describe("tour on phones", () => {
+  it("limits the bubble to the room it was given, minus the safe areas", () => {
+    expect(tour).toMatch(/\.tour-callout--phone \{[^}]*max-height: calc\(var\(--tour-room\) - env\(safe-area-inset-top\) - env\(safe-area-inset-bottom\)\);[^}]*overflow-y: auto/);
+  });
+
+  it("docks a bubble above the bottom nav", () => {
+    expect(tour).toMatch(/\.tour-callout--docked \{[^}]*bottom: calc\(16px \+ var\(--bottom-nav-height, 0px\) \+ env\(safe-area-inset-bottom\)\)/);
+  });
+
+  it("keeps the Skip button in the bubble's flow", () => {
+    expect(tour).toMatch(/\.tour-callout--phone \.tour-skip \{[^}]*position: static/);
+  });
+
+  it("keeps the unsaved-changes dialog above the tour, only at phone widths", () => {
+    expect(confirmDialog).toMatch(/\.confirm-overlay \{[^}]*z-index: 1000/);
+    expect(confirmDialog).toMatch(/@media \(max-width: 767px\) \{\s*\.confirm-overlay \{\s*z-index: 9100/);
   });
 });
 
