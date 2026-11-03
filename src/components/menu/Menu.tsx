@@ -21,9 +21,13 @@ type Props = {
   minWidth?: number;
   anchorRef: React.RefObject<HTMLElement | null>;
   offset?: number;
+  // "above" is for an anchor at the bottom of the screen, where the menu would not fit below it.
+  placement?: "below" | "above";
 };
 
-type Pos = { top: number; left: number };
+type Pos = { top: number; left: number; roomAbove: number };
+
+const EDGE = 8;
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -38,9 +42,10 @@ export default function Menu({
   minWidth = 180,
   anchorRef,
   offset = 8,
+  placement = "below",
 }: Props) {
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const [pos, setPos] = useState<Pos>({ top: 0, left: 0 });
+  const [pos, setPos] = useState<Pos>({ top: 0, left: 0, roomAbove: 0 });
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -51,7 +56,10 @@ export default function Menu({
       const r = el.getBoundingClientRect();
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const top = clamp(r.bottom + offset, 8, vh - 8);
+      const roomAbove = r.top - offset - EDGE;
+      const top = placement === "above"
+        ? Math.max(EDGE, r.top - offset - (menuRef.current?.offsetHeight ?? 0))
+        : clamp(r.bottom + offset, 8, vh - 8);
 
       let rawLeft = r.left;
       if (align === "right") {
@@ -62,7 +70,7 @@ export default function Menu({
 
       const left = clamp(rawLeft, 8, vw - minWidth - 8);
 
-      setPos({ top, left });
+      setPos({ top, left, roomAbove });
     };
 
     compute();
@@ -75,7 +83,7 @@ export default function Menu({
       window.removeEventListener("resize", onWin);
       window.removeEventListener("scroll", onWin, true);
     };
-  }, [open, anchorRef, align, minWidth, offset]);
+  }, [open, anchorRef, align, minWidth, offset, placement]);
 
   useEffect(() => {
     if (!open) return;
@@ -109,7 +117,7 @@ export default function Menu({
   return createPortal(
     <div
       ref={menuRef}
-      className={`menu ${align === "left" ? "left" : "right"}`}
+      className={`menu ${align === "left" ? "left" : "right"}${placement === "above" ? " menu--above" : ""}`}
       role="menu"
       style={{
         minWidth,
@@ -117,6 +125,7 @@ export default function Menu({
         top: pos.top,
         left: pos.left,
         zIndex: 9999,
+        ...(placement === "above" ? { maxHeight: pos.roomAbove, overflowY: "auto" as const } : {}),
       }}
       onClick={(e) => e.stopPropagation()}
     >

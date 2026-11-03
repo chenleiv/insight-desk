@@ -672,6 +672,39 @@
     textarea {
       // Leaves room for the conversation while the keyboard takes half of the screen.
       max-height: min(200px, calc(var(--app-height, 100dvh) * 0.3));
+      min-width: 0;
+
+      // iOS gives an empty field the direction of the keyboard language, which puts the English
+      // placeholder on the right with its dots in front. Typed text is not matched by this.
+      &:placeholder-shown {
+        direction: ltr;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      &::placeholder {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+
+    .ai-chat-actions-btn {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      margin-left: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
     }
 
     .ai-send-btn {
