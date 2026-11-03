@@ -46,6 +46,10 @@
     transform-origin: top left;
 }
 
+.menu.menu--above {
+    transform-origin: bottom right;
+}
+
 .menu.center {
     transform-origin: top center;
 }

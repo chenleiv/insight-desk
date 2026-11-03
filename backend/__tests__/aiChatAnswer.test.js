@@ -290,6 +290,20 @@ describe("PATCH routes for the AI config", () => {
     }
   });
 
+  it("offers the default questions as proper questions when none were saved", async () => {
+    vi.spyOn(AIConfig, "findById").mockResolvedValueOnce(null);
+
+    const res = await requestAs(admin, "GET", "/api/ai/suggestions");
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).questions).toEqual([
+      "What security issues are related to this topic?",
+      "Summarize the key decisions and their rationale",
+      "What are the most common mistakes people make in this area?",
+      "What are the most important rules from this topic?",
+    ]);
+  });
+
   it("returns 500 when saving the example questions fails", async () => {
     vi.spyOn(AIConfig, "findByIdAndUpdate").mockRejectedValueOnce(new Error("db down"));
 

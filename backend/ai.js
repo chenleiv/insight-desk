@@ -12,10 +12,10 @@ import { getRetrievalSummary } from './rag/retrievalStats.js';
 import { canViewQuality } from './access.js';
 
 const DEFAULT_SUGGESTIONS = [
-    "security issue related to this topic",
+    "What security issues are related to this topic?",
     "Summarize the key decisions and their rationale",
     "What are the most common mistakes people make in this area?",
-    "What is the most important rules from this topic?",
+    "What are the most important rules from this topic?",
 ];
 
 export async function loadAIConfig() {

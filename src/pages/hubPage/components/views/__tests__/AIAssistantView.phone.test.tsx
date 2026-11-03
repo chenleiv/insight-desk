@@ -8,14 +8,15 @@ import type { ChatResponse } from "../../../../../api/aiClient";
 import type { ChatMessage } from "../assistantTypes";
 import AIAssistantView from "../AIAssistantView";
 
-const { chatWithAI } = vi.hoisted(() => ({
+const { chatWithAI, getSuggestions } = vi.hoisted(() => ({
   chatWithAI: vi.fn<(message: string) => Promise<ChatResponse>>(),
+  getSuggestions: vi.fn(() => Promise.resolve({ questions: [] as string[] })),
 }));
 
 vi.mock("../../../../../api/aiClient", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../../../api/aiClient")>()),
   chatWithAI,
-  getSuggestions: () => Promise.resolve({ questions: [] }),
+  getSuggestions,
 }));
 vi.mock("../../../../../auth/useAuth", () => ({
   useAuth: () => ({ user: { email: "admin@example.com", role: "admin" } }),
@@ -61,6 +62,18 @@ const input = () => container.querySelector("textarea")!;
 const sendButton = () => container.querySelector<HTMLButtonElement>(".ai-send-btn")!;
 const list = () => container.querySelector<HTMLDivElement>(".ai-messages")!;
 const scrollButton = () => container.querySelector<HTMLButtonElement>(".ai-scroll-bottom-btn");
+const actionsButton = () => container.querySelector<HTMLButtonElement>(".ai-chat-actions-btn");
+const menuItems = () => [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
+const menuItem = (label: string) => menuItems().find((b) => b.textContent === label)!;
+const suggestionCards = () => [...container.querySelectorAll(".ai-suggestion-card")].map((c) => c.textContent);
+
+// A real tap: the pointer goes down before the click, and the menu listens for the pointer.
+function tapActions() {
+  act(() => {
+    actionsButton()!.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    actionsButton()!.click();
+  });
+}
 
 function type(text: string) {
   const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
@@ -348,8 +361,98 @@ describe("following the answer on a phone", () => {
     scrollTo(600);
     scrollTo(100);
     expect(scrollButton()).not.toBeNull();
-    act(() => container.querySelector<HTMLButtonElement>(".ai-clear-chat-btn")!.click());
+    tapActions();
+    act(() => menuItem("Clear chat").click());
     expect(scrollButton()).toBeNull();
+  });
+});
+
+describe("chat actions on a phone", () => {
+  it("replace the row under the input with a labelled button in the input's row", () => {
+    renderChat();
+    expect(container.querySelector(".ai-bottom-panel")).toBeNull();
+    expect(actionsButton()!.closest(".ai-composer-container")).not.toBeNull();
+    expect(actionsButton()!.getAttribute("aria-label")).toBe("Chat actions");
+    expect(actionsButton()!.getAttribute("aria-haspopup")).toBe("menu");
+  });
+
+  it("offer the system prompt and clearing the chat", () => {
+    renderChat();
+    tapActions();
+    expect(actionsButton()!.getAttribute("aria-expanded")).toBe("true");
+    expect(menuItems().map((b) => b.textContent)).toEqual(["System Prompt", "Clear chat"]);
+  });
+
+  it("have nothing to clear before the chat starts", () => {
+    renderChat([]);
+    tapActions();
+    expect(menuItems().map((b) => b.textContent)).toEqual(["System Prompt"]);
+  });
+
+  it("open the system prompt and close", () => {
+    renderChat();
+    tapActions();
+    act(() => menuItem("System Prompt").click());
+    expect(document.querySelector(".prompt-modal")).not.toBeNull();
+  });
+
+  it("close on a tap outside and on Escape", () => {
+    renderChat();
+    tapActions();
+    act(() => { document.body.dispatchEvent(new Event("pointerdown", { bubbles: true })); });
+    expect(menuItems()).toEqual([]);
+
+    tapActions();
+    expect(menuItems()).toHaveLength(2);
+    act(() => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+    expect(menuItems()).toEqual([]);
+  });
+
+  it("close on a second tap on the button instead of reopening", () => {
+    renderChat();
+    tapActions();
+    tapActions();
+    expect(menuItems()).toEqual([]);
+  });
+
+  it("do not take focus, which would close the keyboard", () => {
+    renderChat();
+    const allowed = actionsButton()!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    expect(allowed).toBe(false);
+  });
+
+  it("keep the row under the input on wider screens", () => {
+    screen.phoneWidth = false;
+    renderChat();
+    expect(actionsButton()).toBeNull();
+    expect(container.querySelector(".ai-prompt-config-btn")).not.toBeNull();
+    expect(container.querySelector(".ai-clear-chat-btn")).not.toBeNull();
+  });
+});
+
+describe("suggested questions", () => {
+  const ALL = [
+    "What security issues are related to this topic?",
+    "Summarize the key decisions and their rationale",
+    "What are the most common mistakes people make in this area?",
+    "What are the most important rules from this topic?",
+  ];
+
+  it("are the three most useful as a first question on a phone", () => {
+    renderChat([]);
+    expect(suggestionCards()).toEqual(ALL.slice(1));
+  });
+
+  it("are all four, in order, on wider screens", () => {
+    screen.phoneWidth = false;
+    renderChat([]);
+    expect(suggestionCards()).toEqual(ALL);
+  });
+
+  it("are the first three of a list an admin saved, on a phone", async () => {
+    getSuggestions.mockResolvedValueOnce({ questions: ["One?", "Two?", "Three?", "Four?"] });
+    await act(async () => renderChat([]));
+    expect(suggestionCards()).toEqual(["One?", "Two?", "Three?"]);
   });
 });
 
@@ -362,6 +465,21 @@ describe("phone styles", () => {
     expect(phoneStart).toBeGreaterThan(-1);
     expect(before).not.toMatch(/\.ai-avatar \{\s*display: none/);
     expect(css.slice(phoneStart)).toMatch(/\.ai-avatar \{\s*display: none/);
+  });
+
+  it("keep the empty input left to right on one line, without touching typed text", () => {
+    const shown = /\.ai-composer-container textarea:placeholder-shown \{[^}]*\}/;
+    expect(before).not.toMatch(shown);
+    const rule = css.slice(phoneStart).match(shown)![0];
+    expect(rule).toContain("direction: ltr");
+    expect(rule).toContain("text-align: left");
+    expect(rule).toContain("white-space: nowrap");
+    expect(rule).toContain("text-overflow: ellipsis");
+  });
+
+  it("make the actions button a 44px target, only at phone widths", () => {
+    expect(before).not.toContain(".ai-chat-actions-btn");
+    expect(css.slice(phoneStart)).toMatch(/\.ai-chat-actions-btn \{\s*width: 44px;\s*height: 44px/);
   });
 
   it("paint a smaller shape only on touch phones", () => {

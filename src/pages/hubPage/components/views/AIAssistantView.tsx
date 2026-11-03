@@ -14,6 +14,7 @@ import { useStatus } from "../../../../components/statusBar/useStatus";
 import { useMobile } from "../../../../hooks/useMobile";
 import { SystemPromptModal } from "./ai/SystemPromptModal";
 import { SourceChip } from "./ai/SourceChip";
+import { ChatActionsMenu } from "./ai/ChatActionsMenu";
 
 export const AI_QUERY_COUNT_BASE_KEY = "aiQueryCount";
 
@@ -24,11 +25,15 @@ const ONLY_CITATIONS_TEXT = "See the sources below.";
 // On phones, closer to the end than this counts as being at the bottom. About one line of text.
 const FOLLOW_THRESHOLD = 32;
 
+// Phones show fewer questions, and this one suits the fewest documents as a first question.
+const PHONE_HIDDEN_SUGGESTION = "What security issues are related to this topic?";
+const PHONE_SUGGESTION_COUNT = 3;
+
 const DEFAULT_SUGGESTIONS = [
-  "security issue related to this topic",
+  PHONE_HIDDEN_SUGGESTION,
   "Summarize the key decisions and their rationale",
   "What are the most common mistakes people make in this area?",
-  "What is the most important rules from this topic?",
+  "What are the most important rules from this topic?",
 ];
 
 type Props = {
@@ -308,6 +313,9 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
   }
 
   const canSend = !isSending && !!input.trim();
+  const shownSuggestions = isPhone
+    ? suggestions.filter((s) => s !== PHONE_HIDDEN_SUGGESTION).slice(0, PHONE_SUGGESTION_COUNT)
+    : suggestions;
 
   return (
     <div className="ai-assistant-view">
@@ -326,7 +334,7 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
             </div>
 
             <div className="ai-suggestions">
-              {suggestions.map((suggestion) => (
+              {shownSuggestions.map((suggestion) => (
                 <button
                   key={suggestion}
                   className="ai-suggestion-card"
@@ -458,6 +466,12 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
             disabled={isSending && !isPhone}
             rows={1}
           />
+          {isPhone && (
+            <ChatActionsMenu
+              onOpenPrompt={() => setPromptModalOpen(true)}
+              onClearChat={hasStartedChat ? clearChat : undefined}
+            />
+          )}
           <button
             className="ai-send-btn"
             onClick={() => sendMessage(input)}
@@ -471,27 +485,29 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
           </button>
         </div>
 
-        <div className="ai-bottom-panel">
-          <div className="ai-composer-footer-row">
-            <button
-              type="button"
-              className="ai-prompt-config-btn"
-              onClick={() => setPromptModalOpen(true)}
-            >
-              <SlidersHorizontal size={13} />
-              System Prompt
-            </button>
-            {hasStartedChat && (
+        {!isPhone && (
+          <div className="ai-bottom-panel">
+            <div className="ai-composer-footer-row">
               <button
                 type="button"
-                className="ai-clear-chat-btn"
-                onClick={clearChat}
+                className="ai-prompt-config-btn"
+                onClick={() => setPromptModalOpen(true)}
               >
-                Clear chat
+                <SlidersHorizontal size={13} />
+                System Prompt
               </button>
-            )}
+              {hasStartedChat && (
+                <button
+                  type="button"
+                  className="ai-clear-chat-btn"
+                  onClick={clearChat}
+                >
+                  Clear chat
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <SystemPromptModal
