@@ -57,7 +57,7 @@ chunkSchema.index({ docId: 1, index: 1 }, { unique: true });
 
 // One record per chat question, for measuring retrieval in production.
 // Holds IDs and scores only: never the question, chunk text, or the user.
-export const RETRIEVAL_LOG_TTL_SECONDS = 30 * 24 * 60 * 60;
+const RETRIEVAL_LOG_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 const retrievalLogSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now, expires: RETRIEVAL_LOG_TTL_SECONDS },

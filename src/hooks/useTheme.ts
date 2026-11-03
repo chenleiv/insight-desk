@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { loadJson, saveJson } from "../utils/storage";
 
 const THEME_KEY = "theme";
-export type Theme = "light" | "dark";
+type Theme = "light" | "dark";
 
 function getInitialTheme(): Theme {
   const saved = loadJson<Theme | null>(THEME_KEY, null);

@@ -61,7 +61,7 @@ function originHost(origin) {
 // (starting a demo, logging out) and covers same-site neighbours and old
 // browsers. Browsers send Origin on every non-GET request, so a request without
 // one is not from a web page. Origin "null" (sandboxed frames, file pages) is refused.
-export function rejectCrossSiteRequests(allowed) {
+function rejectCrossSiteRequests(allowed) {
     return (req, res, next) => {
         const origin = req.get('Origin');
         if (SAFE_METHODS.has(req.method) || origin === undefined || allowed.includes(normalizeOrigin(origin))) {
