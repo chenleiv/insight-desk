@@ -342,7 +342,8 @@
       transform: scale(1.05);
     }
 
-    &:disabled {
+    &:disabled,
+    &[aria-disabled="true"] {
       opacity: 0.5;
       background: var(--soft);
       color: var(--muted);
@@ -630,5 +631,113 @@
   &:hover {
     background: var(--soft);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+  }
+}
+
+// Phone screens only. Last in the file, to override the base rules and the block above, which also matches a narrow desktop pane.
+@include mixins.phone {
+  .ai-assistant-content {
+    position: relative;
+  }
+
+  .ai-messages {
+    padding: 16px 12px;
+    gap: 16px;
+  }
+
+  .ai-avatar {
+    display: none;
+  }
+
+  .ai-message.assistant {
+    max-width: 100%;
+  }
+
+  .ai-bubble {
+    padding: 12px 14px;
+  }
+
+  .ai-input-section {
+    padding: 0 12px 12px;
+  }
+
+  .ai-composer-container {
+    padding-left: 16px;
+
+    textarea {
+      // Leaves room for the conversation while the keyboard takes half of the screen.
+      max-height: min(200px, calc(var(--app-height, 100dvh) * 0.3));
+    }
+
+    .ai-send-btn {
+      margin-left: 8px;
+    }
+  }
+
+  // Against the list, not the whole view, so a taller input cannot cover it.
+  .ai-scroll-bottom-btn {
+    bottom: 12px;
+  }
+
+  // The targets stay 44px, but a 44px pill around 12px text outweighs the answer, and the stack
+  // under each answer takes most of the room above the keyboard. So only a smaller shape is painted.
+  @media (pointer: coarse) {
+    .ai-message-sources {
+      row-gap: 0;
+
+      button,
+      button:hover:not(:disabled, [aria-disabled="true"]) {
+        position: relative;
+        z-index: 0;
+        border-color: transparent;
+        background: none;
+      }
+
+      button::before {
+        content: "";
+        position: absolute;
+        inset: 8px 0;
+        z-index: -1;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--panel);
+      }
+    }
+
+    .ai-message-feedback {
+      gap: 0;
+      padding: 0;
+      // Lines the icon up with the text above it; the rest of the target is empty.
+      margin-left: -11px;
+
+      button,
+      button:hover,
+      button[aria-pressed="true"] {
+        position: relative;
+        z-index: 0;
+        border-color: transparent;
+        background: none;
+      }
+
+      button::before {
+        content: "";
+        position: absolute;
+        inset: 8px;
+        z-index: -1;
+        border: 1px solid transparent;
+        border-radius: 6px;
+      }
+
+      button[aria-pressed="true"]::before {
+        border-color: var(--primary-border);
+        background: var(--primary-bg);
+      }
+    }
+
+    // Moves into the empty lower part of the feedback targets, without blocking them.
+    .ai-message-feedback + .ai-message-time {
+      margin-top: -10px;
+      pointer-events: none;
+    }
   }
 }

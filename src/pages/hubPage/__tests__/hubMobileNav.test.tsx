@@ -376,7 +376,7 @@ describe("roles on phones", () => {
   it("gives the demo the one-line banner", () => {
     auth.user = { email: "demo-1@demo.invalid", role: "demo" };
     renderHub();
-    expect(q(".demo-banner-toggle")).not.toBeNull();
+    expect(q(".demo-banner-toggle")!.textContent).toBe("Demo workspace · Details");
   });
 });
 
@@ -433,10 +433,11 @@ describe("hub navigation on wider screens", () => {
     expect(q(".topbar-user-btn")).not.toBeNull();
   });
 
-  it("shows the full demo banner", () => {
+  it("gives the demo the longer one-line banner, collapsed", () => {
     auth.user = { email: "demo-1@demo.invalid", role: "demo" };
     renderHub();
-    expect(q(".demo-banner-toggle")).toBeNull();
-    expect(q(".demo-banner")!.textContent).toContain("Limits: 20 documents");
+    expect(q(".demo-banner-toggle")!.textContent).toBe("Demo workspace · Your changes reset when you sign out · Details");
+    expect(q(".demo-banner-toggle")!.getAttribute("aria-expanded")).toBe("false");
+    expect(q<HTMLElement>(".demo-banner-details")!.hidden).toBe(true);
   });
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, type KeyboardEvent } from "react";
 import "./aiAssistant.scss";
 import { BrainCircuit, Send, Bot, ChevronDown, SlidersHorizontal, ThumbsUp, ThumbsDown } from "lucide-react";
 import { chatWithAI, getSuggestions, getSystemPrompt, sendFeedback, type FeedbackRating } from "../../../../api/aiClient";
@@ -11,6 +11,7 @@ import TypewriterText from "../layout/TypewriterText";
 import { useAuth } from "../../../../auth/useAuth";
 import { useDocuments } from "../../../../context/DocumentsContext";
 import { useStatus } from "../../../../components/statusBar/useStatus";
+import { useMobile } from "../../../../hooks/useMobile";
 import { SystemPromptModal } from "./ai/SystemPromptModal";
 import { SourceChip } from "./ai/SourceChip";
 
@@ -19,6 +20,9 @@ export const AI_QUERY_COUNT_BASE_KEY = "aiQueryCount";
 // Shown when an answer held nothing but citations. The server only keeps such an
 // answer when a citation is verified, so there is always a source chip below it.
 const ONLY_CITATIONS_TEXT = "See the sources below.";
+
+// On phones, closer to the end than this counts as being at the bottom. About one line of text.
+const FOLLOW_THRESHOLD = 32;
 
 const DEFAULT_SUGGESTIONS = [
   "security issue related to this topic",
@@ -34,6 +38,7 @@ type Props = {
 export default function AIAssistantView({ onOpenDocument }: Props) {
   const { user } = useAuth();
   const status = useStatus();
+  const isPhone = useMobile();
   const { docs, loading: docsLoading, error: docsError } = useDocuments();
   const docIds = useMemo(() => new Set(docs.map((d) => d.id)), [docs]);
   // The documents this user may read. While the list is unknown, a chip is not marked as gone.
@@ -75,13 +80,20 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
   }, [promptModalOpen, promptText]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  // Set before the first await: two taps can land before React renders isSending.
+  const sendPendingRef = useRef(false);
+  const followingRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
 
   const hasStartedChat = messages.some(m => m.role === "user") || isSending;
 
   async function sendMessage(text: string) {
     const question = text.trim();
-    if (!question) return;
+    if (!question || sendPendingRef.current) return;
 
+    sendPendingRef.current = true;
+    // Asking is a request to see the answer, even from further up the conversation.
+    if (isPhone) followingRef.current = true;
     setLastError(null);
     setMessages((prev) => {
       const isInitial = prev.length === 1 && prev[0].isGreeting;
@@ -123,6 +135,7 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
         },
       ]);
     } finally {
+      sendPendingRef.current = false;
       setIsSending(false);
     }
   }
@@ -193,24 +206,90 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
 
   useEffect(() => {
     const el = messagesContainerRef.current;
-    if (!el) return;
+    if (!el || isPhone) return;
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     if (distFromBottom < 200) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       setShowScrollBtn(false);
     }
-  }, [messages, isSending]);
+  }, [messages, isSending, isPhone]);
 
   const handleMessagesScroll = useCallback(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    setShowScrollBtn(distFromBottom > 120);
-  }, []);
+    if (!isPhone) {
+      setShowScrollBtn(distFromBottom > 120);
+    } else {
+      // Any move upward lets go at once, so a finger never has to fight the typing.
+      const movedUp = el.scrollTop < lastScrollTopRef.current;
+      followingRef.current = distFromBottom <= 1 || (distFromBottom < FOLLOW_THRESHOLD && !movedUp);
+      lastScrollTopRef.current = el.scrollTop;
+      setShowScrollBtn(!followingRef.current);
+    }
+  }, [isPhone]);
+
+  // On phones the list changes without a scroll: the answer types itself, and the keyboard and
+  // the growing input shrink the list. The scroll is instant, as an animation would be
+  // interrupted by the next typed character and read as the user scrolling up.
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!isPhone || !el) return;
+    let lastMaxScroll = el.scrollHeight - el.clientHeight;
+    function sync() {
+      if (!el) return;
+      // Only when the end moved: most typed characters add no line and must not touch the scroll.
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      if (followingRef.current && maxScroll !== lastMaxScroll) el.scrollTop = el.scrollHeight;
+      lastMaxScroll = maxScroll;
+      handleMessagesScroll();
+    }
+    const onContentChange = new MutationObserver(sync);
+    onContentChange.observe(el, { childList: true, subtree: true, characterData: true });
+    const onResize = new ResizeObserver(sync);
+    onResize.observe(el);
+    return () => {
+      onContentChange.disconnect();
+      onResize.disconnect();
+      followingRef.current = true;
+      setShowScrollBtn(false);
+    };
+  }, [isPhone, hasStartedChat, handleMessagesScroll]);
 
   function scrollToBottom() {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = messagesContainerRef.current;
+    if (isPhone && el) {
+      followingRef.current = true;
+      el.scrollTop = el.scrollHeight;
+      setShowScrollBtn(false);
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }
+
+  // Grows the input with its text on phones, up to the max-height in the stylesheet.
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!isPhone || !el) return;
+    function fitToText() {
+      if (!el) return;
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+    fitToText();
+    window.addEventListener("resize", fitToText);
+    return () => window.removeEventListener("resize", fitToText);
+  }, [isPhone, input]);
+
+  function handleInputKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key !== "Enter" || e.shiftKey) return;
+    // A phone keyboard has no Shift+Enter habit, so Enter is the only way to a new line there.
+    if (isPhone && window.matchMedia("(pointer: coarse)").matches) return;
+    e.preventDefault();
+    sendMessage(input);
+  }
+
+  const canSend = !isSending && !!input.trim();
 
   return (
     <div className="ai-assistant-view">
@@ -356,19 +435,18 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
             placeholder="Ask about your documents..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage(input);
-              }
-            }}
-            disabled={isSending}
+            onKeyDown={handleInputKeyDown}
+            // A disabled field loses focus, which would close the phone keyboard.
+            disabled={isSending && !isPhone}
             rows={1}
           />
           <button
             className="ai-send-btn"
             onClick={() => sendMessage(input)}
-            disabled={isSending || !input.trim()}
+            // Tapping a disabled button, or taking focus, would also close the keyboard.
+            disabled={!canSend && !isPhone}
+            aria-disabled={isPhone ? !canSend : undefined}
+            onMouseDown={isPhone ? (e) => e.preventDefault() : undefined}
             aria-label="Send"
           >
             <Send size={16} />

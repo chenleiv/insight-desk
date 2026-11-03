@@ -84,6 +84,13 @@ $touch-target-size: 44px;
     }
 }
 
+// By screen, unlike the container query above: a narrow desktop pane is not a phone.
+@mixin phone {
+    @media (max-width: #{$mobile-breakpoint}) {
+        @content;
+    }
+}
+
 @mixin scrollbar-stable {
     scrollbar-gutter: stable;
     overflow-y: auto;
