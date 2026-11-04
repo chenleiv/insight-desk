@@ -184,6 +184,15 @@ Tests: `backend/routes/__tests__/documentDownload.test.js`, `backend/__tests__/d
   (`MAX_RTF_DEPTH`); deeper groups are only counted, so a file of nested braces cannot exhaust memory.
   Test: `backend/__tests__/textExtract.test.js`.
 
+## Demo limits
+
+- **Limits hold under parallel requests.** A check followed by a separate write let parallel requests all pass: ten
+  at once could leave 28 documents in a workspace limited to 20, and ten attachments on a document limited to one.
+  `backend/demoQuota.js` now takes a document slot with one conditional update, and an attachment is added or removed
+  by an update whose filter includes the limit. A loser of the race gets a 403 and leaves no file behind, and a slot
+  is given back when a write fails or a document is deleted.
+  Test: `backend/__tests__/demoLimitsRace.integration.test.js`, against a real in-memory MongoDB.
+
 ## Data integrity
 
 - **Chunk replacement is atomic.** `syncDocumentChunks` deletes a document's old chunks and inserts the new ones

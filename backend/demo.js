@@ -108,6 +108,7 @@ export async function createDemoWorkspace(now = new Date()) {
         password_hash: null,
         displayName: 'Demo User',
         expiresAt: new Date(now.getTime() + DEMO_TTL_MS),
+        demoDocuments: SAMPLE_DOCUMENTS.length,
     });
 
     const docs = await Document.insertMany(

@@ -10,6 +10,8 @@ const userSchema = new mongoose.Schema({
     jobTitle: { type: String, default: '' },
     // Demo users only: when the demo workspace and its documents are removed.
     expiresAt: { type: Date, default: null, index: true },
+    // Demo users only: documents in the workspace, kept by the atomic updates in demoQuota.js.
+    demoDocuments: { type: Number },
 }, { timestamps: true });
 
 const attachmentSchema = new mongoose.Schema({

@@ -12,6 +12,7 @@ import { getCurrentUser, requireEditor } from '../auth.js';
 import { canAccessDocument, documentScope, isDemoUser, DEMO_LIMITS } from '../access.js';
 import { documentSchema, documentDownloadQuerySchema, importBulkSchema, sendValidationError } from '../schemas.js';
 import { exportDocument, ExportError } from '../documentExport.js';
+import { reserveDemoDocument, releaseDemoDocument } from '../demoQuota.js';
 import { syncDocumentChunks, deleteDocumentChunks } from '../rag/syncChunks.js';
 import { embed } from '../rag/embed.js';
 import { scheduleEmbeddingRetry } from '../rag/embedMissing.js';
@@ -27,6 +28,8 @@ const router = Router();
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 const DEMO_CONTENT_LIMIT_MESSAGE =
     `Demo documents are limited to ${DEMO_LIMITS.contentLength.toLocaleString('en-US')} characters`;
+const DEMO_DOCUMENT_LIMIT_MESSAGE = `Demo workspaces are limited to ${DEMO_LIMITS.documents} documents`;
+const DEMO_ATTACHMENT_LIMIT_MESSAGE = `Demo documents are limited to ${DEMO_LIMITS.attachmentsPerDocument} attachment`;
 
 function handleMulterUpload(req, res, next) {
     upload.single('file')(req, res, (err) => {
@@ -234,21 +237,29 @@ router.get('/:id/download', getCurrentUser, async (req, res) => {
 router.post('/', requireEditor, async (req, res) => {
     try {
         const validated = documentSchema.parse(req.body);
-        if (isDemoUser(req.user)) {
+        const isDemo = isDemoUser(req.user);
+        if (isDemo) {
             if (validated.content.length > DEMO_LIMITS.contentLength) {
                 return res.status(400).json({ detail: DEMO_CONTENT_LIMIT_MESSAGE });
             }
-            if (await Document.countDocuments(documentScope(req.user)) >= DEMO_LIMITS.documents) {
-                return res.status(403).json({
-                    detail: `Demo workspaces are limited to ${DEMO_LIMITS.documents} documents`,
-                });
+            // The count also covers workspaces whose counter is not set yet;
+            // the reservation is what holds when requests run in parallel.
+            if (await Document.countDocuments(documentScope(req.user)) >= DEMO_LIMITS.documents
+                || !(await reserveDemoDocument(req.user))) {
+                return res.status(403).json({ detail: DEMO_DOCUMENT_LIMIT_MESSAGE });
             }
         }
-        const newDoc = await Document.create({
-            ...validated,
-            ownerId: req.user._id,
-            ...(isDemoUser(req.user) && { demo: true }),
-        });
+        let newDoc;
+        try {
+            newDoc = await Document.create({
+                ...validated,
+                ownerId: req.user._id,
+                ...(isDemo && { demo: true }),
+            });
+        } catch (err) {
+            if (isDemo) await releaseDemoDocument(req.user).catch(() => {});
+            throw err;
+        }
         await refreshChunks(newDoc);
         res.json(newDoc);
     } catch (err) {
@@ -301,6 +312,7 @@ router.delete('/:id', requireEditor, async (req, res) => {
             );
         }
         await removeChunks(deleted._id);
+        if (isDemoUser(req.user)) await releaseDemoDocument(req.user);
         res.status(204).send();
     } catch (err) {
         logger.error('Deleting document', { message: err.message });
@@ -360,15 +372,29 @@ router.get('/:id/attachments/:attachmentId/file', getCurrentUser, async (req, re
     }
 });
 
+// Adds the attachment and returns the updated document, or null when a demo document is
+// already full. For a demo user the limit is part of the update itself, so parallel
+// uploads that all passed the route's earlier check cannot all be stored.
+async function addAttachment(user, doc, attachment) {
+    if (isDemoUser(user)) {
+        return Document.findOneAndUpdate(
+            { _id: doc._id, [`attachments.${DEMO_LIMITS.attachmentsPerDocument - 1}`]: { $exists: false } },
+            { $push: { attachments: attachment } },
+            { new: true },
+        );
+    }
+    doc.attachments.push(attachment);
+    await doc.save();
+    return doc;
+}
+
 // Upload attachment
 router.post('/:id/attachments', requireEditor, uploadLimiter, handleMulterUpload, async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
         if (!canAccessDocument(req.user, doc)) return res.status(404).json({ detail: 'Not found' });
         if (isDemoUser(req.user) && doc.attachments.length >= DEMO_LIMITS.attachmentsPerDocument) {
-            return res.status(403).json({
-                detail: `Demo documents are limited to ${DEMO_LIMITS.attachmentsPerDocument} attachment`,
-            });
+            return res.status(403).json({ detail: DEMO_ATTACHMENT_LIMIT_MESSAGE });
         }
 
         const file = req.file;
@@ -385,6 +411,7 @@ router.post('/:id/attachments', requireEditor, uploadLimiter, handleMulterUpload
             contentType: file.mimetype,
             metadata: { docId: req.params.id, attachmentId: attachmentId.toString() },
         });
+        let saved;
         try {
             uploadStream.end(file.buffer);
             await new Promise((resolve, reject) => {
@@ -393,7 +420,7 @@ router.post('/:id/attachments', requireEditor, uploadLimiter, handleMulterUpload
             });
 
             const fileUrl = `${BACKEND_URL}/api/documents/${req.params.id}/attachments/${attachmentId}/file`;
-            doc.attachments.push({
+            saved = await addAttachment(req.user, doc, {
                 _id: attachmentId,
                 url: fileUrl,
                 fileName: file.originalname,
@@ -401,21 +428,38 @@ router.post('/:id/attachments', requireEditor, uploadLimiter, handleMulterUpload
                 extractedText,
                 gridfsId: uploadStream.id,
             });
-            await doc.save();
         } catch (err) {
             // The document does not reference the file, so remove it rather than leave it orphaned.
             await bucket.delete(uploadStream.id).catch(() => {});
             throw err;
         }
-        await refreshChunks(doc);
+        if (!saved) {
+            await bucket.delete(uploadStream.id).catch(() => {});
+            return res.status(403).json({ detail: DEMO_ATTACHMENT_LIMIT_MESSAGE });
+        }
+        await refreshChunks(saved);
 
-        res.json(doc.attachments[doc.attachments.length - 1]);
+        res.json(saved.attachments[saved.attachments.length - 1]);
     } catch (err) {
         if (handleExtractionError(err, res)) return;
         logger.error('Upload attachment failed', { message: err.message });
         res.status(500).json({ detail: 'Upload failed' });
     }
 });
+
+// Removes the attachment and returns the updated document, or null if it is already gone.
+async function removeAttachment(user, doc, attachmentId) {
+    if (isDemoUser(user)) {
+        return Document.findOneAndUpdate(
+            { _id: doc._id, 'attachments._id': attachmentId },
+            { $pull: { attachments: { _id: attachmentId } } },
+            { new: true },
+        );
+    }
+    doc.attachments.pull({ _id: attachmentId });
+    await doc.save();
+    return doc;
+}
 
 // Delete attachment
 router.delete('/:id/attachments/:attachmentId', requireEditor, async (req, res) => {
@@ -426,14 +470,15 @@ router.delete('/:id/attachments/:attachmentId', requireEditor, async (req, res) 
         const attachment = doc.attachments.id(req.params.attachmentId);
         if (!attachment) return res.status(404).json({ detail: 'Attachment not found' });
 
+        // A demo removal is one conditional update, so only one of two parallel deletes wins.
+        const updated = await removeAttachment(req.user, doc, req.params.attachmentId);
+        if (!updated) return res.status(404).json({ detail: 'Attachment not found' });
+
         if (attachment.gridfsId) {
             const bucket = getAttachmentBucket();
             await bucket.delete(attachment.gridfsId).catch(() => {});
         }
-
-        doc.attachments.pull({ _id: req.params.attachmentId });
-        await doc.save();
-        await refreshChunks(doc);
+        await refreshChunks(updated);
 
         res.status(204).send();
     } catch (err) {
