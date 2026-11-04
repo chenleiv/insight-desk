@@ -4,7 +4,7 @@
 import { UsageCounter } from './models.js';
 import { logger } from './logger.js';
 
-// Below the provider's 200K tokens per day, so visitors cannot use up what is left for the admin.
+// Below the provider's 200K tokens per day, so visitors cannot reach the last 50K: those are the admin's.
 export const DAILY_TOKEN_CEILINGS = { demo: 130_000, viewer: 150_000 };
 
 // Held for a question until its real usage is known: about the most a question uses, with its
@@ -95,14 +95,14 @@ function questionBudget(key, reserved) {
     };
 }
 
-const UNLIMITED_BUDGET = { track: (call) => call(), settle: async () => {} };
-
 /**
  * Take what a question may use, before any model call. Returns { budget }, or { refused } with
  * the status, message and Retry-After to answer with.
  */
 export async function reserveQuestion(user) {
-    if (user.role === 'admin') return { budget: UNLIMITED_BUDGET };
+    // The admin is never refused and holds no reservation, so the chat needs no counter to work.
+    // The tokens still count, after the response, so visitors stop that much sooner.
+    if (user.role === 'admin') return { budget: questionBudget(tokensKey(), 0) };
 
     // Any other role gets the lowest ceiling.
     const ceiling = DAILY_TOKEN_CEILINGS[user.role] ?? DAILY_TOKEN_CEILINGS.demo;

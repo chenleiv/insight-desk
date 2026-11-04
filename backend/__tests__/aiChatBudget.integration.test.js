@@ -32,16 +32,18 @@ let base;
 let demo;
 let emptyDemo;
 let viewer;
+let admin;
 
 beforeAll(async () => {
   mongo = await startMongoServer();
   await mongoose.connect(mongo.getUri());
 
   const future = new Date(Date.now() + 60 * 60 * 1000);
-  [demo, emptyDemo, viewer] = await User.create([
+  [demo, emptyDemo, viewer, admin] = await User.create([
     { email: "demo@demo.invalid", role: "demo", expiresAt: future },
     { email: "empty@demo.invalid", role: "demo", expiresAt: future },
     { email: "viewer@corp.example", role: "viewer" },
+    { email: "admin@corp.example", role: "admin" },
   ]);
   const [demoDoc, sharedDoc] = await Document.create([
     { title: "Demo Policy", category: "HR", content: "x", ownerId: demo._id, demo: true },
@@ -139,6 +141,49 @@ describe("global daily token ceiling", () => {
     expect(results.filter((r) => r.status === 503)).toHaveLength(8);
     expect(groqCreate).toHaveBeenCalledTimes(2);
     await expectTokensToday(DAILY_TOKEN_CEILINGS.demo);
+  });
+});
+
+describe("admin", () => {
+  it("is answered above every ceiling, and the tokens still count", async () => {
+    await setTokensToday(190_000);
+
+    expect((await chatAs(admin)).status).toBe(200);
+
+    expect(groqCreate).toHaveBeenCalledTimes(1);
+    await expectTokensToday(191_000);
+  });
+
+  it("holds no reservation, so visitors keep their share during an admin's question", async () => {
+    await setTokensToday(DAILY_TOKEN_CEILINGS.demo - TOKENS_RESERVED_PER_QUESTION);
+    let finishAdmin;
+    groqCreate.mockImplementationOnce(() => new Promise((resolve) => {
+      finishAdmin = () => resolve(answered(1000));
+    }));
+
+    const adminQuestion = chatAs(admin);
+    await vi.waitFor(() => expect(groqCreate).toHaveBeenCalledTimes(1));
+    expect((await chatAs(demo)).status).toBe(200);
+
+    finishAdmin();
+    expect((await adminQuestion).status).toBe(200);
+  });
+
+  it("is answered even when the counters cannot be written", async () => {
+    const failing = vi.spyOn(UsageCounter, "updateOne").mockRejectedValue(new Error("database is away"));
+    try {
+      const res = await chatAs(admin);
+      expect(res.status).toBe(200);
+      expect((await res.json()).answer).toContain("Ask the team lead");
+    } finally {
+      failing.mockRestore();
+    }
+  });
+
+  it("counts nothing for a call the provider refused", async () => {
+    groqCreate.mockRejectedValue(Object.assign(new Error("rate limited"), { status: 429 }));
+    expect((await chatAs(admin)).status).toBe(503);
+    await expectTokensToday(0);
   });
 });
 
