@@ -178,3 +178,42 @@ describe("attachment file download", () => {
     expect(res.headers.get("content-disposition")).toMatch(/^attachment/);
   });
 });
+
+describe("files the extractor refuses", () => {
+  const refusal = (status, message, retryAfter) =>
+    Object.assign(new Error(message), { isExtractionError: true, status, retryAfter });
+
+  it("answers 422 with the safe message and stores nothing", async () => {
+    const doc = fakeDoc();
+    Document.findById.mockResolvedValue(doc);
+    extractTextFromBuffer.mockRejectedValue(refusal(422, "This spreadsheet is too large to process."));
+
+    const res = await upload(["hello"], "text/plain", "notes.txt");
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ detail: "This spreadsheet is too large to process." });
+    expect(gridfs.files.size).toBe(0);
+    expect(doc.save).not.toHaveBeenCalled();
+  });
+
+  it("answers 503 with Retry-After when too many files are waiting", async () => {
+    Document.findById.mockResolvedValue(fakeDoc());
+    extractTextFromBuffer.mockRejectedValue(refusal(503, "The server is busy.", 30));
+
+    const res = await upload(["hello"], "text/plain", "notes.txt");
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get("retry-after")).toBe("30");
+  });
+
+  it("gives the same answer on the route that only extracts text", async () => {
+    extractTextFromBuffer.mockRejectedValue(refusal(422, "This file expands to too much data to process."));
+    const form = new FormData();
+    form.append("file", new Blob(["hello"], { type: "text/plain" }), "notes.txt");
+
+    const res = await fetch(`${baseUrl}/extract-text`, { method: "POST", body: form });
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ detail: "This file expands to too much data to process." });
+  });
+});

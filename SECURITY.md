@@ -146,8 +146,25 @@ Tests: `backend/routes/__tests__/documentDownload.test.js`, `backend/__tests__/d
 
 ## Text extraction
 
+- **Parsing runs in a separate process.** A small file can expand enormously: a 1.4 KB spreadsheet or a 243 KB Word
+  file used to crash the whole server out of memory. `backend/textExtract.js` now parses each upload in a new child
+  process (`backend/extractWorker.js`), so a hostile file can only kill that process.
+  - **Limits:** 160 MB of V8 heap, 256 MB of total memory, 20 seconds. Total memory is watched by a thread inside
+    the worker, because the heap limit does not count Buffers. A file that hits a limit gets a 422 and is not stored.
+  - **One at a time:** one file is parsed at a time and three may wait. Beyond that the answer is 503 with `Retry-After`.
+  - **No secrets:** the worker starts with an empty environment.
+- **ZIP files are checked before they are parsed.** For `.docx` and `.xlsx`, `backend/zipGuard.js` inflates every entry
+  with a 20 MB total limit, so a forged size in the archive does not help. It walks the central directory, as the
+  parsers do, and refuses encrypted and ZIP64 archives.
+- **Spreadsheets are measured before they are converted.** At most 1,000,000 cells across 50 sheets, checked on the
+  sheet range before `sheet_to_json` builds it.
+- **Known gap, accepted: PDF.** A PDF has no reliable decompressed size to check in advance, since streams can sit
+  inside compressed object streams. Only the first 200 pages are read, and the worker's limits are what stop a hostile
+  PDF. It costs one worker run, not the server.
+- A damaged file, as before, is stored with no extracted text.
+  Tests: `backend/__tests__/extractionSafety.test.js`, `backend/routes/__tests__/documentAttachments.test.js`.
 - **RTF parsing runs in linear time and bounded memory.** Uploaded RTF is converted to text in
-  `backend/textExtract.js`. Blanks before line breaks are removed by a single pass, not by the regex
+  `backend/textParsers.js`. Blanks before line breaks are removed by a single pass, not by the regex
   `/[ \t]+\n/`, which backtracked quadratically on a long run of spaces: a 10 MB upload, open to any demo
   visitor, could block the server for hours. Group state is saved for at most 1000 nested `{` groups
   (`MAX_RTF_DEPTH`); deeper groups are only counted, so a file of nested braces cannot exhaust memory.

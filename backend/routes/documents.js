@@ -46,6 +46,14 @@ function handleZodError(err, res) {
     return false;
 }
 
+// An upload the extractor refused: a limit (422) or a full queue (503), with a safe message.
+function handleExtractionError(err, res) {
+    if (!err.isExtractionError) return false;
+    if (err.retryAfter) res.set('Retry-After', String(err.retryAfter));
+    res.status(err.status).json({ detail: err.message });
+    return true;
+}
+
 // Each chunk gets an embedding so semantic search can find it right after the save;
 // unchanged chunks keep theirs, so autosave after a small edit stays cheap.
 // The document change is already saved, so a chunk failure is logged rather
@@ -102,6 +110,7 @@ router.post('/extract-text', requireEditor, handleMulterUpload, async (req, res)
         const text = await extractTextFromBuffer(file.buffer, file.mimetype);
         res.json({ text, fileName: file.originalname });
     } catch (err) {
+        if (handleExtractionError(err, res)) return;
         logger.error('Text extraction failed', { message: err.message });
         res.status(500).json({ detail: 'Extraction failed' });
     }
@@ -380,6 +389,7 @@ router.post('/:id/attachments', requireEditor, handleMulterUpload, async (req, r
 
         res.json(doc.attachments[doc.attachments.length - 1]);
     } catch (err) {
+        if (handleExtractionError(err, res)) return;
         logger.error('Upload attachment failed', { message: err.message });
         res.status(500).json({ detail: 'Upload failed' });
     }

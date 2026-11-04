@@ -1,195 +1,122 @@
-import { createRequire } from 'module';
+import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
 import { logger } from './logger.js';
-import mammoth from 'mammoth';
-import * as XLSX from 'xlsx';
 
-const _require = createRequire(import.meta.url);
-const { PDFParse } = _require('pdf-parse');
+export { rtfToText } from './textParsers.js';
 
-const EXCEL_MIMES = new Set([
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel',
-]);
+const WORKER_PATH = fileURLToPath(new URL('./extractWorker.js', import.meta.url));
 
-const TEXT_MIMES = new Set(['text/plain', 'text/markdown', 'application/rtf', 'text/rtf']);
-const RTF_MIMES = new Set(['application/rtf', 'text/rtf']);
-
-// RTF groups that hold formatting metadata rather than document text.
-const RTF_SKIP_GROUPS = new Set([
-    'fonttbl', 'colortbl', 'stylesheet', 'info', 'pict', 'object', 'fldinst',
-    'listtable', 'listoverridetable', 'header', 'footer', 'headerl', 'headerr',
-    'footerl', 'footerr', 'xmlnstbl', 'rsidtbl', 'themedata', 'latentstyles',
-]);
-
-const RTF_SYMBOLS = {
-    par: '\n', line: '\n', row: '\n', cell: '\t', tab: '\t',
-    emdash: '—', endash: '–', bullet: '•',
-    lquote: '‘', rquote: '’', ldblquote: '“', rdblquote: '”',
+// Sized for a 512 MB server. An idle worker with the parsers loaded takes about 120 MB.
+export const EXTRACTION_LIMITS = {
+    timeMs: 20 * 1000,
+    heapMB: 160,
+    totalMB: 256,
 };
+// Files waiting behind the one being parsed. Each waits up to timeMs per file ahead of
+// it, so the wait stays under the proxy's 100-second timeout.
+export const MAX_WAITING_EXTRACTIONS = 3;
+const BUSY_RETRY_AFTER_SECONDS = 30;
+// The worker's backstop: it ends itself a little after the server should have killed it.
+const WORKER_BACKSTOP_MS = 5000;
+// 50,000 characters, each up to six bytes once escaped as JSON, plus the wrapper.
+const MAX_OUTPUT_BYTES = 400 * 1000;
 
-const RTF_CONTROL_WORD = /\\([a-zA-Z]+)(-?\d+)? ?/y;
-
-// Real documents nest a few dozen groups. Deeper groups are counted but their
-// state is not saved, so a file of nested braces cannot exhaust memory.
-const MAX_RTF_DEPTH = 1000;
-
-/**
- * Remove spaces and tabs before each line break, in linear time. The regex
- * /[ \t]+\n/g backtracks quadratically on a long run of blanks (ReDoS).
- */
-function trimBlanksBeforeNewlines(text) {
-    let result = '';
-    let copyFrom = 0;
-    let blanksStart = -1;
-    for (let k = 0; k < text.length; k++) {
-        const c = text[k];
-        if (c === ' ' || c === '\t') {
-            if (blanksStart < 0) blanksStart = k;
-        } else {
-            if (c === '\n' && blanksStart >= 0) {
-                result += text.slice(copyFrom, blanksStart);
-                copyFrom = k;
-            }
-            blanksStart = -1;
-        }
+/** An upload the server refuses to parse. The message is safe to show the user. */
+export class ExtractionError extends Error {
+    constructor(message, status, retryAfter) {
+        super(message);
+        this.isExtractionError = true;
+        this.status = status;
+        this.retryAfter = retryAfter;
     }
-    return result + text.slice(copyFrom);
 }
 
-/**
- * Convert an RTF document to plain text. Keeps paragraphs as line breaks and
- * decodes escaped characters; drops all formatting.
- */
-export function rtfToText(rtf) {
-    if (typeof rtf !== 'string') throw new TypeError('rtfToText expects a string');
-    let out = '';
-    let skip = false;
-    let ucSkip = 1;       // fallback chars that follow each \uN escape
-    let pendingSkip = 0;  // fallback chars still to drop
-    let decoder = new TextDecoder('windows-1252');
-    const stack = [];
-    let depth = 0;
+const COULD_NOT_PROCESS = 'This file could not be processed. It may be too large or too complex.';
 
-    const emit = (text) => {
-        if (skip) return;
-        if (pendingSkip > 0) {
-            pendingSkip--;
-            return;
-        }
-        out += text;
-    };
+function runWorker(buffer, mimeType, limits) {
+    return new Promise((resolve, reject) => {
+        const child = spawn(process.execPath, [
+            `--max-old-space-size=${limits.heapMB}`,
+            WORKER_PATH,
+            mimeType,
+            String(limits.totalMB * 1024 * 1024),
+            String(limits.timeMs + WORKER_BACKSTOP_MS),
+        ], {
+            // A hostile file must not reach the server's secrets, so the worker gets none.
+            env: {},
+            stdio: ['pipe', 'pipe', 'ignore'],
+        });
 
-    let i = 0;
-    while (i < rtf.length) {
-        const ch = rtf[i];
+        const output = [];
+        let outputBytes = 0;
+        const timer = setTimeout(() => child.kill('SIGKILL'), limits.timeMs);
 
-        if (ch === '{') {
-            if (stack.length < MAX_RTF_DEPTH) stack.push({ skip, ucSkip });
-            depth++;
-            i++;
-        } else if (ch === '}') {
-            // A group past the cap was not saved, so it has no state to restore.
-            if (depth > stack.length) {
-                depth--;
-            } else {
-                ({ skip, ucSkip } = stack.pop() ?? { skip: false, ucSkip: 1 });
-                depth = stack.length;
+        child.stdout.on('data', (chunk) => {
+            outputBytes += chunk.length;
+            if (outputBytes > MAX_OUTPUT_BYTES) child.kill('SIGKILL');
+            else output.push(chunk);
+        });
+        // The worker may die before reading all its input; its exit reports the outcome.
+        child.stdin.on('error', () => {});
+        child.stdin.end(buffer);
+
+        child.on('error', (err) => {
+            clearTimeout(timer);
+            reject(err);
+        });
+        child.on('close', (code, signal) => {
+            clearTimeout(timer);
+            if (code !== 0) {
+                logger.warn('Extraction worker stopped', { code, signal });
+                reject(new ExtractionError(COULD_NOT_PROCESS, 422));
+                return;
             }
-            i++;
-        } else if (ch === '\r' || ch === '\n') {
-            // Raw line breaks are not content in RTF.
-            i++;
-        } else if (ch !== '\\') {
-            emit(ch);
-            i++;
-        } else {
-            const next = rtf[i + 1];
-            if (next === '\\' || next === '{' || next === '}') {
-                emit(next);
-                i += 2;
-            } else if (next === "'") {
-                const byte = parseInt(rtf.slice(i + 2, i + 4), 16);
-                if (!Number.isNaN(byte)) emit(decoder.decode(Uint8Array.of(byte)));
-                i += 4;
-            } else if (next === '\r' || next === '\n') {
-                emit('\n');
-                i += 2;
-            } else if (next === '*') {
-                skip = true;
-                i += 2;
-            } else if (next === '~') {
-                emit(' ');
-                i += 2;
-            } else {
-                RTF_CONTROL_WORD.lastIndex = i;
-                const match = RTF_CONTROL_WORD.exec(rtf);
-                if (!match) {
-                    i += 2;
-                    continue;
-                }
-                i = RTF_CONTROL_WORD.lastIndex;
-                const [, word, param] = match;
-
-                if (RTF_SKIP_GROUPS.has(word)) {
-                    skip = true;
-                } else if (word === 'u') {
-                    const code = Number(param);
-                    emit(String.fromCharCode(code < 0 ? code + 65536 : code));
-                    if (!skip) pendingSkip = ucSkip;
-                } else if (word === 'uc') {
-                    ucSkip = Number(param);
-                } else if (word === 'ansicpg') {
-                    try {
-                        decoder = new TextDecoder(`windows-${param}`);
-                    } catch {
-                        // Unknown code page: keep the default decoder.
-                    }
-                } else if (RTF_SYMBOLS[word]) {
-                    emit(RTF_SYMBOLS[word]);
-                }
-            }
-        }
-    }
-
-    return trimBlanksBeforeNewlines(out).replace(/\n{3,}/g, '\n\n');
-}
-
-function isRtf(mimeType, text) {
-    return RTF_MIMES.has(mimeType) || text.trimStart().startsWith('{\\rtf');
-}
-
-export async function extractTextFromBuffer(buffer, mimeType) {
-    try {
-        if (mimeType === 'application/pdf') {
-            const parser = new PDFParse({ data: buffer });
+            let result;
             try {
-                // Empty pageJoiner drops the default "-- 1 of N --" page markers.
-                const result = await parser.getText({ pageJoiner: '' });
-                return result.text.trim().slice(0, 50000);
-            } finally {
-                await parser.destroy();
+                result = JSON.parse(Buffer.concat(output).toString('utf8'));
+            } catch (err) {
+                reject(err);
+                return;
             }
-        }
-        if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-            const result = await mammoth.extractRawText({ buffer });
-            return result.value.trim().slice(0, 50000);
-        }
-        if (TEXT_MIMES.has(mimeType)) {
-            const text = buffer.toString('utf-8');
-            return (isRtf(mimeType, text) ? rtfToText(text) : text).trim().slice(0, 50000);
-        }
-        if (EXCEL_MIMES.has(mimeType)) {
-            const workbook = XLSX.read(buffer, { type: 'buffer' });
-            const lines = [];
-            for (const sheetName of workbook.SheetNames) {
-                lines.push(`[Sheet: ${sheetName}]`);
-                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
-                for (const row of rows) lines.push(row.join('\t'));
+            if (result.rejected) {
+                logger.warn('Extraction refused a file', { reason: result.rejected });
+                reject(new ExtractionError(result.rejected, 422));
+                return;
             }
-            return lines.join('\n').trim().slice(0, 50000);
-        }
-    } catch (e) {
-        logger.error('Text extraction failed', { message: e.message });
+            if (result.failed) logger.error('Text extraction failed', { message: result.failed });
+            resolve(result.text);
+        });
+    });
+}
+
+let running = false;
+const waiting = [];
+
+function startNext() {
+    const next = waiting.shift();
+    if (!next) {
+        running = false;
+        return;
     }
-    return '';
+    running = true;
+    next();
+}
+
+/**
+ * The text of an uploaded file, parsed in a child process with memory and time limits,
+ * one file at a time. Returns '' for a file that is damaged. Rejects with an
+ * ExtractionError when the file breaks a limit (422) or too many are waiting (503).
+ */
+export function extractTextFromBuffer(buffer, mimeType, limits = EXTRACTION_LIMITS) {
+    if (running && waiting.length >= MAX_WAITING_EXTRACTIONS) {
+        return Promise.reject(new ExtractionError(
+            'The server is busy processing other files. Please try again shortly.',
+            503,
+            BUSY_RETRY_AFTER_SECONDS,
+        ));
+    }
+    return new Promise((resolve, reject) => {
+        waiting.push(() => runWorker(buffer, mimeType, limits).then(resolve, reject).finally(startNext));
+        if (!running) startNext();
+    });
 }
