@@ -3,7 +3,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { StatusContext, type StatusApi } from "../../../../../components/statusBar/statusContext";
 import { CHAT_KEY } from "../../../../../storageKeys";
-import type { ChatResponse } from "../../../../../api/aiClient";
+import { ApiError } from "../../../../../api/base";
+import { dailyLimitMessage, type ChatResponse } from "../../../../../api/aiClient";
 import type { ChatMessage } from "../assistantTypes";
 import AIAssistantView from "../AIAssistantView";
 
@@ -258,5 +259,59 @@ describe("source chips", () => {
     expect(chips()[0].disabled).toBe(true);
     await act(async () => answer({ answer: "No.", citations: [], answerId: null }));
     expect(chips()[0].disabled).toBe(false);
+  });
+});
+
+describe("daily limits", () => {
+  const DETAIL = "This demo has reached its limit of 15 questions for today. Please come back after the limit resets.";
+  const limitError = (status = 429) => new ApiError(
+    DETAIL,
+    status,
+    JSON.stringify({ detail: DETAIL, code: "daily_limit", retryAfter: 3600 }),
+  );
+  const retryButton = () => container.querySelector(".ai-retry-btn");
+  const lastBubble = () => [...container.querySelectorAll(".ai-message.assistant .ai-bubble")].at(-1);
+
+  it.each([429, 503])("shows a %i daily limit as a friendly message with no Retry button", async (code) => {
+    chatWithAI.mockRejectedValue(limitError(code));
+    renderChat([USER, NEW_ANSWER]);
+
+    await ask();
+
+    expect(saved().at(-1)!.text).toContain(DETAIL);
+    expect(saved().at(-1)!.text).toContain("It resets at");
+    expect(lastBubble()).not.toBeNull();
+    expect(container.textContent).not.toContain("Request failed");
+    expect(container.textContent).not.toContain("daily_limit");
+    expect(retryButton()).toBeNull();
+  });
+
+  it("keeps the Retry button for any other error", async () => {
+    chatWithAI.mockRejectedValue(new ApiError("The AI service is busy right now.", 503, JSON.stringify({ detail: "The AI service is busy right now." })));
+    renderChat([USER, NEW_ANSWER]);
+
+    await ask();
+
+    expect(saved().at(-1)!.text).toBe("The AI service is busy right now.");
+    expect(retryButton()).not.toBeNull();
+  });
+
+  it("names the local time the limit resets", () => {
+    const now = new Date(2026, 0, 15, 9, 30);
+    const resets = new Date(2026, 0, 15, 10, 30).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    expect(dailyLimitMessage(limitError(), now)).toBe(`${DETAIL} It resets at ${resets}.`);
+  });
+
+  it("shows the server's message alone when it sends no reset time", () => {
+    const error = new ApiError(DETAIL, 429, JSON.stringify({ detail: DETAIL, code: "daily_limit" }));
+    expect(dailyLimitMessage(error)).toBe(DETAIL);
+  });
+
+  it("does not treat other errors as a daily limit", () => {
+    expect(dailyLimitMessage(new Error("boom"))).toBeNull();
+    expect(dailyLimitMessage(new ApiError("x", 429))).toBeNull();
+    expect(dailyLimitMessage(new ApiError("x", 429, "<html>not json</html>"))).toBeNull();
+    expect(dailyLimitMessage(new ApiError("x", 429, JSON.stringify({ detail: "Too many questions" })))).toBeNull();
+    expect(dailyLimitMessage(new ApiError("x", 429, "null"))).toBeNull();
   });
 });

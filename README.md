@@ -26,6 +26,7 @@ An AI-powered document workspace for teams. Upload PDF, DOCX, and Excel files �
 - **Contextual chat** — select documents to inject as context for the AI
 - **Attachment-aware** — AI can read the extracted text from attached PDF/DOCX/Excel files
 - **Groq-powered** — uses `openai/gpt-oss-20b` via the Groq SDK for fast inference
+- **Daily usage limits** — 15 questions per demo sandbox, 30 per demo address and 50 per viewer each UTC day, plus a shared token budget that always leaves room for the admin; see [SECURITY.md](SECURITY.md#chat-usage-budget)
 - **Customizable system prompt** — admins can configure the AI's behavior from the Settings view
 - **Example questions** — admins can set suggested prompts shown to users
 
@@ -121,7 +122,8 @@ ai-workspace/
 │   ├── access.js                   # Who may see and change which documents
 │   ├── demo.js                     # Private demo workspaces and their cleanup
 │   ├── ai.js                       # Groq chat, feedback, quality summary, system prompt, suggestions
-│   ├── models.js                   # Mongoose models: User, Document, AIConfig, Chunk, RetrievalLog
+│   ├── usageBudget.js              # Daily limits on chat questions and model tokens
+│   ├── models.js                   # Mongoose models: User, Document, AIConfig, Chunk, RetrievalLog, UsageCounter
 │   ├── schemas.js                  # Zod validation schemas
 │   ├── prompts.js                  # Default system prompt + metadata
 │   ├── textExtract.js              # Runs text extraction in a limited child process
@@ -281,7 +283,7 @@ Status checks to require in branch protection for `main`, after the workflows ha
 | `GET` | `/api/documents/:id/attachments/:attId/file` | ✓ | Download attachment |
 | `DELETE` | `/api/documents/:id/attachments/:attId` | editor | Remove attachment |
 | `GET` | `/api/search` | ✓ | Semantic search over readable documents |
-| `POST` | `/api/ai/chat` | ✓ | AI chat with document context |
+| `POST` | `/api/ai/chat` | ✓ | AI chat with document context; daily limits apply |
 | `POST` | `/api/ai/feedback` | ✓ | Rate a chat answer |
 | `GET` | `/api/ai/quality` | admin, demo | Answer-quality summary |
 | `GET` | `/api/ai/prompt` | ✓ | Get current system prompt |

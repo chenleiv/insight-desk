@@ -149,6 +149,7 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 
 ## Rate limiting
 
+- The chat also has daily limits, per account, sandbox and address, and across all users (see Chat usage budget).
 - All `/api/` routes share one limit per client IP (100 per 15 minutes in production), plus stricter limits on
   password attempts (10 failed per 15 minutes per address, and 20 failed login attempts per 15 minutes per account,
   counted the same for unknown addresses; both also block the correct password until the window ends, and restarting
@@ -162,6 +163,49 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 - Tests: the upload limit in `backend/routes/__tests__/uploadLimits.test.js`, the login limits in
   `backend/__tests__/authRateLimit.test.js` and `backend/__tests__/loginAccounts.test.js`, the SPA fallback limit in
   `backend/middleware/__tests__/setup.test.js`.
+
+## Chat usage budget
+
+The model provider allows 200K tokens per day on one key, and running out stops the chat for every visitor. The
+per-minute limits alone still let one address send about 9,600 questions a day. The limits below are in
+`backend/usageBudget.js`.
+
+| Limit | Applies to | Number per UTC day | On violation |
+| --- | --- | --- | --- |
+| Tokens, all users together | Demo users | 130K | 503, `Retry-After` |
+| Tokens, all users together | Viewers | 150K | 503, `Retry-After` |
+| Questions per sandbox | Demo users | 15 | 429, `Retry-After` |
+| Questions per address | Demo users | 30 | 429, `Retry-After` |
+| Questions per account | Viewers | 50 | 429, `Retry-After` |
+
+- **Tokens are counted, not calls.** A question costs far more of the daily tokens than of the daily requests, so the
+  tokens run out first. A question holds 3,000 tokens before any model call, so parallel questions cannot pass a
+  ceiling, and then the hold is replaced with the `total_tokens` the provider reported for its calls, including the
+  keyword call for a question in another language. The hold stays when usage is unknown: a call that failed
+  without a status, such as a timeout, or a response with no usage. Actual use can pass a ceiling by a little, when
+  a question uses more than it held.
+- **The admin is never refused.** Visitors stop at 150K, which leaves 50K for the admin. An admin's question holds
+  nothing, and its tokens are counted after the response, so the chat does not depend on the counters for the admin.
+  The provider's own 429 is the only limit left.
+- **What counts as a question.** A question with no matching document counts, though it uses no model call. A question
+  that got no answer does not: a provider error, a timeout or an empty answer gives it back.
+- **Counters survive a restart.** Each one is a small document in the `UsageCounter` collection, changed by one
+  conditional update as in the demo limits, and removed by a TTL 2 days later. If the database is away, visitors get
+  the generic chat error. The address is stored only as a keyed hash.
+- **The chat shows a plain message.** A refusal has the fields `detail`, `code: "daily_limit"` and `retryAfter`. The chat
+  shows the message with the local time the limit resets, and no Retry button.
+- **The address limit relies on `TRUST_PROXY_HOPS`.** If it is wrong, the server sees the proxy's address for everyone,
+  and all demo visitors share the 30 questions.
+- **Accepted gaps.**
+  - Many addresses together can still use up the demo's 130K, which stops the demo chat until the reset. Viewers and
+    the admin keep working. Visitors behind one shared address share the 30 questions.
+  - A fixed UTC day may not match the provider's window, which its documentation does not describe. Usage on both
+    sides of midnight can then reach the provider's limit before ours, and the chat answers with the existing "busy"
+    message and `Retry-After`. This can also stop the admin.
+  - Only the chat is counted. `npm run eval:answers`, local development and anything else using the same key spend
+    the same provider quota without showing in these counters, and can eat into the admin's 50K.
+- Tests: `backend/__tests__/usageBudget.integration.test.js`, `backend/__tests__/aiChatBudget.integration.test.js`,
+  `src/pages/hubPage/components/views/__tests__/AIAssistantView.test.tsx`.
 
 ## Cross-site requests (CSRF)
 
