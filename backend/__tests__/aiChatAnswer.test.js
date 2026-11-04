@@ -266,6 +266,15 @@ describe("DEFAULT_PROMPT", () => {
 });
 
 describe("PATCH routes for the AI config", () => {
+  it("lets any logged-in user read the prompt, and nobody else", async () => {
+    for (const user of [demo, admin]) {
+      const res = await requestAs(user, "GET", "/api/ai/prompt");
+      expect(res.status).toBe(200);
+      expect((await res.json()).prompt).toBe(promptState.prompt);
+    }
+    expect((await fetch(`${base}/api/ai/prompt`)).status).toBe(401);
+  });
+
   it("keeps the running prompt when saving it fails", async () => {
     const before = promptState.prompt;
     vi.spyOn(AIConfig, "findByIdAndUpdate").mockRejectedValueOnce(new Error("db down"));

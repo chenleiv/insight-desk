@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { User } from './models.js';
 import { canEditDocuments, isDemoUser } from './access.js';
 import { createDemoWorkspace, removeDemoWorkspace } from './demo.js';
+import { isDevOrTest } from './runtimeEnv.js';
 
 import { changePasswordSchema, loginSchema, registerSchema, sendValidationError } from './schemas.js';
 
@@ -33,17 +34,20 @@ const demoCreationLimiter = rateLimit({
     message: { detail: 'Too many demo sessions from this network, please try again later.' },
 });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev-secret-change-me') {
+const DEV_JWT_SECRET = 'dev-secret-change-me';
+// Values that must never sign real sessions: the development default and the README's example.
+const PLACEHOLDER_SECRETS = new Set([DEV_JWT_SECRET, 'your-secret']);
+const hasSecret = Boolean(process.env.JWT_SECRET?.trim());
+if (!hasSecret || PLACEHOLDER_SECRETS.has(process.env.JWT_SECRET.trim())) {
     logger.error('CRITICAL: JWT_SECRET is not set or is insecure');
-    if (process.env.NODE_ENV === 'production') {
+    if (!isDevOrTest()) {
         logger.error('Set a unique JWT_SECRET in production environment variables');
-        throw new Error('JWT_SECRET must be set in production for security.');
+        throw new Error('JWT_SECRET must be set unless NODE_ENV is development or test.');
     }
 }
+const JWT_SECRET = hasSecret ? process.env.JWT_SECRET : DEV_JWT_SECRET;
 
 const ACCESS_TOKEN_MINUTES = parseInt(process.env.ACCESS_TOKEN_MINUTES || '60');
-const ENV = process.env.ENV || 'dev';
 const COOKIE_NAME = 'access_token';
 
 function formatUser(user) {
@@ -163,7 +167,7 @@ export function requireEditor(req, res, next) {
 function setAuthCookie(res, token) {
     res.cookie(COOKIE_NAME, token, {
         httpOnly: true,
-        secure: ENV === 'prod' || process.env.NODE_ENV === 'production',
+        secure: !isDevOrTest(),
         sameSite: 'lax',
         path: '/',
         maxAge: ACCESS_TOKEN_MINUTES * 60 * 1000,
@@ -224,7 +228,7 @@ function oauthStateCookieOptions(extra = {}) {
     return {
         ...extra,
         httpOnly: true,
-        secure: ENV === 'prod' || process.env.NODE_ENV === 'production',
+        secure: !isDevOrTest(),
         sameSite: 'lax',
         path: '/api/auth/google',
     };

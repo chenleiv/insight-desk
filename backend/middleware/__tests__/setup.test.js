@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import express from "express";
 import {
   applyMiddleware,
@@ -87,6 +87,65 @@ describe("Content-Security-Policy", () => {
   it("blocks inline event handlers", async () => {
     const directives = await cspDirectives();
     expect(directives["script-src-attr"]).toEqual(["'none'"]);
+  });
+});
+
+describe("global /api rate limit", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  async function apiLimit(env) {
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    const baseUrl = await startApp(undefined);
+    return (await fetch(`${baseUrl}/api/ip`)).headers.get("ratelimit-limit");
+  }
+
+  it.each([
+    ["production", { NODE_ENV: "production" }, "100"],
+    ["no NODE_ENV", { NODE_ENV: "" }, "100"],
+    ["ENV=prod alone", { NODE_ENV: "", ENV: "prod" }, "100"],
+    ["ENV=prod with NODE_ENV=development", { NODE_ENV: "development", ENV: "prod" }, "100"],
+    ["development", { NODE_ENV: "development", ENV: "" }, "1000"],
+    ["tests", { NODE_ENV: "test", ENV: "" }, "1000"],
+  ])("under %s", async (_label, env, limit) => {
+    expect(await apiLimit(env)).toBe(limit);
+  });
+});
+
+describe("local development origins", () => {
+  const LOCAL_ORIGIN = "http://localhost:5173";
+  const OWN_ORIGIN = "https://insight.example.com";
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  async function originCheck(env, origin) {
+    vi.stubEnv("FRONTEND_URL", OWN_ORIGIN);
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    const baseUrl = await startApp(undefined);
+    const res = await fetch(`${baseUrl}/api/ip`, { method: "POST", headers: { Origin: origin } });
+    return { status: res.status, allowOrigin: res.headers.get("access-control-allow-origin") };
+  }
+
+  it.each([
+    ["production", { NODE_ENV: "production" }],
+    ["no NODE_ENV", { NODE_ENV: "" }],
+    ["ENV=prod", { NODE_ENV: "development", ENV: "prod" }],
+  ])("are refused under %s", async (_label, env) => {
+    expect(await originCheck(env, LOCAL_ORIGIN)).toEqual({ status: 403, allowOrigin: null });
+  });
+
+  it("are allowed in development", async () => {
+    // 404: past the origin check, and this app has no POST route.
+    expect(await originCheck({ NODE_ENV: "development", ENV: "" }, LOCAL_ORIGIN))
+      .toEqual({ status: 404, allowOrigin: LOCAL_ORIGIN });
+  });
+
+  it("leave the public origin allowed in production", async () => {
+    expect(await originCheck({ NODE_ENV: "production" }, OWN_ORIGIN))
+      .toEqual({ status: 404, allowOrigin: OWN_ORIGIN });
   });
 });
 

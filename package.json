@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:backend": "node --watch backend/index.js",
+    "dev:backend": "NODE_ENV=development node --watch backend/index.js",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -17,7 +17,7 @@
     "test:coverage": "vitest run --coverage",
     "eval": "node eval/run.js",
     "eval:prod": "node backend/scripts/evalProd.js",
-    "eval:answers": "node eval/answers.js"
+    "eval:answers": "NODE_ENV=development node eval/answers.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.1",

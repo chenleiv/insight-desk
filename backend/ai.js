@@ -27,9 +27,15 @@ export async function loadAIConfig() {
     }
 }
 
+// Together they stay well under the proxy's 100-second timeout.
+const ANSWER_TIMEOUT_MS = 30_000;
+const KEYWORDS_TIMEOUT_MS = 10_000;
+
 let _groq = null;
 function getGroq() {
-    if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    // No retries: the SDK would first wait as long as the provider's Retry-After says, with
+    // no cap and outside the timeout, so a 429 could hold a request open for minutes.
+    if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: ANSWER_TIMEOUT_MS, maxRetries: 0 });
     return _groq;
 }
 
@@ -54,7 +60,7 @@ async function englishKeywords(groq, question) {
             max_tokens: 200,
             temperature: 0,
             reasoning_effort: 'low',
-        });
+        }, { timeout: KEYWORDS_TIMEOUT_MS });
         return response.choices[0].message.content?.trim() || null;
     } catch (err) {
         logger.warn('Keyword translation failed', { message: err.message });
@@ -75,6 +81,7 @@ export { NO_INFO_ANSWER };
 export const EMPTY_ANSWER_DETAIL = 'The AI service returned an empty answer. Please try again.';
 export const TOO_LONG_ANSWER_DETAIL = 'The answer was too long to complete. Please try a narrower question.';
 export const AI_BUSY_DETAIL = 'The AI service is busy right now. Please try again in a few minutes.';
+const AI_ERROR_DETAIL = 'Error communicating with AI service. Please try again later.';
 export const SHORTENED_NOTE = '(The answer was shortened.)';
 
 // Retry-After sent with AI_BUSY_DETAIL when the provider gives none, and the most it may ask for.
@@ -226,9 +233,8 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
         const { message } = aiChatSchema.parse(req.body);
 
         if (!process.env.GROQ_API_KEY) {
-            return res.status(500).json({
-                detail: 'GROQ_API_KEY is missing. Please add it to your environment variables.'
-            });
+            logger.error('GROQ_API_KEY is not set; the chat cannot answer');
+            return res.status(500).json({ detail: AI_ERROR_DETAIL });
         }
 
         const groq = getGroq();
@@ -298,7 +304,7 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
             return res.status(503).json({ detail: AI_BUSY_DETAIL });
         }
         logger.error('Inference error', { message: error?.message ?? String(error) });
-        res.status(500).json({ detail: 'Error communicating with AI service. Please try again later.' });
+        res.status(500).json({ detail: AI_ERROR_DETAIL });
     }
 });
 

@@ -177,6 +177,18 @@ describe("attachment file download", () => {
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
   });
 
+  it("must not be cached", async () => {
+    gridfs.content = "private";
+    Document.findById.mockResolvedValue(fakeDoc([
+      { _id: "att-1", gridfsId: "g-1", fileName: "notes.md", fileType: "text/markdown" },
+    ]));
+
+    const res = await fetch(`${baseUrl}/doc-1/attachments/att-1/file`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
   it("serves a stored type that does not match the extension as a generic download", async () => {
     gridfs.content = "<html></html>";
     Document.findById.mockResolvedValue(fakeDoc([

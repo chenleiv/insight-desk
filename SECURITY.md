@@ -32,8 +32,14 @@ Security controls in Insight Desk and the tests that guard them.
   into `{ detail: "Internal server error" }` (500) or a generic 4xx message. Messages, stack traces, and queries
   are logged on the server and never sent to the client.
   Test: `backend/middleware/__tests__/errorHandler.test.js`.
-- **Chat errors** return a fixed message; the upstream model error stays in the server log.
-  Test: `backend/__tests__/aiChat.test.js`.
+- **Chat errors** return a fixed message; the upstream model error stays in the server log. A missing provider key
+  gets the same message, and only the log names it, so a response never reveals the server's configuration.
+  Tests: `backend/__tests__/aiChat.test.js`, `backend/__tests__/aiProviderCalls.test.js`.
+- **Model provider calls are bounded.** The answer call times out after 30 seconds and the keyword translation
+  after 10, so a stalled provider cannot hold a request past the proxy's timeout. Nothing is retried: the SDK would
+  first wait as long as the provider's `Retry-After` says, with no cap and outside the timeout. A 429 therefore
+  gets the "busy" answer at once, and a brief provider error reaches the user, who can ask again.
+  The timeout covers the wait for the response headers. Test: `backend/__tests__/aiProviderCalls.test.js`.
 
 ## Input limits
 
@@ -54,7 +60,16 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 - **The CSP allows no inline scripts.** `script-src` is `'self'` only, and `script-src-attr` is `'none'`
   (helmet's default), so an injected `<script>` or `onclick=` handler does not run. The theme script that used
   to be inline in `index.html` now lives in `public/theme-init.js` and still runs in `<head>`, before the first paint.
-  Test: `backend/middleware/__tests__/setup.test.js` checks the header.
+  Static files are served after the security middleware, so the main page, `index.html` and the built assets
+  carry the same headers as every other response. Before this was fixed, only direct loads of inner pages did.
+  Tests: `backend/middleware/__tests__/setup.test.js` checks the header, and `backend/__tests__/app.test.js`
+  measures the headers on the real app's main page.
+- **Network and image sources are limited.** `connect-src` is `'self'` and `img-src` is `'self' data:`, so an
+  injected script or image cannot send data to another host through them. `style-src` and `font-src` keep helmet's
+  `https:` default for the external font provider until the fonts are self-hosted.
+- **Static files keep their cache rules when compressed.** They pass through the same `compression()` as the API.
+  Hashed files under `assets/` stay `immutable` for a year, and everything else, including `index.html`, is
+  revalidated on each load, so a deploy reaches visitors at once.
   Checked by hand: `dist/index.html` from `npm run build` has no inline `<script>`. Under the real middleware,
   headless Chromium renders the login page with the theme set, and an inline script on a probe page is blocked.
 - **Known gap, accepted:** `style-src` still includes `'unsafe-inline'`, helmet's default, kept on purpose.
@@ -69,11 +84,16 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 ## Session cookie
 
 - The session is a JWT signed with `JWT_SECRET` (HS256) in the `access_token` cookie: HttpOnly, `SameSite=Lax`,
-  Secure when `ENV=prod` or `NODE_ENV=production`, path `/`, expiry `ACCESS_TOKEN_MINUTES` (60).
+  Secure unless `NODE_ENV` is `development` or `test` and `ENV` is not `prod`, path `/`, expiry `ACCESS_TOKEN_MINUTES` (60).
+- **The server refuses to start without a real `JWT_SECRET`.** The built-in development secret and the README's
+  example are refused, as is a blank value, unless `NODE_ENV` is `development` or `test` and `ENV` is not `prod`.
+  Any other environment, including an unset `NODE_ENV`, counts as production (`backend/runtimeEnv.js`), and also
+  gets the production limit of 100 `/api` requests per 15 minutes (1000 in development and test).
+  Test: `backend/__tests__/startupSecret.test.js` starts a real process with a clean environment.
 - The JWT is signed, not encrypted: its payload (email and role) is readable by whoever holds the cookie.
   It holds no password or secret. Accepted; CodeQL's "Clear text storage of sensitive information" alert
   on `setAuthCookie` is dismissed with a reference to this section.
-- Production must set `NODE_ENV=production` or `ENV=prod`, or both cookies are sent without Secure.
+- Both cookies are Secure by default, so a partial production configuration cannot send them without it.
   The `oauth_state` cookie takes its options through an object spread, which CodeQL does not follow, so its
   cookie alerts on `backend/auth.js` are dismissed as false positives.
   Test: `backend/__tests__/googleOAuthState.test.js` checks HttpOnly, `SameSite=Lax`, and Secure in production.
@@ -104,13 +124,15 @@ stop another site from acting as the user.
     from another site. `Strict` would drop the cookie there and every Google login would fail. Lax works only
     because Google returns with a GET (we do not use `response_mode=form_post`).
   - `access_token` stays Lax rather than Strict. The SPA's own API calls are same-site either way, so Strict
-    would mainly break links to the API opened from outside, such as a document download link. No GET route
-    changes state, so Strict would add almost nothing.
+    would mainly break links to the API opened from outside, such as a document download link. The only GET route
+    that changes state is `GET /api/auth/google/callback`, which can create a user and a session. The one-time
+    OAuth state check protects it instead of the Origin check, so Strict would add almost nothing.
 - **Origin check on state-changing requests.** `rejectCrossSiteRequests` in `backend/middleware/setup.js` refuses
   any non-GET/HEAD/OPTIONS request under `/api` whose `Origin` is not ours (403). That covers routes that need no
   cookie, which Lax cannot protect: without it, a form on another site could start a demo session in the
   visitor's browser or log them out. Origins are compared after normalizing scheme, host and port. Ours is
-  `FRONTEND_URL` or `APP_BASE_URL` (Render sets only `FRONTEND_URL`), plus the Vite dev servers on localhost.
+  `FRONTEND_URL` or `APP_BASE_URL` (Render sets only `FRONTEND_URL`), plus, only in development and tests, the
+  Vite dev servers on localhost.
   `Origin: null` is refused. A request with no `Origin` passes, since browsers send one on every such request.
   Blocked requests are logged with the origin host and route only. In production, the server logs an error at
   startup if neither variable is set, because every state-changing request would then be refused.
@@ -118,7 +140,7 @@ stop another site from acting as the user.
   it is not a CSRF control.
 - **No CSRF token.** With one site, Lax plus the Origin check covers the same attacks without a token round trip
   on every request and upload. CodeQL's "Missing CSRF middleware" rule looks for known CSRF libraries and does
-  not recognize this check, so its alert on `backend/index.js` is dismissed with a reference to this section.
+  not recognize this check, so its alert on `backend/app.js` is dismissed with a reference to this section.
   Test directories are excluded from CodeQL in `.github/codeql/codeql-config.yml`: test code never runs in
   production, and its stand-in Express apps raised the same alert.
 
@@ -160,7 +182,9 @@ Tests: `backend/routes/__tests__/documentDownload.test.js`, `backend/__tests__/d
 - **Clear refusals.** UTF-16 text files and password-protected Office files get a 400 that says what to do.
 - A file is served as an attachment with `nosniff` whatever it holds, so these checks limit what reaches the parsers;
   they do not prove a file is harmless.
-  Tests: `backend/__tests__/fileSignature.test.js`, `backend/routes/__tests__/uploadLimits.test.js`.
+- An attachment is sent with `Cache-Control: no-store`, so a shared computer's browser or a proxy keeps no copy.
+  Tests: `backend/__tests__/fileSignature.test.js`, `backend/routes/__tests__/uploadLimits.test.js`,
+  `backend/routes/__tests__/documentAttachments.test.js`.
 
 ## Text extraction
 

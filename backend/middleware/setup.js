@@ -4,6 +4,7 @@ import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { isDevOrTest } from '../runtimeEnv.js';
 
 // Number of reverse proxies in front of the server. On Render it is 3:
 // Cloudflare, Render's load balancer, and Render's local proxy.
@@ -20,10 +21,6 @@ export function parseTrustProxyHops(value) {
     return hops;
 }
 
-function isProduction() {
-    return process.env.ENV === 'prod' || process.env.NODE_ENV === 'production';
-}
-
 // scheme://host:port as a browser sends it in Origin: lowercase host, no default
 // port, no trailing slash. Null for anything that is not an http(s) origin.
 export function normalizeOrigin(value) {
@@ -36,11 +33,10 @@ export function normalizeOrigin(value) {
 }
 
 // Where the frontend runs: the public URL from FRONTEND_URL or APP_BASE_URL
-// (Render sets only FRONTEND_URL), plus the Vite dev servers.
+// (Render sets only FRONTEND_URL), plus the Vite dev servers in development and tests.
 export function allowedOrigins() {
     return [
-        'http://localhost:5173',
-        'http://localhost:5174',
+        ...(isDevOrTest() ? ['http://localhost:5173', 'http://localhost:5174'] : []),
         process.env.FRONTEND_URL,
         process.env.APP_BASE_URL,
     ].map(normalizeOrigin).filter(Boolean);
@@ -86,15 +82,16 @@ export function applyMiddleware(app) {
                 ...helmet.contentSecurityPolicy.getDefaultDirectives(),
                 // No 'unsafe-inline': an injected <script> or onclick= handler will not run.
                 "script-src": ["'self'"],
-                "connect-src": ["'self'", "https://*"],
-                "img-src": ["'self'", "data:", "https://*"],
+                // The frontend calls only its own API and shows no external images.
+                "connect-src": ["'self'"],
+                "img-src": ["'self'", "data:"],
             },
         },
     }));
 
     // CORS must run BEFORE rate limiter so error responses (429) include CORS headers
     const allowOrigins = allowedOrigins();
-    if (isProduction() && !process.env.FRONTEND_URL && !process.env.APP_BASE_URL) {
+    if (!isDevOrTest() && !process.env.FRONTEND_URL && !process.env.APP_BASE_URL) {
         logger.error('FRONTEND_URL and APP_BASE_URL are both unset: every state-changing API request '
             + 'will be refused as cross-site. Set FRONTEND_URL to the public URL.');
     }
@@ -119,7 +116,7 @@ export function applyMiddleware(app) {
 
     const limiter = rateLimit({
         windowMs: 15 * 60 * 1000,
-        max: process.env.NODE_ENV === 'production' ? 100 : 1000,
+        max: isDevOrTest() ? 1000 : 100,
         standardHeaders: true,
         legacyHeaders: false,
         message: { detail: 'Too many requests, please try again later.' }
