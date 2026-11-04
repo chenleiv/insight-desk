@@ -157,6 +157,10 @@ export async function getCurrentUser(req, res, next) {
     if (!user) {
         return res.status(401).json({ detail: 'User not found' });
     }
+    // 401, so the client ends the session the same way as for an expired token.
+    if (user.status === 'inactive') {
+        return res.status(401).json({ detail: 'This account is not active' });
+    }
     if (isDemoUser(user) && user.expiresAt && user.expiresAt < new Date()) {
         return res.status(401).json({ detail: 'Demo session expired' });
     }

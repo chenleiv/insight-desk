@@ -13,6 +13,9 @@ Security controls in Insight Desk and the tests that guard them.
   Tests: `backend/__tests__/emailNormalization.test.js`, `backend/__tests__/normalizeEmails.integration.test.js`.
 - **Inactive accounts cannot sign in.** Password and Google login both reject a user whose status is `inactive`.
   The status is checked after the password, so it is revealed only to the account owner.
+- **Disabling a user takes effect at once.** `getCurrentUser` already loads the user on every authenticated request,
+  so the check costs no extra query. An inactive user gets 401 on the next request, including an admin on an admin
+  route. Test: `backend/__tests__/disabledUser.test.js`.
 - **Google login checks an OAuth `state`.** `GET /api/auth/google` sends a random 256-bit state to Google and
   stores it in an HttpOnly, `SameSite=Lax` cookie scoped to `/api/auth/google` for 10 minutes. The callback
   compares it in constant time, clears the cookie whatever the outcome, and on a missing or wrong state
