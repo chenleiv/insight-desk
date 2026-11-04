@@ -2,7 +2,7 @@ import React, { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { me, logout as apiLogout } from "../api/authClient";
 import { toggleFavorite as apiToggleFavorite } from "../api/documentsClient";
-import { setUnauthorizedHandler } from "../api/base";
+import { setUnauthorizedHandler, startSessionGeneration } from "../api/base";
 import type { AuthUser } from "./authTypes";
 import {
   loadUserFromStorage,
@@ -92,6 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionEstablishedByLogin.current = false;
     setUser(null);
     clearUserFromStorage();
+    // Before the server call, so no request of this session comes back as a 401 after it.
+    void queryClient.cancelQueries();
 
     try {
       await apiLogout();
@@ -144,6 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signedOut,
         favoritesMap,
         loginSuccess: (u) => {
+          startSessionGeneration();
           sessionEstablishedByLogin.current = true;
           signedInRef.current = true;
           setSessionExpired(false);

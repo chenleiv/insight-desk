@@ -76,6 +76,6 @@ export interface QualitySummary {
   feedback: { regular: FeedbackCounts; noInfo: FeedbackCounts; all: FeedbackCounts };
 }
 
-export async function getQualitySummary(days: QualityDays): Promise<QualitySummary> {
-  return await apiFetch<QualitySummary>(`/api/ai/quality?days=${days}`);
+export async function getQualitySummary(days: QualityDays, signal?: AbortSignal): Promise<QualitySummary> {
+  return await apiFetch<QualitySummary>(`/api/ai/quality?days=${days}`, signal ? { signal } : {});
 }
