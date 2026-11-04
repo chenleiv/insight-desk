@@ -10,6 +10,7 @@ import { search } from './rag/search.js';
 import { logRetrieval, saveFeedback } from './rag/retrievalLog.js';
 import { getRetrievalSummary } from './rag/retrievalStats.js';
 import { canViewQuality } from './access.js';
+import { reserveQuestion } from './usageBudget.js';
 
 const DEFAULT_SUGGESTIONS = [
     "What security issues are related to this topic?",
@@ -49,9 +50,9 @@ export const CHAT_ANSWER_SETTINGS = { max_tokens: 1024, temperature: 0.3 };
  * Turn a question into English search keywords, so a question in another
  * language can match English documents. Returns null on failure.
  */
-async function englishKeywords(groq, question) {
+async function englishKeywords(groq, question, budget) {
     try {
-        const response = await groq.chat.completions.create({
+        const response = await budget.track(() => groq.chat.completions.create({
             model: CHAT_MODEL,
             messages: [
                 { role: 'system', content: 'Translate the question into 3 to 8 English search keywords. Reply with the keywords only, separated by spaces.' },
@@ -60,7 +61,7 @@ async function englishKeywords(groq, question) {
             max_tokens: 200,
             temperature: 0,
             reasoning_effort: 'low',
-        }, { timeout: KEYWORDS_TIMEOUT_MS });
+        }, { timeout: KEYWORDS_TIMEOUT_MS }));
         return response.choices[0].message.content?.trim() || null;
     } catch (err) {
         logger.warn('Keyword translation failed', { message: err.message });
@@ -229,6 +230,7 @@ const chatLimiter = rateLimit({
 const router = express.Router();
 
 router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
+    let budget;
     try {
         const { message } = aiChatSchema.parse(req.body);
 
@@ -237,11 +239,19 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
             return res.status(500).json({ detail: AI_ERROR_DETAIL });
         }
 
+        const reservation = await reserveQuestion(req.user);
+        if (reservation.refused) {
+            const { status, detail, retryAfter } = reservation.refused;
+            res.set('Retry-After', String(retryAfter));
+            return res.status(status).json({ detail, code: 'daily_limit', retryAfter });
+        }
+        budget = reservation.budget;
+
         const groq = getGroq();
 
         // A question in another script is searched with English keywords; the model still gets the original.
         const query = NON_LATIN_LETTER.test(message)
-            ? (await englishKeywords(groq, message)) ?? message
+            ? (await englishKeywords(groq, message, budget)) ?? message
             : message;
         // Search only documents this user may read; the user comes from auth, never the request.
         const results = await search(req.user, query, CONTEXT_CHUNKS);
@@ -260,11 +270,11 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
             { role: 'user', content: userContent(chunks, message) },
         ];
 
-        const response = await groq.chat.completions.create({
+        const response = await budget.track(() => groq.chat.completions.create({
             model: CHAT_MODEL,
             messages,
             ...CHAT_ANSWER_SETTINGS,
-        });
+        }));
 
         const choice = response.choices?.[0];
         const raw = choice?.message?.content ?? '';
@@ -305,6 +315,8 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
         }
         logger.error('Inference error', { message: error?.message ?? String(error) });
         res.status(500).json({ detail: AI_ERROR_DETAIL });
+    } finally {
+        await budget?.settle();
     }
 });
 
