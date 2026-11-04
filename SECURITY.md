@@ -194,6 +194,9 @@ stop another site from acting as the user.
   not recognize this check, so its alert on `backend/app.js` is dismissed with a reference to this section.
   Test directories are excluded from CodeQL in `.github/codeql/codeql-config.yml`: test code never runs in
   production, and its stand-in Express apps raised the same alert.
+- **Session cookie alert.** CodeQL's "Clear text storage of sensitive information" alert on `setAuthCookie` in
+  `backend/auth.js` is dismissed as a false positive. The session JWT is signed, contains only email, role and token
+  version, and is stored in an HttpOnly, `SameSite=Lax` cookie (Secure in production), the intended session mechanism.
 
 Test: `backend/__tests__/crossSiteRequests.test.js`.
 
