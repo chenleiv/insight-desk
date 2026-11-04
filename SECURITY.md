@@ -75,7 +75,7 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 ## Session cookie
 
 - The session is a JWT signed with `JWT_SECRET` (HS256) in the `access_token` cookie: HttpOnly, `SameSite=Lax`,
-  Secure when `ENV=prod` or `NODE_ENV=production`, path `/`, expiry `ACCESS_TOKEN_MINUTES` (60).
+  Secure unless `NODE_ENV` is `development` or `test` and `ENV` is not `prod`, path `/`, expiry `ACCESS_TOKEN_MINUTES` (60).
 - **The server refuses to start without a real `JWT_SECRET`.** The built-in development secret and the README's
   example are refused, as is a blank value, unless `NODE_ENV` is `development` or `test` and `ENV` is not `prod`.
   Any other environment, including an unset `NODE_ENV`, counts as production (`backend/runtimeEnv.js`), and also
@@ -84,7 +84,7 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 - The JWT is signed, not encrypted: its payload (email and role) is readable by whoever holds the cookie.
   It holds no password or secret. Accepted; CodeQL's "Clear text storage of sensitive information" alert
   on `setAuthCookie` is dismissed with a reference to this section.
-- Production must set `NODE_ENV=production` or `ENV=prod`, or both cookies are sent without Secure.
+- Both cookies are Secure by default, so a partial production configuration cannot send them without it.
   The `oauth_state` cookie takes its options through an object spread, which CodeQL does not follow, so its
   cookie alerts on `backend/auth.js` are dismissed as false positives.
   Test: `backend/__tests__/googleOAuthState.test.js` checks HttpOnly, `SameSite=Lax`, and Secure in production.

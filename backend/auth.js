@@ -48,7 +48,6 @@ if (!hasSecret || PLACEHOLDER_SECRETS.has(process.env.JWT_SECRET.trim())) {
 const JWT_SECRET = hasSecret ? process.env.JWT_SECRET : DEV_JWT_SECRET;
 
 const ACCESS_TOKEN_MINUTES = parseInt(process.env.ACCESS_TOKEN_MINUTES || '60');
-const ENV = process.env.ENV || 'dev';
 const COOKIE_NAME = 'access_token';
 
 function formatUser(user) {
@@ -168,7 +167,7 @@ export function requireEditor(req, res, next) {
 function setAuthCookie(res, token) {
     res.cookie(COOKIE_NAME, token, {
         httpOnly: true,
-        secure: ENV === 'prod' || process.env.NODE_ENV === 'production',
+        secure: !isDevOrTest(),
         sameSite: 'lax',
         path: '/',
         maxAge: ACCESS_TOKEN_MINUTES * 60 * 1000,
@@ -229,7 +228,7 @@ function oauthStateCookieOptions(extra = {}) {
     return {
         ...extra,
         httpOnly: true,
-        secure: ENV === 'prod' || process.env.NODE_ENV === 'production',
+        secure: !isDevOrTest(),
         sameSite: 'lax',
         path: '/api/auth/google',
     };

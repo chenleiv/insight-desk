@@ -124,12 +124,16 @@ describe("Google OAuth state", () => {
   });
 });
 
-describe("cookies in production", () => {
-  // Restart the server with the auth module loaded under production settings.
+describe.each([
+  ["production", { NODE_ENV: "production" }],
+  ["an unset NODE_ENV", { NODE_ENV: "" }],
+  ["ENV=prod", { NODE_ENV: "development", ENV: "prod" }],
+])("cookies in %s", (_label, env) => {
+  // Restart the server with the auth module loaded under these settings.
   beforeEach(async () => {
     await new Promise((resolve) => server.close(resolve));
     vi.resetModules();
-    vi.stubEnv("NODE_ENV", "production");
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
     vi.stubEnv("JWT_SECRET", "test-secret-for-production-cookies");
     const auth = await import("../auth.js");
     const app = express();
@@ -150,5 +154,13 @@ describe("cookies in production", () => {
     expect(session).toMatch(/;\s*Secure/i);
     expect(session).toMatch(/HttpOnly/i);
     expect(session).toMatch(/SameSite=Lax/i);
+  });
+});
+
+describe("cookies in tests and development", () => {
+  it("leaves out Secure, so a login works over plain http on localhost", async () => {
+    const { setCookie } = await startLogin();
+
+    expect(setCookie).not.toMatch(/;\s*Secure/i);
   });
 });
