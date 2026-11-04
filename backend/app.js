@@ -55,6 +55,9 @@ export function createApp({ distPath }) {
         res.send('User-agent: *\nAllow: /');
     });
 
+    // Some clients ask for this path by habit, without reading the page's icon link.
+    app.get('/favicon.ico', (req, res) => res.redirect(302, '/favicon.svg'));
+
     app.use('/api', apiNotFound);
 
     // SPA fallback, for pages only. A missing file, such as an old build's asset after a

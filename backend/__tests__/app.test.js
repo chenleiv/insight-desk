@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import http from "http";
 import path from "path";
@@ -13,6 +13,7 @@ import { createApp } from "../app.js";
 
 const INDEX_HTML = "<!doctype html><title>Insight Desk</title>";
 const BUNDLE = `console.log("${"bundle ".repeat(2000)}");`;
+const FAVICON = readFileSync("public/favicon.svg", "utf8");
 
 // The real app, serving a small stand-in for the built frontend.
 let distPath;
@@ -24,6 +25,7 @@ beforeAll(async () => {
   mkdirSync(path.join(distPath, "assets"));
   writeFileSync(path.join(distPath, "index.html"), INDEX_HTML);
   writeFileSync(path.join(distPath, "assets", "main.js"), BUNDLE);
+  writeFileSync(path.join(distPath, "favicon.svg"), FAVICON);
   await new Promise((resolve) => {
     server = createApp({ distPath }).listen(0, resolve);
   });
@@ -78,7 +80,7 @@ describe("SPA fallback", () => {
     ["an old build's stylesheet", "/assets/HubPage-old.css"],
     ["a name under assets without an extension", "/assets/old"],
     ["a missing file at the root", "/missing.js"],
-    ["a missing icon", "/favicon.ico"],
+    ["a missing icon", "/missing.ico"],
     ["a hidden file", "/.hidden"],
   ])("returns 404, not the main page, for %s", async (_label, url) => {
     const res = await fetch(`${base}${url}`);
@@ -102,6 +104,34 @@ describe("SPA fallback", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toContain("immutable");
+  });
+});
+
+describe("favicon", () => {
+  it("is served as an SVG with the security headers, revalidated on each load", async () => {
+    const res = await fetch(`${base}/favicon.svg`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toMatch(/^image\/svg\+xml/);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=0, must-revalidate");
+    expect(res.headers.get("etag")).toBeTruthy();
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(res.headers.get("content-security-policy")).toContain("img-src 'self' data:");
+  });
+
+  it("is what /favicon.ico leads to, instead of a 404", async () => {
+    const redirect = await fetch(`${base}/favicon.ico`, { redirect: "manual" });
+    expect(redirect.status).toBe(302);
+    expect(redirect.headers.get("location")).toBe("/favicon.svg");
+
+    const followed = await fetch(`${base}/favicon.ico`);
+    expect(followed.status).toBe(200);
+    expect(await followed.text()).toBe(FAVICON);
+  });
+
+  it("is named by the main page and runs nothing", () => {
+    expect(readFileSync("index.html", "utf8")).toContain('<link rel="icon" type="image/svg+xml" href="/favicon.svg">');
+    expect(FAVICON).not.toMatch(/<script|<style|href=|\son\w+=/i);
   });
 });
 
