@@ -150,10 +150,20 @@ describe.each([
     expect(setCookie).toMatch(/;\s*Secure/i);
 
     const res = await get(`/api/auth/google/callback?code=abc&state=${state}`, cookie);
-    const session = res.headers.getSetCookie().find((c) => c.startsWith("access_token="));
+    const session = res.headers.getSetCookie().find((c) => c.startsWith("__Host-access_token="));
     expect(session).toMatch(/;\s*Secure/i);
     expect(session).toMatch(/HttpOnly/i);
     expect(session).toMatch(/SameSite=Lax/i);
+    expect(session).toMatch(/;\s*Path=\/(;|$)/i);
+    expect(session).not.toMatch(/Domain=/i);
+  });
+
+  it("clears the session cookie on logout with the attributes the __Host- prefix requires", async () => {
+    const res = await fetch(`${baseUrl}/api/auth/logout`, { method: "POST" });
+    const cleared = res.headers.getSetCookie().find((c) => c.startsWith("__Host-access_token=;"));
+
+    expect(cleared).toMatch(/;\s*Secure/i);
+    expect(cleared).toMatch(/;\s*Path=\/(;|$)/i);
   });
 });
 

@@ -48,7 +48,11 @@ if (!hasSecret || PLACEHOLDER_SECRETS.has(process.env.JWT_SECRET.trim())) {
 const JWT_SECRET = hasSecret ? process.env.JWT_SECRET : DEV_JWT_SECRET;
 
 const ACCESS_TOKEN_MINUTES = parseInt(process.env.ACCESS_TOKEN_MINUTES || '60');
-const COOKIE_NAME = 'access_token';
+// Pinned on both sign and verify, so a token cannot choose its own algorithm.
+const JWT_ALGORITHM = 'HS256';
+// __Host- makes the browser refuse the cookie unless it is Secure, host-only and on path /.
+// Local development runs over plain http, where it could not be set.
+const COOKIE_NAME = isDevOrTest() ? 'access_token' : '__Host-access_token';
 
 function formatUser(user) {
     return {
@@ -97,7 +101,14 @@ export function keyedHash(value) {
 }
 
 function createAccessToken(email, role) {
-    return jwt.sign({ sub: email, role }, JWT_SECRET, { expiresIn: `${ACCESS_TOKEN_MINUTES}m` });
+    return jwt.sign({ sub: email, role }, JWT_SECRET, {
+        algorithm: JWT_ALGORITHM,
+        expiresIn: `${ACCESS_TOKEN_MINUTES}m`,
+    });
+}
+
+function verifyAccessToken(token) {
+    return jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] });
 }
 
 // Written at most this often, so a demo session does not add a write to every request.
@@ -121,7 +132,7 @@ export async function getCurrentUser(req, res, next) {
 
     let payload;
     try {
-        payload = jwt.verify(token, JWT_SECRET);
+        payload = verifyAccessToken(token);
     } catch {
         return res.status(401).json({ detail: 'Invalid token' });
     }
@@ -164,14 +175,19 @@ export function requireEditor(req, res, next) {
     });
 }
 
-function setAuthCookie(res, token) {
-    res.cookie(COOKIE_NAME, token, {
+// Setting and clearing must use the same options: a browser ignores a __Host- cookie sent without Secure.
+function sessionCookieOptions(extra = {}) {
+    return {
+        ...extra,
         httpOnly: true,
         secure: !isDevOrTest(),
         sameSite: 'lax',
         path: '/',
-        maxAge: ACCESS_TOKEN_MINUTES * 60 * 1000,
-    });
+    };
+}
+
+function setAuthCookie(res, token) {
+    res.cookie(COOKIE_NAME, token, sessionCookieOptions({ maxAge: ACCESS_TOKEN_MINUTES * 60 * 1000 }));
 }
 
 router.post('/login', passwordAttemptLimiter, async (req, res) => {
@@ -340,7 +356,7 @@ router.post('/demo', demoCreationLimiter, async (req, res) => {
 async function removeDemoWorkspaceOnLogout(token) {
     let email;
     try {
-        email = jwt.verify(token, JWT_SECRET).sub;
+        email = verifyAccessToken(token).sub;
     } catch {
         return;
     }
@@ -361,7 +377,7 @@ router.post('/logout', async (req, res) => {
             logger.error('Demo removal on logout failed', { message: err.message });
         }
     }
-    res.clearCookie(COOKIE_NAME, { path: '/' });
+    res.clearCookie(COOKIE_NAME, sessionCookieOptions());
     res.json({ ok: true });
 });
 

@@ -83,7 +83,9 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 
 ## Session cookie
 
-- The session is a JWT signed with `JWT_SECRET` (HS256) in the `access_token` cookie: HttpOnly, `SameSite=Lax`,
+- The session is a JWT signed with `JWT_SECRET`, with HS256 pinned on sign and verify, so any other algorithm is
+  rejected. Test: `backend/__tests__/sessionToken.test.js`. The cookie is `__Host-access_token` (plain `access_token`
+  in development and tests, which run over http and could not set the prefix): HttpOnly, `SameSite=Lax`,
   Secure unless `NODE_ENV` is `development` or `test` and `ENV` is not `prod`, path `/`, expiry `ACCESS_TOKEN_MINUTES` (60).
 - **The server refuses to start without a real `JWT_SECRET`.** The built-in development secret and the README's
   example are refused, as is a blank value, unless `NODE_ENV` is `development` or `test` and `ENV` is not `prod`.
@@ -123,7 +125,7 @@ stop another site from acting as the user.
   - `oauth_state` must be Lax: Google's redirect to `/api/auth/google/callback` is a top-level GET navigation
     from another site. `Strict` would drop the cookie there and every Google login would fail. Lax works only
     because Google returns with a GET (we do not use `response_mode=form_post`).
-  - `access_token` stays Lax rather than Strict. The SPA's own API calls are same-site either way, so Strict
+  - The session cookie stays Lax rather than Strict. The SPA's own API calls are same-site either way, so Strict
     would mainly break links to the API opened from outside, such as a document download link. The only GET route
     that changes state is `GET /api/auth/google/callback`, which can create a user and a session. The one-time
     OAuth state check protects it instead of the Origin check, so Strict would add almost nothing.
