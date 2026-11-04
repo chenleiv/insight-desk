@@ -35,7 +35,7 @@ describe("embedMissingChunks", () => {
     const count = await embedMissingChunks({ embed, batchSize: 2 });
 
     expect(count).toBe(3);
-    expect(Chunk.find).toHaveBeenCalledWith({ embedding: { $exists: false } }, "docId text");
+    expect(Chunk.find).toHaveBeenCalledWith({ embedding: null }, "docId text");
     expect(Chunk.updateOne).toHaveBeenCalledWith({ _id: "c1" }, { $set: { embedding: [2], embeddingKey: embeddingKey(undefined, "ab") } });
     expect(Chunk.updateOne).toHaveBeenCalledWith({ _id: "c3" }, { $set: { embedding: [1], embeddingKey: embeddingKey(undefined, "a") } });
   });

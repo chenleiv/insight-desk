@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   getSystemPrompt,
   updateSystemPrompt,
@@ -7,12 +8,14 @@ import {
 } from "../../../../../api/aiClient";
 import { useStatus } from "../../../../../components/statusBar/useStatus";
 import { SkeletonLine, SkeletonRegion } from "../../../../../components/skeleton/Skeleton";
+import { SUGGESTIONS_QUERY_KEY } from "../../../hooks/useSuggestions";
 
 // Matches the four question fields the loaded form always shows.
 const QUESTION_COUNT = 4;
 
 export function AISection({ readOnly = false }: { readOnly?: boolean }) {
   const status = useStatus();
+  const queryClient = useQueryClient();
 
   const [promptDraft, setPromptDraft] = useState("");
   const [promptSaving, setPromptSaving] = useState(false);
@@ -62,7 +65,8 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
     setQuestionsSaving(true);
     try {
       const filtered = questions.map((q) => q.trim()).filter(Boolean);
-      await updateSuggestions(filtered);
+      // So the chat shows the saved questions at once, not when its cached copy goes stale.
+      queryClient.setQueryData(SUGGESTIONS_QUERY_KEY, await updateSuggestions(filtered));
       status.show({ kind: "success", title: "Saved", message: "Example questions updated" });
     } catch (e) {
       status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });

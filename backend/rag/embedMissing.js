@@ -14,7 +14,8 @@ export const RETRY_DELAY_MS = 60 * 1000;
 export async function embedMissingChunks({ embed = defaultEmbed, batchSize = BATCH_SIZE } = {}) {
   let total = 0;
   for (;;) {
-    const chunks = await Chunk.find({ embedding: { $exists: false } }, "docId text").limit(batchSize).lean();
+    // null also matches a missing field, and unlike $exists: false it can use the partial index.
+    const chunks = await Chunk.find({ embedding: null }, "docId text").limit(batchSize).lean();
     if (!chunks.length) return total;
     const titles = await documentTitles(chunks.map((c) => c.docId));
     for (const chunk of chunks) {

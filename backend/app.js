@@ -55,10 +55,18 @@ export function createApp({ distPath }) {
         res.send('User-agent: *\nAllow: /');
     });
 
+    // Some clients ask for this path by habit, without reading the page's icon link.
+    app.get('/favicon.ico', (req, res) => res.redirect(302, '/favicon.svg'));
+
     app.use('/api', apiNotFound);
 
-    // SPA fallback
+    // SPA fallback, for pages only. A missing file, such as an old build's asset after a
+    // deploy, gets a real 404: as a page it would be a 200 of the wrong type. Not stored, so
+    // no cache keeps the 404 once the file exists.
     app.get('*', spaFallbackLimiter(), (req, res) => {
+        if (req.path.startsWith('/assets/') || path.basename(req.path).includes('.')) {
+            return res.status(404).set('Cache-Control', 'no-store').type('text/plain').send('Not found');
+        }
         res.sendFile(path.join(distPath, 'index.html'), (err) => {
             if (err) {
                 logger.error('Error sending index.html', { message: err.message });

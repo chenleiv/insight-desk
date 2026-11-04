@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { logger } from './logger.js';
 
 const userSchema = new mongoose.Schema({
     // Normalized by the code that creates users. Not the `lowercase` option: that setter also
@@ -51,6 +52,12 @@ const documentSchema = new mongoose.Schema({
     }
 });
 
+// The documents list sorts by newest first. Regular users share every non-demo document:
+// an index starting with `demo` would still sort in memory, as $ne is not a single value.
+documentSchema.index({ createdAt: -1 });
+// A demo user's own documents.
+documentSchema.index({ ownerId: 1, createdAt: -1 });
+
 // A slice of a document's text (content or attachment), produced by the reindex script.
 const chunkSchema = new mongoose.Schema({
     docId: { type: mongoose.Schema.Types.ObjectId, ref: 'Document', required: true },
@@ -66,6 +73,9 @@ const chunkSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 chunkSchema.index({ docId: 1, index: 1 }, { unique: true });
+// Finds chunks waiting for an embedding without reading the others. Holds only those chunks,
+// never a vector. MongoDB refuses $exists: false here, so embedMissing.js queries for null.
+chunkSchema.index({ embedding: 1 }, { partialFilterExpression: { embedding: { $eq: null } } });
 
 // One record per chat question, for measuring retrieval in production.
 // Holds IDs and scores only: never the question, chunk text, or the user.
@@ -114,3 +124,11 @@ export const AIConfig = mongoose.model('AIConfig', aiConfigSchema);
 export const Chunk = mongoose.model('Chunk', chunkSchema);
 export const RetrievalLog = mongoose.model('RetrievalLog', retrievalLogSchema);
 export const UsageCounter = mongoose.model('UsageCounter', usageCounterSchema);
+
+// Indexes build by themselves after connecting. One that fails, for example on a database
+// version that does not support it, must not stop the server: queries work without it, slower.
+for (const model of [User, Document, AIConfig, Chunk, RetrievalLog, UsageCounter]) {
+    model.on('index', (err) => {
+        if (err) logger.error('Building database indexes failed', { model: model.modelName, message: err.message });
+    });
+}

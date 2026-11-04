@@ -109,11 +109,16 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
   Tests: `backend/middleware/__tests__/setup.test.js` checks the header, and `backend/__tests__/app.test.js`
   measures the headers on the real app's main page.
 - **Network and image sources are limited.** `connect-src` is `'self'` and `img-src` is `'self' data:`, so an
-  injected script or image cannot send data to another host through them. `style-src` and `font-src` keep helmet's
-  `https:` default for the external font provider until the fonts are self-hosted.
+  injected script or image cannot send data to another host through them. The fonts are self-hosted, so `font-src`
+  is `'self'` and `style-src` no longer allows `https:`, and no page load reaches an external font provider.
 - **Static files keep their cache rules when compressed.** They pass through the same `compression()` as the API.
   Hashed files under `assets/` stay `immutable` for a year, and everything else, including `index.html`, is
   revalidated on each load, so a deploy reaches visitors at once.
+- **A missing file is a 404, not the main page.** A path under `assets/`, or one whose last part has a dot, gets a
+  plain 404 with `no-store` instead of `index.html`, so a missing script or stylesheet is never answered with HTML
+  and status 200, and no cache keeps the 404. Page paths still get `index.html`.
+- **A page that fails to render shows a generic error page.** It shows no error detail, unlike React Router's
+  default screen, which displays the message and stack to the visitor.
   Checked by hand: `dist/index.html` from `npm run build` has no inline `<script>`. Under the real middleware,
   headless Chromium renders the login page with the theme set, and an inline script on a probe page is blocked.
 - **Known gap, accepted:** `style-src` still includes `'unsafe-inline'`, helmet's default, kept on purpose.

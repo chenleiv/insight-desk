@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { compile } from "sass";
 import { StatusContext, type StatusApi } from "../../../../../components/statusBar/statusContext";
 import { CHAT_KEY } from "../../../../../storageKeys";
@@ -34,6 +35,7 @@ const screen = { phoneWidth: true, touch: true };
 const status: StatusApi = { show: vi.fn(), clear: vi.fn() };
 let container: HTMLDivElement;
 let root: Root;
+let queryClient: QueryClient;
 let resizeCallbacks: (() => void)[];
 
 // Node's own localStorage global hides jsdom's here, so tests get a small in-memory one.
@@ -52,9 +54,11 @@ function memoryStorage(): Storage {
 function renderChat(saved: ChatMessage[] = [USER, ANSWER]) {
   localStorage.setItem(CHAT_KEY, JSON.stringify(saved));
   act(() => root.render(
-    <StatusContext.Provider value={status}>
-      <AIAssistantView onOpenDocument={vi.fn()} />
-    </StatusContext.Provider>
+    <QueryClientProvider client={queryClient}>
+      <StatusContext.Provider value={status}>
+        <AIAssistantView onOpenDocument={vi.fn()} />
+      </StatusContext.Provider>
+    </QueryClientProvider>
   ));
 }
 
@@ -133,6 +137,7 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
+  queryClient = new QueryClient();
 });
 
 afterEach(() => {
@@ -367,6 +372,167 @@ describe("following the answer on a phone", () => {
   });
 });
 
+describe.each([
+  ["a desktop screen", false],
+  ["a phone", true],
+])("following the answer on %s", (_label, phoneWidth) => {
+  beforeEach(() => {
+    screen.phoneWidth = phoneWidth;
+    screen.touch = phoneWidth;
+  });
+
+  it("follows a large jump in the content", async () => {
+    renderChat();
+    layOut(1000);
+    scrollTo(600);
+    await contentChanges(4000);
+    expect(list().scrollTop).toBe(4000);
+    expect(scrollButton()).toBeNull();
+  });
+
+  it("does not pull back down after a small scroll up, even if a chunk adds no line first", async () => {
+    renderChat();
+    layOut(1000);
+    scrollTo(600);
+    scrollTo(590);
+    await contentChanges(1000);
+    await contentChanges(1100);
+    expect(list().scrollTop).toBe(590);
+    expect(scrollButton()).not.toBeNull();
+  });
+
+  it("does not override a scroll up that a new chunk arrives before", async () => {
+    renderChat();
+    layOut(1000);
+    scrollTo(600);
+    list().scrollTop = 590;
+    await contentChanges(1100);
+    expect(list().scrollTop).toBe(590);
+  });
+
+  it("does not resume on a scroll down that stays far from the end", async () => {
+    renderChat();
+    layOut(1000);
+    scrollTo(600);
+    scrollTo(100);
+    scrollTo(200);
+    await contentChanges(1100);
+    expect(list().scrollTop).toBe(200);
+  });
+
+  it("resumes when the user scrolls back to the bottom", async () => {
+    renderChat();
+    layOut(1000);
+    scrollTo(600);
+    scrollTo(100);
+    scrollTo(600);
+    expect(scrollButton()).toBeNull();
+    await contentChanges(1100);
+    expect(list().scrollTop).toBe(1100);
+  });
+
+  it("resumes when the user scrolls down to just above the bottom", async () => {
+    renderChat();
+    layOut(1000);
+    scrollTo(600);
+    scrollTo(100);
+    scrollTo(580);
+    await contentChanges(1100);
+    expect(list().scrollTop).toBe(1100);
+  });
+
+  it("resumes from the button", async () => {
+    renderChat();
+    layOut(1000);
+    scrollTo(600);
+    scrollTo(100);
+    act(() => scrollButton()!.click());
+    expect(list().scrollTop).toBe(1000);
+    expect(scrollButton()).toBeNull();
+    await contentChanges(1100);
+    expect(list().scrollTop).toBe(1100);
+  });
+
+  it("resumes when the user asks a new question", async () => {
+    renderChat();
+    layOut(1000);
+    scrollTo(600);
+    scrollTo(100);
+    type("Next");
+    await act(async () => sendButton().click());
+    await contentChanges(1200);
+    expect(list().scrollTop).toBe(1200);
+  });
+
+  describe("with the real typewriter", () => {
+    const LONG_ANSWER = "word ".repeat(600).trim();
+    const wait = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+
+    const CLIENT_HEIGHT = 400;
+    const maxScroll = () => list().scrollHeight - CLIENT_HEIGHT;
+
+    // As in a browser with layout: the list grows with the text, and scrollTop stops at the end.
+    function layOutByText() {
+      let top = 0;
+      Object.defineProperty(list(), "clientHeight", { configurable: true, value: CLIENT_HEIGHT });
+      Object.defineProperty(list(), "scrollHeight", { configurable: true, get: () => CLIENT_HEIGHT + list().textContent!.length });
+      Object.defineProperty(list(), "scrollTop", {
+        configurable: true,
+        get: () => top,
+        set: (value: number) => { top = Math.max(0, Math.min(value, maxScroll())); },
+      });
+    }
+
+    async function askForLongAnswer() {
+      renderChat();
+      layOutByText();
+      list().scrollTop = list().scrollHeight;
+      chatWithAI.mockResolvedValue({ ...ANSWER_RESPONSE, answer: LONG_ANSWER });
+      type("Question");
+      await act(async () => sendButton().click());
+      await wait(0);
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      // Only the screen width matches, so the answer is typed instead of shown at once.
+      vi.stubGlobal("matchMedia", (query: string) => ({
+        matches: phoneWidth && query.includes("max-width"),
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }));
+    });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it("stays at the bottom through the whole answer", async () => {
+      await askForLongAnswer();
+      const before = list().scrollHeight;
+
+      for (let elapsed = 0; elapsed < 4000; elapsed += 500) {
+        await wait(500);
+        expect(list().scrollTop).toBe(maxScroll());
+      }
+
+      expect(list().scrollHeight).toBeGreaterThan(before + LONG_ANSWER.length / 2);
+      expect(scrollButton()).toBeNull();
+    });
+
+    it("leaves a user who scrolled up where they are, also when the answer finishes", async () => {
+      await askForLongAnswer();
+      await wait(1000);
+      const top = maxScroll() - 50;
+      scrollTo(top);
+
+      await wait(4000);
+
+      expect(list().querySelector(".typewriter")).toBeNull();
+      expect(list().scrollTop).toBe(top);
+      expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+      expect(scrollButton()).not.toBeNull();
+    });
+  });
+});
+
 describe("chat actions on a phone", () => {
   it("replace the row under the input with a labelled button in the input's row", () => {
     renderChat();
@@ -451,8 +617,12 @@ describe("suggested questions", () => {
 
   it("are the first three of a list an admin saved, on a phone", async () => {
     getSuggestions.mockResolvedValueOnce({ questions: ["One?", "Two?", "Three?", "Four?"] });
-    await act(async () => renderChat([]));
-    expect(suggestionCards()).toEqual(["One?", "Two?", "Three?"]);
+    renderChat([]);
+    // The query layer delivers its result on a timer, not on the next microtask.
+    await vi.waitFor(async () => {
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve)); });
+      expect(suggestionCards()).toEqual(["One?", "Two?", "Three?"]);
+    });
   });
 });
 
