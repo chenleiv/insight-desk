@@ -13,8 +13,9 @@ const DEFAULT_SEARCH_RESULTS = 5;
  * middleware, never one derived from the request.
  *
  * Chunks without an embedding (or with one from a different model size) are
- * skipped. Similarity is computed in memory, since each user has only a few
- * dozen chunks.
+ * skipped. Every chunk of the documents the user may read is loaded with its
+ * vector on each search and scored in memory. Regular users share all non-demo
+ * documents, so this grows with the whole library, not with one user's documents.
  */
 export async function search(user, query, k = DEFAULT_SEARCH_RESULTS) {
   if (!user?._id) throw new Error("An authenticated user is required");
