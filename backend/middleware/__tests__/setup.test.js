@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import express from "express";
 import {
   applyMiddleware,
@@ -87,6 +87,29 @@ describe("Content-Security-Policy", () => {
   it("blocks inline event handlers", async () => {
     const directives = await cspDirectives();
     expect(directives["script-src-attr"]).toEqual(["'none'"]);
+  });
+});
+
+describe("global /api rate limit", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  async function apiLimit(env) {
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    const baseUrl = await startApp(undefined);
+    return (await fetch(`${baseUrl}/api/ip`)).headers.get("ratelimit-limit");
+  }
+
+  it.each([
+    ["production", { NODE_ENV: "production" }, "100"],
+    ["no NODE_ENV", { NODE_ENV: "" }, "100"],
+    ["ENV=prod alone", { NODE_ENV: "", ENV: "prod" }, "100"],
+    ["ENV=prod with NODE_ENV=development", { NODE_ENV: "development", ENV: "prod" }, "100"],
+    ["development", { NODE_ENV: "development", ENV: "" }, "1000"],
+    ["tests", { NODE_ENV: "test", ENV: "" }, "1000"],
+  ])("under %s", async (_label, env, limit) => {
+    expect(await apiLimit(env)).toBe(limit);
   });
 });
 

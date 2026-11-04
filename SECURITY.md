@@ -76,6 +76,11 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 
 - The session is a JWT signed with `JWT_SECRET` (HS256) in the `access_token` cookie: HttpOnly, `SameSite=Lax`,
   Secure when `ENV=prod` or `NODE_ENV=production`, path `/`, expiry `ACCESS_TOKEN_MINUTES` (60).
+- **The server refuses to start without a real `JWT_SECRET`.** The built-in development secret and the README's
+  example are refused, as is a blank value, unless `NODE_ENV` is `development` or `test` and `ENV` is not `prod`.
+  Any other environment, including an unset `NODE_ENV`, counts as production (`backend/runtimeEnv.js`), and also
+  gets the production limit of 100 `/api` requests per 15 minutes (1000 in development and test).
+  Test: `backend/__tests__/startupSecret.test.js` starts a real process with a clean environment.
 - The JWT is signed, not encrypted: its payload (email and role) is readable by whoever holds the cookie.
   It holds no password or secret. Accepted; CodeQL's "Clear text storage of sensitive information" alert
   on `setAuthCookie` is dismissed with a reference to this section.

@@ -5,7 +5,7 @@
  * the best score of the expected document for each related one.
  * Runs offline: no database, no Groq calls.
  *
- * Usage: node eval/threshold.js
+ * Usage: NODE_ENV=development node eval/threshold.js
  */
 import { readFileSync, writeFileSync } from "fs";
 import { buildDocumentChunks } from "../backend/rag/buildChunks.js";

@@ -183,6 +183,9 @@ ai-workspace/
    FRONTEND_URL=http://localhost:5173
    PORT=8000
    ```
+   Outside `NODE_ENV=development` or `test` the server refuses to start without a
+   real `JWT_SECRET`. `npm run dev:backend` sets `NODE_ENV=development` for you.
+
    In production behind reverse proxies, also set `TRUST_PROXY_HOPS` to the number
    of proxies in front of the server. On Render this is `3` (Cloudflare, Render's
    load balancer, and Render's local proxy), measured from the `X-Forwarded-For`
