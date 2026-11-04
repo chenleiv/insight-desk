@@ -239,7 +239,7 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
             return res.status(500).json({ detail: AI_ERROR_DETAIL });
         }
 
-        const reservation = await reserveQuestion(req.user);
+        const reservation = await reserveQuestion(req.user, req.ip);
         if (reservation.refused) {
             const { status, detail, retryAfter } = reservation.refused;
             res.set('Retry-After', String(retryAfter));
@@ -287,6 +287,7 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
         const { answer, citations, unknown } = shortened ? verifyCitations(cutToLastSentence(raw), chunks) : full;
         if (unknown.length) logger.warn('Model cited chunks that were not retrieved', { ids: unknown });
 
+        if (!answer) budget.fail();
         if (!answer && shortened) {
             return res.status(502).json({ detail: TOO_LONG_ANSWER_DETAIL });
         }
@@ -306,6 +307,7 @@ router.post('/api/ai/chat', getCurrentUser, chatLimiter, async (req, res) => {
         if (error.name === 'ZodError') {
             return sendValidationError(res, error);
         }
+        budget?.fail();
         // The provider's quota is used up. Its message stays in the log; the visitor gets a plain one.
         if (error?.status === 429) {
             const retryAfter = retryAfterSeconds(error);
