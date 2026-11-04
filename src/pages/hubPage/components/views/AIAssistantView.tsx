@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, type KeyboardEvent } from "react";
 import "./aiAssistant.scss";
 import { BrainCircuit, Send, Bot, ChevronDown, SlidersHorizontal, ThumbsUp, ThumbsDown } from "lucide-react";
-import { chatWithAI, getSuggestions, getSystemPrompt, sendFeedback, type FeedbackRating } from "../../../../api/aiClient";
+import { chatWithAI, dailyLimitMessage, getSuggestions, getSystemPrompt, sendFeedback, type FeedbackRating } from "../../../../api/aiClient";
 import { citedSources, formatMessageTime, removeCitations, uid } from "../../utils/assistantUtils";
 import { renderMarkdown } from "../../utils/renderMarkdown";
 import { CHAT_KEY } from "../../../../storageKeys";
@@ -128,8 +128,10 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
       const key = scopedKey(AI_QUERY_COUNT_BASE_KEY, user?.email);
       saveJson(key, loadJson<number>(key, 0) + 1);
     } catch (e) {
-      const errMsg = e instanceof Error ? e.message : "Sorry, I encountered an error.";
-      setLastError(errMsg);
+      // Asking again cannot help before a daily limit resets, so it gets no Retry button.
+      const limitMsg = dailyLimitMessage(e);
+      const errMsg = limitMsg ?? (e instanceof Error ? e.message : "Sorry, I encountered an error.");
+      if (!limitMsg) setLastError(errMsg);
       setMessages((prev) => [
         ...prev,
         {

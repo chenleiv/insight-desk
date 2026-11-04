@@ -1,4 +1,4 @@
-import { apiFetch } from "./base";
+import { ApiError, apiFetch } from "./base";
 
 export interface ChatResponse {
   answer: string;
@@ -14,6 +14,23 @@ export async function chatWithAI(message: string): Promise<ChatResponse> {
     method: "POST",
     body: JSON.stringify({ message }),
   });
+}
+
+// The message to show when the server refused a question for a daily limit, with the local
+// time the limit resets. Null for any other error, which the user may simply retry.
+export function dailyLimitMessage(error: unknown, now = new Date()): string | null {
+  if (!(error instanceof ApiError) || !error.bodyText) return null;
+  let body: { detail?: unknown; code?: unknown; retryAfter?: unknown };
+  try {
+    body = JSON.parse(error.bodyText);
+  } catch {
+    return null;
+  }
+  if (body?.code !== "daily_limit" || typeof body.detail !== "string") return null;
+  if (typeof body.retryAfter !== "number" || !Number.isFinite(body.retryAfter)) return body.detail;
+  const resetsAt = new Date(now.getTime() + body.retryAfter * 1000);
+  const time = resetsAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `${body.detail} It resets at ${time}.`;
 }
 
 export type FeedbackRating = "up" | "down";
