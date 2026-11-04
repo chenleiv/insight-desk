@@ -212,7 +212,9 @@ ai-workspace/
 
 Every chunk gets an embedding when its document is saved. If embedding fails, the
 chunks are saved without one and the server fills them in: once a minute after the
-failure, and again on every start. No manual step is needed.
+failure, and again on every start. No manual step is needed. A partial index keeps
+that check cheap: it holds only the chunks still waiting. The server builds its
+indexes on start; if one cannot be built, it logs the error and keeps running.
 
 After changing the embedding model or the chunk settings (`CHUNK_SIZE`,
 `CHUNK_OVERLAP` in `backend/rag/buildChunks.js`), rebuild everything against each
