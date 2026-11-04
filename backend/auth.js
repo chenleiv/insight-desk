@@ -96,6 +96,19 @@ function createAccessToken(email, role) {
     return jwt.sign({ sub: email, role }, JWT_SECRET, { expiresIn: `${ACCESS_TOKEN_MINUTES}m` });
 }
 
+// Written at most this often, so a demo session does not add a write to every request.
+const DEMO_ACTIVITY_INTERVAL_MS = 5 * 60 * 1000;
+
+// Decides which workspace goes first when too many are live. Never fails the request.
+async function recordDemoActivity(user, now = new Date()) {
+    if (user.lastActiveAt && now - user.lastActiveAt < DEMO_ACTIVITY_INTERVAL_MS) return;
+    try {
+        await User.updateOne({ _id: user._id }, { $set: { lastActiveAt: now } });
+    } catch (err) {
+        logger.error('Recording demo activity failed', { message: err.message });
+    }
+}
+
 export async function getCurrentUser(req, res, next) {
     const token = req.cookies[COOKIE_NAME];
     if (!token) {
@@ -123,6 +136,7 @@ export async function getCurrentUser(req, res, next) {
     if (isDemoUser(user) && user.expiresAt && user.expiresAt < new Date()) {
         return res.status(401).json({ detail: 'Demo session expired' });
     }
+    if (isDemoUser(user)) void recordDemoActivity(user);
     req.user = user;
     next();
 }

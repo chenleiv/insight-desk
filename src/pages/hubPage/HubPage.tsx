@@ -447,6 +447,7 @@ export default function HubPage() {
               canEdit={canEditDocs}
               maxContentLength={isDemo ? DEMO_LIMITS.contentLength : undefined}
               maxAttachments={isDemo ? DEMO_LIMITS.attachmentsPerDocument : undefined}
+              maxUploadBytes={isDemo ? DEMO_LIMITS.uploadBytes : undefined}
               isCreating={activeView.kind === "creating"}
               onCancelCreate={cancelCreate}
               onCreated={handleCreated}

@@ -12,13 +12,19 @@ import { getCurrentUser, requireEditor } from '../auth.js';
 import { canAccessDocument, documentScope, isDemoUser, DEMO_LIMITS } from '../access.js';
 import { documentSchema, documentDownloadQuerySchema, importBulkSchema, sendValidationError } from '../schemas.js';
 import { exportDocument, ExportError } from '../documentExport.js';
-import { reserveDemoDocument, releaseDemoDocument } from '../demoQuota.js';
+import {
+    reserveDemoDocument,
+    releaseDemoDocument,
+    reserveDemoStorage,
+    releaseDemoStorage,
+    demoStorageCost,
+} from '../demoQuota.js';
 import { syncDocumentChunks, deleteDocumentChunks } from '../rag/syncChunks.js';
 import { embed } from '../rag/embed.js';
 import { scheduleEmbeddingRetry } from '../rag/embedMissing.js';
 import {
     MAX_UPLOAD_BYTES,
-    FILE_TOO_LARGE_MESSAGE,
+    fileTooLargeMessage,
     resolveUploadMime,
     fileTypeNotAllowedMessage,
 } from '../../shared/uploadRules.js';
@@ -29,13 +35,18 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 const DEMO_CONTENT_LIMIT_MESSAGE =
     `Demo documents are limited to ${DEMO_LIMITS.contentLength.toLocaleString('en-US')} characters`;
 const DEMO_DOCUMENT_LIMIT_MESSAGE = `Demo workspaces are limited to ${DEMO_LIMITS.documents} documents`;
+const DEMO_STORAGE_LIMIT_MESSAGE =
+    `Demo workspaces are limited to ${DEMO_LIMITS.storageBytes / (1024 * 1024)}MB of uploaded files. Remove a file and try again.`;
 const DEMO_ATTACHMENT_LIMIT_MESSAGE = `Demo documents are limited to ${DEMO_LIMITS.attachmentsPerDocument} attachment`;
 
 function handleMulterUpload(req, res, next) {
-    upload.single('file')(req, res, (err) => {
+    const isDemo = isDemoUser(req.user);
+    (isDemo ? demoUpload : upload).single('file')(req, res, (err) => {
         if (err) {
             if (err.code === 'LIMIT_FILE_SIZE') {
-                return res.status(413).json({ detail: FILE_TOO_LARGE_MESSAGE });
+                return res.status(413).json({
+                    detail: fileTooLargeMessage(isDemo ? DEMO_LIMITS.uploadBytes : MAX_UPLOAD_BYTES),
+                });
             }
             return res.status(err.status || 400).json({ detail: err.message });
         }
@@ -108,31 +119,42 @@ const MAX_FILE_NAME_LENGTH = 255;
 
 // The allowed types live in shared/uploadRules.js, which the UI uses too. A file the
 // browser sent with no type or a generic one gets its extension's type.
-const upload = multer({
-    storage: multer.memoryStorage(),
-    // One file and nothing else: the UI sends no other parts, and each would use memory.
-    limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 0, parts: 1, headerPairs: 20 },
-    fileFilter: (_req, file, cb) => {
-        if (file.originalname.length > MAX_FILE_NAME_LENGTH) {
-            cb(Object.assign(new Error('The file name is too long.'), { status: 400 }));
-            return;
-        }
-        const mimeType = resolveUploadMime(file.originalname, file.mimetype);
-        if (mimeType) {
-            file.mimetype = mimeType;
-            cb(null, true);
-        } else {
-            cb(Object.assign(new Error(fileTypeNotAllowedMessage(file.mimetype)), { status: 400 }));
-        }
-    },
-});
+function uploadParser(maxBytes) {
+    return multer({
+        storage: multer.memoryStorage(),
+        // One file and nothing else: the UI sends no other parts, and each would use memory.
+        limits: { fileSize: maxBytes, files: 1, fields: 0, parts: 1, headerPairs: 20 },
+        fileFilter: (_req, file, cb) => {
+            if (file.originalname.length > MAX_FILE_NAME_LENGTH) {
+                cb(Object.assign(new Error('The file name is too long.'), { status: 400 }));
+                return;
+            }
+            const mimeType = resolveUploadMime(file.originalname, file.mimetype);
+            if (mimeType) {
+                file.mimetype = mimeType;
+                cb(null, true);
+            } else {
+                cb(Object.assign(new Error(fileTypeNotAllowedMessage(file.mimetype)), { status: 400 }));
+            }
+        },
+    });
+}
+
+const upload = uploadParser(MAX_UPLOAD_BYTES);
+const demoUpload = uploadParser(DEMO_LIMITS.uploadBytes);
+
+// A demo workspace keeps no more text from a file than a document may hold.
+async function extractForUser(user, file) {
+    const text = await extractTextFromBuffer(file.buffer, file.mimetype);
+    return isDemoUser(user) ? text.slice(0, DEMO_LIMITS.contentLength) : text;
+}
 
 // Extract text from a file without creating any document (editors)
 router.post('/extract-text', requireEditor, uploadLimiter, handleMulterUpload, async (req, res) => {
     try {
         const file = req.file;
         if (!file) return res.status(400).json({ detail: 'No file uploaded' });
-        const text = await extractTextFromBuffer(file.buffer, file.mimetype);
+        const text = await extractForUser(req.user, file);
         res.json({ text, fileName: file.originalname });
     } catch (err) {
         if (handleExtractionError(err, res)) return;
@@ -312,7 +334,11 @@ router.delete('/:id', requireEditor, async (req, res) => {
             );
         }
         await removeChunks(deleted._id);
-        if (isDemoUser(req.user)) await releaseDemoDocument(req.user);
+        if (isDemoUser(req.user)) {
+            await releaseDemoDocument(req.user);
+            await releaseDemoStorage(req.user, (deleted.attachments ?? [])
+                .reduce((sum, a) => sum + demoStorageCost(a.fileSize, a.extractedText), 0));
+        }
         res.status(204).send();
     } catch (err) {
         logger.error('Deleting document', { message: err.message });
@@ -403,7 +429,14 @@ router.post('/:id/attachments', requireEditor, uploadLimiter, handleMulterUpload
         const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
         const attachmentId = new mongoose.Types.ObjectId();
         // Before the file is stored, so a failure here leaves nothing behind.
-        const extractedText = await extractTextFromBuffer(file.buffer, file.mimetype);
+        const extractedText = await extractForUser(req.user, file);
+
+        // Reserved before the file is stored, and given back on every path that does not keep it.
+        const isDemo = isDemoUser(req.user);
+        const storageCost = isDemo ? demoStorageCost(file.size, extractedText) : 0;
+        if (isDemo && !(await reserveDemoStorage(req.user, storageCost))) {
+            return res.status(403).json({ detail: DEMO_STORAGE_LIMIT_MESSAGE });
+        }
 
         // Upload to GridFS
         const bucket = getAttachmentBucket();
@@ -425,16 +458,19 @@ router.post('/:id/attachments', requireEditor, uploadLimiter, handleMulterUpload
                 url: fileUrl,
                 fileName: file.originalname,
                 fileType: file.mimetype,
+                fileSize: file.size,
                 extractedText,
                 gridfsId: uploadStream.id,
             });
         } catch (err) {
             // The document does not reference the file, so remove it rather than leave it orphaned.
             await bucket.delete(uploadStream.id).catch(() => {});
+            await releaseDemoStorage(req.user, storageCost).catch(() => {});
             throw err;
         }
         if (!saved) {
             await bucket.delete(uploadStream.id).catch(() => {});
+            await releaseDemoStorage(req.user, storageCost).catch(() => {});
             return res.status(403).json({ detail: DEMO_ATTACHMENT_LIMIT_MESSAGE });
         }
         await refreshChunks(saved);
@@ -477,6 +513,9 @@ router.delete('/:id/attachments/:attachmentId', requireEditor, async (req, res) 
         if (attachment.gridfsId) {
             const bucket = getAttachmentBucket();
             await bucket.delete(attachment.gridfsId).catch(() => {});
+        }
+        if (isDemoUser(req.user)) {
+            await releaseDemoStorage(req.user, demoStorageCost(attachment.fileSize, attachment.extractedText));
         }
         await refreshChunks(updated);
 

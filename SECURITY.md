@@ -20,7 +20,8 @@ Security controls in Insight Desk and the tests that guard them.
 - **Demo workspaces are temporary.** A demo account and everything it owns (documents, chunks, uploaded files)
   are deleted on logout, since a demo account has no password and cannot be reached again. If the visitor never
   logs out, they are deleted after 24 hours by a cleanup that runs when the server starts and every hour after,
-  so data can outlive its expiry by up to an hour, or until the next start if the server is asleep.
+  so data can outlive its expiry by up to an hour, or until the next start if the server is asleep. A workspace can
+  also go sooner when the demo is busy (see Demo limits).
   Only accounts with the `demo` role are ever matched, and the logs record only how many were removed.
   Tests: `backend/__tests__/demoCleanup.integration.test.js`, `backend/__tests__/demoCleanup.test.js`,
   `backend/__tests__/demoLogout.test.js`.
@@ -43,6 +44,7 @@ Security controls in Insight Desk and the tests that guard them.
 | Document content | 500,000 characters | 400 |
 | Bulk import | 50 documents | 400 |
 | Document download as PDF or Word | 200,000 characters of content (`MAX_EXPORT_CHARS`) | 422, suggests Markdown |
+| Uploaded file | 10 MB; 2 MB in a demo workspace | 413, names the limit |
 | Upload form | One file, no other fields or parts, a file name of at most 255 characters | 400 |
 
 Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.test.js`.
@@ -192,6 +194,18 @@ Tests: `backend/routes/__tests__/documentDownload.test.js`, `backend/__tests__/d
   by an update whose filter includes the limit. A loser of the race gets a 403 and leaves no file behind, and a slot
   is given back when a write fails or a document is deleted.
   Test: `backend/__tests__/demoLimitsRace.integration.test.js`, against a real in-memory MongoDB.
+
+- **Storage is bounded.** Anyone can open a demo workspace, and without a cap one address could store 500 MB in 15
+  minutes. In a demo workspace, a file is at most 2 MB and at most 20,000 characters of its text are kept. Uploads
+  count against a 5 MB quota per workspace, as the file size plus 12 bytes per character of text, since chunks with
+  vectors take far more room than the text itself. At the worst case, with content written directly on top, a workspace
+  takes about 10 MB.
+- **At most 40 live workspaces.** When a new one goes over the cap, the least recently active workspace is removed with
+  everything in it. New visitors are never refused, because a refusal would let one address block the demo for everyone
+  by filling the cap. At the worst case this is about 400 MB. Activity is recorded at most every 5 minutes.
+- **Known gap, accepted.** A request that creates a document at the same moment its workspace is removed can leave that
+  document behind. It is invisible to everyone, and it takes a request racing a removal to create.
+  Tests: `backend/__tests__/demoQuota.integration.test.js`, `backend/__tests__/demoActivity.test.js`.
 
 ## Data integrity
 

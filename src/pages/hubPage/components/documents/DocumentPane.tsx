@@ -39,6 +39,7 @@ type Props = {
   canEdit: boolean;
   maxContentLength?: number | undefined;
   maxAttachments?: number | undefined;
+  maxUploadBytes?: number | undefined;
   isCreating: boolean;
   onClose?: () => void;
   onCancelCreate: () => void;
@@ -62,6 +63,7 @@ export default function DocumentPane({
   canEdit,
   maxContentLength,
   maxAttachments,
+  maxUploadBytes,
   isCreating,
   onClose,
   onCancelCreate,
@@ -141,7 +143,7 @@ export default function DocumentPane({
     effectiveDoc,
     handleUploadAttachment,
     handleDeleteAttachment,
-  } = useDocumentAttachments({ doc, canEdit, onSaved });
+  } = useDocumentAttachments({ doc, canEdit, onSaved, maxUploadBytes });
 
   // Blocks a second submit before the pending state has rendered.
   const createInFlightRef = useRef(false);

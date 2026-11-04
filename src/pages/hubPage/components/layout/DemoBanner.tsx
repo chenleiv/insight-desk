@@ -2,8 +2,12 @@ import { useId, useState } from "react";
 import { ChevronDown, FlaskConical } from "lucide-react";
 import { DEMO_LIMITS } from "../../../../auth/demoLimits";
 
-const { documents, contentLength, attachmentsPerDocument } = DEMO_LIMITS;
+const { documents, contentLength, attachmentsPerDocument, uploadBytes, storageBytes } = DEMO_LIMITS;
+const MEGABYTE = 1024 * 1024;
 const ATTACHMENTS = `${attachmentsPerDocument} attachment${attachmentsPerDocument === 1 ? "" : "s"}`;
+
+const UPLOAD_DETAILS = `Uploads: up to ${uploadBytes / MEGABYTE} MB per file and ${storageBytes / MEGABYTE} MB per workspace. `
+  + "When the demo is busy, the least recently active workspace is removed.";
 
 // Each text is one string, so no spaces depend on how it is split into DOM nodes.
 const SUMMARY = "Demo workspace · Your changes reset when you sign out · Details";
@@ -36,6 +40,7 @@ export default function DemoBanner({ compact = false }: Props) {
         <ChevronDown size={14} className={open ? "open" : undefined} aria-hidden />
       </button>
       <p id={detailsId} className="demo-banner-details" hidden={!open}>{DETAILS}</p>
+      <p className="demo-banner-details demo-banner-upload-details" hidden={!open}>{UPLOAD_DETAILS}</p>
     </div>
   );
 }

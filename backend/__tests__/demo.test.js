@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "fs";
 
 const { User, Document, Chunk, remove, bucketDelete } = vi.hoisted(() => ({
-  User: { find: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
+  User: { find: vi.fn(), create: vi.fn(), deleteMany: vi.fn(), countDocuments: vi.fn(async () => 0) },
   Document: { find: vi.fn(), insertMany: vi.fn(), deleteMany: vi.fn() },
   Chunk: { insertMany: vi.fn() },
   remove: vi.fn(),

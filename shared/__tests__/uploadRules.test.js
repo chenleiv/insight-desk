@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import {
   MAX_UPLOAD_BYTES,
+  DEMO_MAX_UPLOAD_BYTES,
   UPLOAD_ACCEPT,
   resolveUploadMime,
   uploadError,
@@ -41,6 +42,12 @@ describe("uploadError", () => {
   it("gives the server's message for a file that is too large", () => {
     expect(uploadError({ name: "a.pdf", type: "application/pdf", size: MAX_UPLOAD_BYTES + 1 }))
       .toBe("File is too large. The maximum size is 10MB.");
+  });
+
+  it("applies a smaller limit when given one, naming it", () => {
+    expect(uploadError({ name: "a.pdf", type: "application/pdf", size: DEMO_MAX_UPLOAD_BYTES }, DEMO_MAX_UPLOAD_BYTES)).toBeNull();
+    expect(uploadError({ name: "a.pdf", type: "application/pdf", size: DEMO_MAX_UPLOAD_BYTES + 1 }, DEMO_MAX_UPLOAD_BYTES))
+      .toBe("File is too large. The maximum size is 2MB.");
   });
 
   it("gives the server's message for a type that is not allowed", () => {
