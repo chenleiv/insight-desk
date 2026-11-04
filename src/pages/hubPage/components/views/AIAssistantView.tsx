@@ -23,7 +23,7 @@ export const AI_QUERY_COUNT_BASE_KEY = "aiQueryCount";
 // answer when a citation is verified, so there is always a source chip below it.
 const ONLY_CITATIONS_TEXT = "See the sources below.";
 
-// On phones, closer to the end than this counts as being at the bottom. About one line of text.
+// Scrolling down to closer than this to the end counts as being back at the bottom. About one line of text.
 const FOLLOW_THRESHOLD = 32;
 
 // Phones show fewer questions, and this one suits the fewest documents as a first question.
@@ -80,7 +80,6 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
       .then((r) => setPromptText(r.prompt))
       .catch(() => setPromptText("Failed to load prompt."));
   }, [promptModalOpen, promptText]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   // Set before the first await: two taps can land before React renders isSending.
   const sendPendingRef = useRef(false);
@@ -95,7 +94,7 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
 
     sendPendingRef.current = true;
     // Asking is a request to see the answer, even from further up the conversation.
-    if (isPhone) followingRef.current = true;
+    followingRef.current = true;
     setLastError(null);
     setMessages((prev) => {
       const isInitial = prev.length === 1 && prev[0].isGreeting;
@@ -208,41 +207,32 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
     if (el) el.scrollTop = el.scrollHeight;
   }, []);
 
-  useEffect(() => {
-    const el = messagesContainerRef.current;
-    if (!el || isPhone) return;
-    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (distFromBottom < 200) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      setShowScrollBtn(false);
-    }
-  }, [messages, isSending, isPhone]);
-
   const handleMessagesScroll = useCallback(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    if (!isPhone) {
-      setShowScrollBtn(distFromBottom > 120);
-    } else {
-      // Any move upward lets go at once, so a finger never has to fight the typing.
-      const movedUp = el.scrollTop < lastScrollTopRef.current;
-      followingRef.current = distFromBottom <= 1 || (distFromBottom < FOLLOW_THRESHOLD && !movedUp);
-      lastScrollTopRef.current = el.scrollTop;
-      setShowScrollBtn(!followingRef.current);
-    }
-  }, [isPhone]);
+    // Any move upward lets go at once, so the user never has to fight the typing. Only reaching the
+    // end, or moving down to just above it, follows again; new text arriving never does.
+    const movedUp = el.scrollTop < lastScrollTopRef.current;
+    const movedDown = el.scrollTop > lastScrollTopRef.current;
+    if (distFromBottom <= 1 || (movedDown && distFromBottom < FOLLOW_THRESHOLD)) followingRef.current = true;
+    else if (movedUp) followingRef.current = false;
+    lastScrollTopRef.current = el.scrollTop;
+    setShowScrollBtn(!followingRef.current);
+  }, []);
 
-  // On phones the list changes without a scroll: the answer types itself, and the keyboard and
-  // the growing input shrink the list. The scroll is instant, as an animation would be
-  // interrupted by the next typed character and read as the user scrolling up.
+  // The list changes without a scroll: the answer types itself, inside a component this view
+  // does not hear from. The scroll is instant, as an animation would be interrupted by the next
+  // chunk of text and read as the user scrolling up.
   useEffect(() => {
     const el = messagesContainerRef.current;
-    if (!isPhone || !el) return;
+    if (!el) return;
     let lastMaxScroll = el.scrollHeight - el.clientHeight;
     function sync() {
       if (!el) return;
-      // Only when the end moved: most typed characters add no line and must not touch the scroll.
+      // A scroll up that has no event yet must win over the new text.
+      if (el.scrollTop < lastScrollTopRef.current) followingRef.current = false;
+      // Only when the end moved: most chunks of text add no line and must not touch the scroll.
       const maxScroll = el.scrollHeight - el.clientHeight;
       if (followingRef.current && maxScroll !== lastMaxScroll) el.scrollTop = el.scrollHeight;
       lastMaxScroll = maxScroll;
@@ -250,11 +240,12 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
     }
     const onContentChange = new MutationObserver(sync);
     onContentChange.observe(el, { childList: true, subtree: true, characterData: true });
-    const onResize = new ResizeObserver(sync);
-    onResize.observe(el);
+    // On phones the keyboard and the growing input also shrink the list.
+    const onResize = isPhone ? new ResizeObserver(sync) : null;
+    onResize?.observe(el);
     return () => {
       onContentChange.disconnect();
-      onResize.disconnect();
+      onResize?.disconnect();
       followingRef.current = true;
       setShowScrollBtn(false);
     };
@@ -262,13 +253,10 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
 
   function scrollToBottom() {
     const el = messagesContainerRef.current;
-    if (isPhone && el) {
-      followingRef.current = true;
-      el.scrollTop = el.scrollHeight;
-      setShowScrollBtn(false);
-    } else {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    if (!el) return;
+    followingRef.current = true;
+    el.scrollTop = el.scrollHeight;
+    setShowScrollBtn(false);
   }
 
   // Grows the input with its text on phones, up to the max-height in the stylesheet.
@@ -437,7 +425,6 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
                 Retry
               </button>
             )}
-            <div ref={messagesEndRef} />
           </div>
         )}
         {showScrollBtn && (
