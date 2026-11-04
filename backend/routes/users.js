@@ -41,6 +41,8 @@ router.patch('/:id', requireAdmin, async (req, res) => {
     const update = {};
     if (role !== undefined) update.role = role;
     if (status !== undefined) update.status = status;
+    // Otherwise re-enabling the account would bring its unexpired sessions back.
+    if (status === 'inactive') update.$inc = { tokenVersion: 1 };
 
     try {
         const user = await User.findByIdAndUpdate(params.data.id, update, { new: true }).select('-password_hash');

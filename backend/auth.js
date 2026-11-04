@@ -109,8 +109,9 @@ export function keyedHash(value) {
     return createHmac('sha256', JWT_SECRET).update(value).digest('hex');
 }
 
-function createAccessToken(email, role) {
-    return jwt.sign({ sub: email, role }, JWT_SECRET, {
+// A token issued before token versions existed, or an account without one, counts as version 0.
+function createAccessToken(user) {
+    return jwt.sign({ sub: user.email, role: user.role, tv: user.tokenVersion ?? 0 }, JWT_SECRET, {
         algorithm: JWT_ALGORITHM,
         expiresIn: `${ACCESS_TOKEN_MINUTES}m`,
     });
@@ -118,6 +119,10 @@ function createAccessToken(email, role) {
 
 function verifyAccessToken(token) {
     return jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] });
+}
+
+function isCurrentTokenVersion(payload, user) {
+    return (payload.tv ?? 0) === (user.tokenVersion ?? 0);
 }
 
 // Written at most this often, so a demo session does not add a write to every request.
@@ -156,6 +161,9 @@ export async function getCurrentUser(req, res, next) {
     }
     if (!user) {
         return res.status(401).json({ detail: 'User not found' });
+    }
+    if (!isCurrentTokenVersion(payload, user)) {
+        return res.status(401).json({ detail: 'Session ended' });
     }
     // 401, so the client ends the session the same way as for an expired token.
     if (user.status === 'inactive') {
@@ -216,7 +224,7 @@ router.post('/login', passwordAttemptLimiter, async (req, res) => {
             return res.status(403).json({ detail: 'This account is not active' });
         }
 
-        const token = createAccessToken(user.email, user.role);
+        const token = createAccessToken(user);
         setAuthCookie(res, token);
         res.json({ user: formatUser(user) });
     } catch (err) {
@@ -237,7 +245,7 @@ router.post('/register', async (req, res) => {
         const hash = await bcrypt.hash(password, 10);
         const user = await User.create({ email, password_hash: hash, role: 'viewer', displayName: displayName?.trim() || '' });
 
-        const token = createAccessToken(user.email, user.role);
+        const token = createAccessToken(user);
         setAuthCookie(res, token);
         res.status(201).json({ user: formatUser(user) });
     } catch (err) {
@@ -343,7 +351,7 @@ router.get('/google/callback', async (req, res) => {
             return res.redirect(`${FRONTEND_URL}/login?error=account_inactive`);
         }
 
-        const token = createAccessToken(user.email, user.role);
+        const token = createAccessToken(user);
         setAuthCookie(res, token);
         res.redirect(`${FRONTEND_URL}/hub`);
     } catch (err) {
@@ -356,7 +364,7 @@ router.get('/google/callback', async (req, res) => {
 router.post('/demo', demoCreationLimiter, async (req, res) => {
     try {
         const user = await createDemoWorkspace();
-        setAuthCookie(res, createAccessToken(user.email, user.role));
+        setAuthCookie(res, createAccessToken(user));
         res.status(201).json({ user: formatUser(user) });
     } catch (err) {
         logger.error('Demo workspace creation failed', { message: err.message });
@@ -364,30 +372,37 @@ router.post('/demo', demoCreationLimiter, async (req, res) => {
     }
 });
 
-// A demo user has no password, so once the cookie is gone the workspace can never
-// be reached again: remove it now instead of keeping it until expiry.
-async function removeDemoWorkspaceOnLogout(token) {
-    let email;
+// Ends the sessions behind this token. A demo user has no password, so once the cookie is
+// gone the workspace can never be reached again: remove it now instead of keeping it until expiry.
+async function endSessionsOnLogout(token) {
+    let payload;
     try {
-        email = verifyAccessToken(token).sub;
+        payload = verifyAccessToken(token);
     } catch {
         return;
     }
-    const user = await User.findOne({ email });
-    if (!isDemoUser(user)) return;
-    await removeDemoWorkspace(user._id);
-    logger.info('Removed demo workspace on logout');
+    const user = await User.findOne({ email: payload.sub });
+    if (!user) return;
+    if (isDemoUser(user)) {
+        await removeDemoWorkspace(user._id);
+        logger.info('Removed demo workspace on logout');
+        return;
+    }
+    // An old token must not be able to end the sessions that replaced it.
+    if (isCurrentTokenVersion(payload, user)) {
+        await User.updateOne({ _id: user._id }, { $inc: { tokenVersion: 1 } });
+    }
 }
 
-// Always succeeds and clears the cookie; if removing a demo workspace fails,
-// the scheduled cleanup removes it at expiry.
+// Always succeeds and clears the cookie. If the step fails, a demo workspace is removed
+// at expiry by the scheduled cleanup, and a regular token stays valid until it expires.
 router.post('/logout', async (req, res) => {
     const token = req.cookies[COOKIE_NAME];
     if (token) {
         try {
-            await removeDemoWorkspaceOnLogout(token);
+            await endSessionsOnLogout(token);
         } catch (err) {
-            logger.error('Demo removal on logout failed', { message: err.message });
+            logger.error('Ending sessions on logout failed', { message: err.message });
         }
     }
     res.clearCookie(COOKIE_NAME, sessionCookieOptions());
@@ -408,7 +423,10 @@ router.patch('/password', passwordAttemptLimiter, getCurrentUser, async (req, re
         }
 
         user.password_hash = await bcrypt.hash(newPassword, 10);
+        user.tokenVersion = (user.tokenVersion ?? 0) + 1;
         await user.save();
+        // Every other session ends here; this one continues with a new token.
+        setAuthCookie(res, createAccessToken(user));
         res.json({ ok: true });
     } catch (err) {
         if (handleZodError(err, res)) return;

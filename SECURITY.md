@@ -16,6 +16,11 @@ Security controls in Insight Desk and the tests that guard them.
 - **Disabling a user takes effect at once.** `getCurrentUser` already loads the user on every authenticated request,
   so the check costs no extra query. An inactive user gets 401 on the next request, including an admin on an admin
   route. Test: `backend/__tests__/disabledUser.test.js`.
+- **Logging out or changing the password ends existing sessions.** Each token carries the user's `tokenVersion`, and
+  a token with an old version gets 401. Logout raises it, which ends the user's sessions on every device. A password
+  change raises it and gives the current session a new token. Disabling a user raises it too, so re-enabling does
+  not bring old sessions back. A token issued before this field existed counts as version 0.
+  Test: `backend/__tests__/tokenVersion.integration.test.js`.
 - **Google login checks an OAuth `state`.** `GET /api/auth/google` sends a random 256-bit state to Google and
   stores it in an HttpOnly, `SameSite=Lax` cookie scoped to `/api/auth/google` for 10 minutes. The callback
   compares it in constant time, clears the cookie whatever the outcome, and on a missing or wrong state

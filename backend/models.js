@@ -8,6 +8,8 @@ const userSchema = new mongoose.Schema({
     role: { type: String, enum: ['admin', 'viewer', 'demo'], default: 'viewer' },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Document' }],
     status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+    // Copied into each session token; raising it ends every session issued before.
+    tokenVersion: { type: Number, default: 0 },
     displayName: { type: String, default: '' },
     jobTitle: { type: String, default: '' },
     // Demo users only: when the demo workspace and its documents are removed.

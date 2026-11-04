@@ -102,7 +102,7 @@ describe("PATCH /api/users/:id", () => {
     });
     expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
       USER_ID,
-      { role: "admin", status: "inactive" },
+      { role: "admin", status: "inactive", $inc: { tokenVersion: 1 } },
       { new: true },
     );
   });
@@ -113,7 +113,21 @@ describe("PATCH /api/users/:id", () => {
     const res = await patch(USER_ID, { status: "inactive" });
 
     expect(res.status).toBe(200);
-    expect(User.findByIdAndUpdate).toHaveBeenCalledWith(USER_ID, { status: "inactive" }, { new: true });
+    expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+      USER_ID,
+      { status: "inactive", $inc: { tokenVersion: 1 } },
+      { new: true },
+    );
+  });
+
+  it("leaves the token version alone when enabling a user or changing a role", async () => {
+    User.findByIdAndUpdate.mockReturnValueOnce(updatedUser({ status: "active" }));
+    await patch(USER_ID, { status: "active" });
+    expect(User.findByIdAndUpdate).toHaveBeenLastCalledWith(USER_ID, { status: "active" }, { new: true });
+
+    User.findByIdAndUpdate.mockReturnValueOnce(updatedUser({ role: "admin" }));
+    await patch(USER_ID, { role: "admin" });
+    expect(User.findByIdAndUpdate).toHaveBeenLastCalledWith(USER_ID, { role: "admin" }, { new: true });
   });
 
   it("returns 404 for a valid id with no user", async () => {
