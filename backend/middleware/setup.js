@@ -85,6 +85,9 @@ export function applyMiddleware(app) {
                 // The frontend calls only its own API and shows no external images.
                 "connect-src": ["'self'"],
                 "img-src": ["'self'", "data:"],
+                // The fonts are self-hosted, so no stylesheet or font comes from another host.
+                "style-src": ["'self'", "'unsafe-inline'"],
+                "font-src": ["'self'"],
             },
         },
     }));

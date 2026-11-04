@@ -51,7 +51,7 @@ describe("security headers", () => {
     expect(res.headers.get("x-frame-options")).toBe("SAMEORIGIN");
   });
 
-  it("limit network and image sources on the main page, and keep the font provider working", async () => {
+  it("limit network, image, style and font sources on the main page", async () => {
     const header = (await fetch(`${base}/`)).headers.get("content-security-policy");
     const directives = Object.fromEntries(
       header.split(";").map((d) => d.trim().split(/\s+/)).map(([name, ...values]) => [name, values]),
@@ -59,9 +59,9 @@ describe("security headers", () => {
 
     expect(directives["connect-src"]).toEqual(["'self'"]);
     expect(directives["img-src"]).toEqual(["'self'", "data:"]);
-    // Google Fonts: the stylesheet and the font files come from https hosts.
-    expect(directives["style-src"]).toContain("https:");
-    expect(directives["font-src"]).toContain("https:");
+    // Self-hosted fonts: no stylesheet or font file comes from another host.
+    expect(directives["style-src"]).toEqual(["'self'", "'unsafe-inline'"]);
+    expect(directives["font-src"]).toEqual(["'self'"]);
   });
 
   it("do not change the main page's content", async () => {
