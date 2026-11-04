@@ -6,5 +6,4 @@ export const DEMO_LIMITS = {
   contentLength: 20000,
   attachmentsPerDocument: 1,
   uploadBytes: DEMO_MAX_UPLOAD_BYTES,
-  storageBytes: 5 * 1024 * 1024,
 } as const;

@@ -5,7 +5,7 @@ import DemoBanner from "../DemoBanner";
 
 const DETAILS = "Demo workspace: your own private copy of the sample documents, reset when you sign out. "
   + "Edit, add and chat freely. "
-  + "Limits: 20 documents, 20,000 characters and 1 attachment per document. Import and admin settings are disabled.";
+  + "Limits: 20 documents, 20,000 characters and 1 attachment (up to 2 MB) per document. Import and admin settings are disabled.";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -66,17 +66,5 @@ describe("DemoBanner", () => {
 
     act(() => toggle().click());
     expect(details().hidden).toBe(true);
-  });
-
-  it("shows the upload limits with the details, and hides them with the details", () => {
-    const uploads = () => container.querySelector<HTMLElement>(".demo-banner-upload-details")!;
-    act(() => root.render(<DemoBanner />));
-    expect(uploads().hidden).toBe(true);
-
-    act(() => toggle().click());
-    expect(uploads().hidden).toBe(false);
-    expect(uploads().textContent).toBe(
-      "Uploads: up to 2 MB per file and 5 MB per workspace. When the demo is busy, the least recently active workspace is removed.",
-    );
   });
 });
