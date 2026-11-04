@@ -16,17 +16,6 @@ import healthRouter from './routes/health.js';
 export function createApp({ distPath }) {
     const app = express();
 
-    // Static file serving
-    app.use(express.static(distPath, {
-        setHeaders: (res, filePath) => {
-            if (filePath.includes('/assets/')) {
-                res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-            } else {
-                res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
-            }
-        }
-    }));
-
     // Request logger
     app.use((req, res, next) => {
         if (process.env.NODE_ENV !== 'production' || req.url.startsWith('/api')) {
@@ -37,6 +26,17 @@ export function createApp({ distPath }) {
 
     // Security, CORS, and rate limiting
     applyMiddleware(app);
+
+    // Static file serving. After the security layer, so these responses get its headers and compression.
+    app.use(express.static(distPath, {
+        setHeaders: (res, filePath) => {
+            if (filePath.includes('/assets/')) {
+                res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            } else {
+                res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+            }
+        }
+    }));
 
     app.use(jsonBody());
     app.use(cookieParser());

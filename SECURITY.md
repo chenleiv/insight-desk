@@ -54,7 +54,10 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 - **The CSP allows no inline scripts.** `script-src` is `'self'` only, and `script-src-attr` is `'none'`
   (helmet's default), so an injected `<script>` or `onclick=` handler does not run. The theme script that used
   to be inline in `index.html` now lives in `public/theme-init.js` and still runs in `<head>`, before the first paint.
-  Test: `backend/middleware/__tests__/setup.test.js` checks the header.
+  Static files are served after the security middleware, so the main page, `index.html` and the built assets
+  carry the same headers as every other response. Before this was fixed, only direct loads of inner pages did.
+  Tests: `backend/middleware/__tests__/setup.test.js` checks the header, and `backend/__tests__/app.test.js`
+  measures the headers on the real app's main page.
   Checked by hand: `dist/index.html` from `npm run build` has no inline `<script>`. Under the real middleware,
   headless Chromium renders the login page with the theme set, and an inline script on a probe page is blocked.
 - **Known gap, accepted:** `style-src` still includes `'unsafe-inline'`, helmet's default, kept on purpose.
