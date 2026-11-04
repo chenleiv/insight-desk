@@ -58,6 +58,9 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
   carry the same headers as every other response. Before this was fixed, only direct loads of inner pages did.
   Tests: `backend/middleware/__tests__/setup.test.js` checks the header, and `backend/__tests__/app.test.js`
   measures the headers on the real app's main page.
+- **Static files keep their cache rules when compressed.** They pass through the same `compression()` as the API.
+  Hashed files under `assets/` stay `immutable` for a year, and everything else, including `index.html`, is
+  revalidated on each load, so a deploy reaches visitors at once.
   Checked by hand: `dist/index.html` from `npm run build` has no inline `<script>`. Under the real middleware,
   headless Chromium renders the login page with the theme set, and an inline script on a probe page is blocked.
 - **Known gap, accepted:** `style-src` still includes `'unsafe-inline'`, helmet's default, kept on purpose.

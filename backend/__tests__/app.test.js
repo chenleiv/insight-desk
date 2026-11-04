@@ -2,7 +2,9 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
+import http from "http";
 import path from "path";
+import { gunzipSync } from "zlib";
 
 // Keeps the test from loading the real model when the routes are imported.
 vi.mock("../rag/embed.js", () => ({ embed: vi.fn() }));
@@ -54,5 +56,51 @@ describe("security headers", () => {
 
     expect(await res.text()).toBe(INDEX_HTML);
     expect(res.headers.get("content-type")).toMatch(/^text\/html/);
+  });
+});
+
+describe("static file compression", () => {
+  // Raw bytes on the wire: fetch would decompress them before a test could measure them.
+  function rawGet(url, acceptEncoding, headers = {}) {
+    return new Promise((resolve, reject) => {
+      http.get(`${base}${url}`, { headers: { "Accept-Encoding": acceptEncoding, ...headers } }, (res) => {
+        const parts = [];
+        res.on("data", (part) => parts.push(part));
+        res.on("end", () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(parts) }));
+      }).on("error", reject);
+    });
+  }
+
+  it("compresses a built asset and keeps its long-term cache header", async () => {
+    const { headers, body } = await rawGet("/assets/main.js", "gzip");
+
+    expect(headers["content-encoding"]).toBe("gzip");
+    expect(headers.vary).toMatch(/Accept-Encoding/i);
+    expect(headers["cache-control"]).toBe("public, max-age=31536000, immutable");
+    expect(body.length).toBeLessThan(BUNDLE.length / 2);
+    expect(gunzipSync(body).toString()).toBe(BUNDLE);
+  });
+
+  it("sends the file as it is to a client that accepts no compression", async () => {
+    const { headers, body } = await rawGet("/assets/main.js", "identity");
+
+    expect(headers["content-encoding"]).toBeUndefined();
+    expect(body.toString()).toBe(BUNDLE);
+  });
+
+  it("keeps revalidating the main page", async () => {
+    const { headers } = await rawGet("/", "gzip");
+
+    expect(headers["cache-control"]).toBe("public, max-age=0, must-revalidate");
+  });
+
+  // Raw as well: fetch adds "Cache-Control: no-cache" to a conditional request, which forces a 200.
+  it("still answers a revalidation with 304", async () => {
+    const { headers } = await rawGet("/assets/main.js", "gzip");
+
+    const again = await rawGet("/assets/main.js", "gzip", { "If-None-Match": headers.etag });
+
+    expect(headers.etag).toBeTruthy();
+    expect(again.status).toBe(304);
   });
 });
