@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusContext, type StatusApi } from "../../../../../../components/statusBar/statusContext";
 import type { PromptConfig } from "../../../../../../api/aiClient";
 import { AISection } from "../AISection";
@@ -31,12 +32,15 @@ function deferred<T>() {
 
 let container: HTMLDivElement;
 let root: Root;
+let queryClient: QueryClient;
 
 function render() {
   act(() => root.render(
-    <StatusContext.Provider value={status}>
-      <AISection />
-    </StatusContext.Provider>
+    <QueryClientProvider client={queryClient}>
+      <StatusContext.Provider value={status}>
+        <AISection />
+      </StatusContext.Provider>
+    </QueryClientProvider>
   ));
 }
 
@@ -59,6 +63,7 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
+  queryClient = new QueryClient();
 });
 
 afterEach(() => {

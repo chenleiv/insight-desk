@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, type KeyboardEvent } from "react";
 import "./aiAssistant.scss";
 import { BrainCircuit, Send, Bot, ChevronDown, SlidersHorizontal, ThumbsUp, ThumbsDown } from "lucide-react";
-import { chatWithAI, dailyLimitMessage, getSuggestions, getSystemPrompt, sendFeedback, type FeedbackRating } from "../../../../api/aiClient";
+import { chatWithAI, dailyLimitMessage, getSystemPrompt, sendFeedback, type FeedbackRating } from "../../../../api/aiClient";
 import { citedSources, formatMessageTime, removeCitations, uid } from "../../utils/assistantUtils";
 import { renderMarkdown } from "../../utils/renderMarkdown";
 import { CHAT_KEY } from "../../../../storageKeys";
@@ -12,6 +12,7 @@ import { useAuth } from "../../../../auth/useAuth";
 import { useDocuments } from "../../../../context/DocumentsContext";
 import { useStatus } from "../../../../components/statusBar/useStatus";
 import { useMobile } from "../../../../hooks/useMobile";
+import { useSuggestions } from "../../hooks/useSuggestions";
 import { SystemPromptModal } from "./ai/SystemPromptModal";
 import { SourceChip } from "./ai/SourceChip";
 import { ChatActionsMenu } from "./ai/ChatActionsMenu";
@@ -49,13 +50,8 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
   // The documents this user may read. While the list is unknown, a chip is not marked as gone.
   const isSourceAvailable = (id: string) => docsLoading || !!docsError || docIds.has(id);
 
-  const [suggestions, setSuggestions] = useState<string[]>(DEFAULT_SUGGESTIONS);
-
-  useEffect(() => {
-    getSuggestions()
-      .then((r) => { if (r.questions.length) setSuggestions(r.questions); })
-      .catch(() => {});
-  }, []);
+  const { data: savedSuggestions } = useSuggestions();
+  const suggestions = savedSuggestions?.questions.length ? savedSuggestions.questions : DEFAULT_SUGGESTIONS;
 
   // The view unmounts when a document opens, so a saved answer is shown whole, not typed again.
   const [messages, setMessages] = useState<ChatMessage[]>(() =>

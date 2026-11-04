@@ -61,8 +61,8 @@ export async function updateSystemPrompt(prompt: string): Promise<PromptConfig> 
   });
 }
 
-export async function getSuggestions(): Promise<{ questions: string[] }> {
-  return await apiFetch<{ questions: string[] }>("/api/ai/suggestions");
+export async function getSuggestions(signal?: AbortSignal): Promise<{ questions: string[] }> {
+  return await apiFetch<{ questions: string[] }>("/api/ai/suggestions", signal ? { signal } : {});
 }
 
 export async function updateSuggestions(questions: string[]): Promise<{ questions: string[] }> {

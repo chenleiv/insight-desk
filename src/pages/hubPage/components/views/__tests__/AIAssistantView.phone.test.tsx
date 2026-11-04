@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { compile } from "sass";
 import { StatusContext, type StatusApi } from "../../../../../components/statusBar/statusContext";
 import { CHAT_KEY } from "../../../../../storageKeys";
@@ -34,6 +35,7 @@ const screen = { phoneWidth: true, touch: true };
 const status: StatusApi = { show: vi.fn(), clear: vi.fn() };
 let container: HTMLDivElement;
 let root: Root;
+let queryClient: QueryClient;
 let resizeCallbacks: (() => void)[];
 
 // Node's own localStorage global hides jsdom's here, so tests get a small in-memory one.
@@ -52,9 +54,11 @@ function memoryStorage(): Storage {
 function renderChat(saved: ChatMessage[] = [USER, ANSWER]) {
   localStorage.setItem(CHAT_KEY, JSON.stringify(saved));
   act(() => root.render(
-    <StatusContext.Provider value={status}>
-      <AIAssistantView onOpenDocument={vi.fn()} />
-    </StatusContext.Provider>
+    <QueryClientProvider client={queryClient}>
+      <StatusContext.Provider value={status}>
+        <AIAssistantView onOpenDocument={vi.fn()} />
+      </StatusContext.Provider>
+    </QueryClientProvider>
   ));
 }
 
@@ -133,6 +137,7 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
+  queryClient = new QueryClient();
 });
 
 afterEach(() => {
@@ -451,8 +456,12 @@ describe("suggested questions", () => {
 
   it("are the first three of a list an admin saved, on a phone", async () => {
     getSuggestions.mockResolvedValueOnce({ questions: ["One?", "Two?", "Three?", "Four?"] });
-    await act(async () => renderChat([]));
-    expect(suggestionCards()).toEqual(["One?", "Two?", "Three?"]);
+    renderChat([]);
+    // The query layer delivers its result on a timer, not on the next microtask.
+    await vi.waitFor(async () => {
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve)); });
+      expect(suggestionCards()).toEqual(["One?", "Two?", "Three?"]);
+    });
   });
 });
 
