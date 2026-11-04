@@ -35,6 +35,11 @@ Security controls in Insight Desk and the tests that guard them.
 - **Chat errors** return a fixed message; the upstream model error stays in the server log. A missing provider key
   gets the same message, and only the log names it, so a response never reveals the server's configuration.
   Tests: `backend/__tests__/aiChat.test.js`, `backend/__tests__/aiProviderCalls.test.js`.
+- **Model provider calls are bounded.** The answer call times out after 30 seconds and the keyword translation
+  after 10, so a stalled provider cannot hold a request past the proxy's timeout. Nothing is retried: the SDK would
+  first wait as long as the provider's `Retry-After` says, with no cap and outside the timeout. A 429 therefore
+  gets the "busy" answer at once, and a brief provider error reaches the user, who can ask again.
+  The timeout covers the wait for the response headers. Test: `backend/__tests__/aiProviderCalls.test.js`.
 
 ## Input limits
 

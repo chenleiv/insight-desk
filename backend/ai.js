@@ -27,9 +27,15 @@ export async function loadAIConfig() {
     }
 }
 
+// Together they stay well under the proxy's 100-second timeout.
+const ANSWER_TIMEOUT_MS = 30_000;
+const KEYWORDS_TIMEOUT_MS = 10_000;
+
 let _groq = null;
 function getGroq() {
-    if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    // No retries: the SDK would first wait as long as the provider's Retry-After says, with
+    // no cap and outside the timeout, so a 429 could hold a request open for minutes.
+    if (!_groq) _groq = new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: ANSWER_TIMEOUT_MS, maxRetries: 0 });
     return _groq;
 }
 
@@ -54,7 +60,7 @@ async function englishKeywords(groq, question) {
             max_tokens: 200,
             temperature: 0,
             reasoning_effort: 'low',
-        });
+        }, { timeout: KEYWORDS_TIMEOUT_MS });
         return response.choices[0].message.content?.trim() || null;
     } catch (err) {
         logger.warn('Keyword translation failed', { message: err.message });
