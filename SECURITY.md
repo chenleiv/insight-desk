@@ -42,6 +42,15 @@ Security controls in Insight Desk and the tests that guard them.
   before any account is looked up, so an unverified address can never reach an existing password account. The app
   asks only for `openid email profile`, with no offline access. Test: `backend/__tests__/googleOAuthState.test.js`.
 
+## Logging
+
+- **Request logs hold the path only.** The query string is left out, so Google's authorization code never reaches a log.
+  A failed Google token exchange logs Google's error code, not its response.
+- **Failed logins and refused registrations** log a method and a reason, never the address, the IP or what was typed.
+- **Admin actions** (changing or deleting a user, saving the system prompt or the suggested questions) log the action
+  and the ids of the admin and the target, and a changed role or status. No email, and never the prompt text.
+- Test: `backend/__tests__/authLogging.integration.test.js`.
+
 ## Data retention
 
 - **Demo workspaces are temporary.** A demo account and everything it owns (documents, chunks, uploaded files)

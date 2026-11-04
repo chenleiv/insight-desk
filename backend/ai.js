@@ -376,6 +376,7 @@ router.patch('/api/ai/prompt', requireAdmin, async (req, res) => {
         // Saved first, so the running prompt never differs from the stored one.
         const { systemPrompt } = await AIConfig.findByIdAndUpdate('ai', { systemPrompt: parsed.data.prompt }, { upsert: true, returnDocument: 'after' });
         promptState.prompt = systemPrompt;
+        logger.info('Admin action', { action: 'ai.prompt.update', actorId: req.user._id });
         res.json({ prompt: promptState.prompt, ...PROMPT_METADATA });
     } catch (error) {
         logger.error('Prompt save error', { message: error?.message ?? String(error) });
@@ -399,6 +400,7 @@ router.patch('/api/ai/suggestions', requireAdmin, async (req, res) => {
     const filtered = parsed.data.questions.filter(Boolean);
     try {
         await AIConfig.findByIdAndUpdate('ai', { exampleQuestions: filtered }, { upsert: true, returnDocument: 'after' });
+        logger.info('Admin action', { action: 'ai.suggestions.update', actorId: req.user._id });
         res.json({ questions: filtered });
     } catch (error) {
         logger.error('Suggestions save error', { message: error?.message ?? String(error) });

@@ -78,6 +78,11 @@ function formatUser(user) {
     };
 }
 
+// A reason and a method only: never the address, the client's IP or anything that was typed.
+function logFailedLogin(method, reason) {
+    logger.warn('Login failed', { method, reason });
+}
+
 function handleZodError(err, res) {
     if (err.name === 'ZodError') {
         sendValidationError(res, err);
@@ -235,10 +240,12 @@ router.post('/login', passwordAttemptLimiter, accountAttemptLimiter, async (req,
         const user = await findUserByEmail(req.body.email);
         const matches = await bcrypt.compare(password, user?.password_hash || DUMMY_PASSWORD_HASH);
         if (!user?.password_hash || !matches) {
+            logFailedLogin('password', 'invalid_credentials');
             return res.status(401).json({ detail: 'Invalid credentials' });
         }
         // Checked after the password, so the account status is revealed only to its owner.
         if (user.status === 'inactive') {
+            logFailedLogin('password', 'account_inactive');
             return res.status(403).json({ detail: 'This account is not active' });
         }
 
@@ -246,13 +253,16 @@ router.post('/login', passwordAttemptLimiter, accountAttemptLimiter, async (req,
         setAuthCookie(res, token);
         res.json({ user: formatUser(user) });
     } catch (err) {
+        if (err.name === 'ZodError') logFailedLogin('password', 'invalid_input');
         if (handleZodError(err, res)) return;
+        logger.error('Login error', { message: err.message });
         res.status(500).json({ detail: 'Internal server error' });
     }
 });
 
 // Public sign-up is closed. Accounts come from the seed or an existing Google login.
 router.post('/register', (_req, res) => {
+    logger.warn('Registration refused', { reason: 'closed' });
     res.status(403).json({ detail: 'Registration is closed' });
 });
 
@@ -301,6 +311,11 @@ router.get('/google', (req, res) => {
     res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
 });
 
+function refuseGoogleLogin(res, reason) {
+    logFailedLogin('google', reason);
+    res.redirect(`${FRONTEND_URL}/login?error=${reason}`);
+}
+
 router.get('/google/callback', async (req, res) => {
     const { code, error, state } = req.query;
     const expectedState = req.cookies?.[OAUTH_STATE_COOKIE];
@@ -308,13 +323,13 @@ router.get('/google/callback', async (req, res) => {
     res.clearCookie(OAUTH_STATE_COOKIE, oauthStateCookieOptions());
 
     if (error || !code) {
-        return res.redirect(`${FRONTEND_URL}/login?error=google_cancelled`);
+        return refuseGoogleLogin(res, 'google_cancelled');
     }
     if (!isValidOAuthState(state, expectedState)) {
-        return res.redirect(`${FRONTEND_URL}/login?error=google_state_mismatch`);
+        return refuseGoogleLogin(res, 'google_state_mismatch');
     }
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-        return res.redirect(`${FRONTEND_URL}/login?error=google_not_configured`);
+        return refuseGoogleLogin(res, 'google_not_configured');
     }
 
     try {
@@ -333,8 +348,9 @@ router.get('/google/callback', async (req, res) => {
         const tokens = await tokenRes.json();
 
         if (!tokens.access_token) {
-            logger.error('Google token exchange failed', tokens);
-            return res.redirect(`${FRONTEND_URL}/login?error=google_token_failed`);
+            // Google's error code only: the rest of the body is not ours to keep in logs.
+            logger.error('Google token exchange failed', { error: tokens.error });
+            return refuseGoogleLogin(res, 'google_token_failed');
         }
 
         // Get the user's Google profile
@@ -344,22 +360,22 @@ router.get('/google/callback', async (req, res) => {
         const profile = await profileRes.json();
 
         if (!profile.email) {
-            return res.redirect(`${FRONTEND_URL}/login?error=google_no_email`);
+            return refuseGoogleLogin(res, 'google_no_email');
         }
         // An unverified address proves nothing about who owns it, so it must not reach an account.
         if (profile.verified_email !== true) {
-            return res.redirect(`${FRONTEND_URL}/login?error=google_email_not_verified`);
+            return refuseGoogleLogin(res, 'google_email_not_verified');
         }
 
         let user = await findUserByEmail(profile.email);
         if (!user) {
             if (!GOOGLE_SIGNUP_OPEN) {
-                return res.redirect(`${FRONTEND_URL}/login?error=registration_closed`);
+                return refuseGoogleLogin(res, 'registration_closed');
             }
             user = await User.create({ email: normalizeEmail(profile.email), role: 'viewer' });
         }
         if (user.status === 'inactive') {
-            return res.redirect(`${FRONTEND_URL}/login?error=account_inactive`);
+            return refuseGoogleLogin(res, 'account_inactive');
         }
 
         const token = createAccessToken(user);
@@ -430,6 +446,7 @@ router.patch('/password', passwordAttemptLimiter, getCurrentUser, async (req, re
 
         if (user.password_hash && !(await bcrypt.compare(currentPassword, user.password_hash))) {
             // 400, not 401: the session is valid, so the client must not treat this as an expired session.
+            logger.warn('Password change failed', { reason: 'wrong_current_password' });
             return res.status(400).json({ detail: 'Current password is incorrect' });
         }
 

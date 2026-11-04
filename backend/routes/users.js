@@ -57,6 +57,7 @@ router.patch('/:id', requireAdmin, async (req, res) => {
         const user = await User.findByIdAndUpdate(params.data.id, update, { new: true }).select('-password_hash');
         if (!user) return res.status(404).json({ detail: 'User not found' });
 
+        logger.info('Admin action', { action: 'user.update', actorId: req.user._id, targetId: user._id, role, status });
         res.json({ id: user._id, email: user.email, role: user.role, status: user.status || 'active' });
     } catch (err) {
         logger.error('Error updating user', { message: err.message });
@@ -75,6 +76,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
         }
         const deleted = await User.findByIdAndDelete(params.data.id);
         if (!deleted) return res.status(404).json({ detail: 'User not found' });
+        logger.info('Admin action', { action: 'user.delete', actorId: req.user._id, targetId: deleted._id });
         res.status(204).send();
     } catch (err) {
         logger.error('Error deleting user', { message: err.message });
