@@ -51,6 +51,19 @@ describe("security headers", () => {
     expect(res.headers.get("x-frame-options")).toBe("SAMEORIGIN");
   });
 
+  it("limit network and image sources on the main page, and keep the font provider working", async () => {
+    const header = (await fetch(`${base}/`)).headers.get("content-security-policy");
+    const directives = Object.fromEntries(
+      header.split(";").map((d) => d.trim().split(/\s+/)).map(([name, ...values]) => [name, values]),
+    );
+
+    expect(directives["connect-src"]).toEqual(["'self'"]);
+    expect(directives["img-src"]).toEqual(["'self'", "data:"]);
+    // Google Fonts: the stylesheet and the font files come from https hosts.
+    expect(directives["style-src"]).toContain("https:");
+    expect(directives["font-src"]).toContain("https:");
+  });
+
   it("do not change the main page's content", async () => {
     const res = await fetch(`${base}/`);
 

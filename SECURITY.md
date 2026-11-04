@@ -58,6 +58,9 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
   carry the same headers as every other response. Before this was fixed, only direct loads of inner pages did.
   Tests: `backend/middleware/__tests__/setup.test.js` checks the header, and `backend/__tests__/app.test.js`
   measures the headers on the real app's main page.
+- **Network and image sources are limited.** `connect-src` is `'self'` and `img-src` is `'self' data:`, so an
+  injected script or image cannot send data to another host through them. `style-src` and `font-src` keep helmet's
+  `https:` default for the external font provider until the fonts are self-hosted.
 - **Static files keep their cache rules when compressed.** They pass through the same `compression()` as the API.
   Hashed files under `assets/` stay `immutable` for a year, and everything else, including `index.html`, is
   revalidated on each load, so a deploy reaches visitors at once.

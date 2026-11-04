@@ -83,8 +83,9 @@ export function applyMiddleware(app) {
                 ...helmet.contentSecurityPolicy.getDefaultDirectives(),
                 // No 'unsafe-inline': an injected <script> or onclick= handler will not run.
                 "script-src": ["'self'"],
-                "connect-src": ["'self'", "https://*"],
-                "img-src": ["'self'", "data:", "https://*"],
+                // The frontend calls only its own API and shows no external images.
+                "connect-src": ["'self'"],
+                "img-src": ["'self'", "data:"],
             },
         },
     }));
