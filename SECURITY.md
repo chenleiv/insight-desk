@@ -124,8 +124,9 @@ stop another site from acting as the user.
     from another site. `Strict` would drop the cookie there and every Google login would fail. Lax works only
     because Google returns with a GET (we do not use `response_mode=form_post`).
   - `access_token` stays Lax rather than Strict. The SPA's own API calls are same-site either way, so Strict
-    would mainly break links to the API opened from outside, such as a document download link. No GET route
-    changes state, so Strict would add almost nothing.
+    would mainly break links to the API opened from outside, such as a document download link. The only GET route
+    that changes state is `GET /api/auth/google/callback`, which can create a user and a session. The one-time
+    OAuth state check protects it instead of the Origin check, so Strict would add almost nothing.
 - **Origin check on state-changing requests.** `rejectCrossSiteRequests` in `backend/middleware/setup.js` refuses
   any non-GET/HEAD/OPTIONS request under `/api` whose `Origin` is not ours (403). That covers routes that need no
   cookie, which Lax cannot protect: without it, a form on another site could start a demo session in the
@@ -139,7 +140,7 @@ stop another site from acting as the user.
   it is not a CSRF control.
 - **No CSRF token.** With one site, Lax plus the Origin check covers the same attacks without a token round trip
   on every request and upload. CodeQL's "Missing CSRF middleware" rule looks for known CSRF libraries and does
-  not recognize this check, so its alert on `backend/index.js` is dismissed with a reference to this section.
+  not recognize this check, so its alert on `backend/app.js` is dismissed with a reference to this section.
   Test directories are excluded from CodeQL in `.github/codeql/codeql-config.yml`: test code never runs in
   production, and its stand-in Express apps raised the same alert.
 
