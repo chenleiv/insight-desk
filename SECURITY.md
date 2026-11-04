@@ -21,6 +21,8 @@ Security controls in Insight Desk and the tests that guard them.
   change raises it and gives the current session a new token. Disabling a user raises it too, so re-enabling does
   not bring old sessions back. A token issued before this field existed counts as version 0.
   Test: `backend/__tests__/tokenVersion.integration.test.js`.
+- **An admin cannot change their own role or status, or delete themselves.** The API refuses it with 400, as the
+  screen already does, so an admin cannot lock themselves out. Test: `backend/routes/__tests__/users.test.js`.
 - **Google login checks an OAuth `state`.** `GET /api/auth/google` sends a random 256-bit state to Google and
   stores it in an HttpOnly, `SameSite=Lax` cookie scoped to `/api/auth/google` for 10 minutes. The callback
   compares it in constant time, clears the cookie whatever the outcome, and on a missing or wrong state

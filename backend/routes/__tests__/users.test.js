@@ -139,6 +139,39 @@ describe("PATCH /api/users/:id", () => {
   });
 });
 
+describe("an admin acting on their own account", () => {
+  beforeEach(() => {
+    auth.currentUser = { _id: USER_ID, role: "admin" };
+  });
+
+  it.each([
+    ["role", { role: "viewer" }],
+    ["status", { status: "inactive" }],
+    ["role and status", { role: "viewer", status: "inactive" }],
+  ])("cannot change their own %s", async (_label, body) => {
+    const res = await patch(USER_ID, body);
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).detail).toBe("Cannot change your own role or status");
+    expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it("cannot get around the check by writing the id in uppercase", async () => {
+    expect((await patch(USER_ID.toUpperCase(), { status: "inactive" })).status).toBe(400);
+    expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+
+    const res = await fetch(`${baseUrl}/api/users/${USER_ID.toUpperCase()}`, { method: "DELETE" });
+    expect(res.status).toBe(400);
+    expect(User.findByIdAndDelete).not.toHaveBeenCalled();
+  });
+
+  it("can still change another user", async () => {
+    User.findByIdAndUpdate.mockReturnValueOnce(updatedUser({ status: "inactive" }));
+
+    expect((await patch("64b7f0c2a1b2c3d4e5f60719", { status: "inactive" })).status).toBe(200);
+  });
+});
+
 describe("DELETE /api/users/:id", () => {
   function del(id) {
     return fetch(`${baseUrl}/api/users/${id}`, { method: "DELETE" });
