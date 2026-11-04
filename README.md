@@ -192,7 +192,8 @@ ai-workspace/
    of proxies in front of the server. On Render this is `3` (Cloudflare, Render's
    load balancer, and Render's local proxy), measured from the `X-Forwarded-For`
    chain. This makes the rate limiter see each client's real IP; a value that is
-   too high lets clients spoof their IP. Leave it unset locally.
+   too high lets clients spoof their IP. Leave it unset locally. In production the
+   server logs a warning at startup when it is unset, zero or invalid.
 
 3. **Start development servers**
    ```bash
