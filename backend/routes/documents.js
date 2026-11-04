@@ -213,10 +213,13 @@ router.post('/import-bulk', requireEditor, async (req, res) => {
     }
 });
 
-// List the documents the user can see
+// List the documents the user can see. Without the attachments' extracted text, up to
+// 50,000 characters each, which the UI never reads; a single document still has it.
 router.get('/', getCurrentUser, async (req, res) => {
     try {
-        const docs = await Document.find(documentScope(req.user)).sort({ createdAt: -1 });
+        const docs = await Document.find(documentScope(req.user))
+            .sort({ createdAt: -1 })
+            .select('-attachments.extractedText');
         res.json(docs);
     } catch (err) {
         logger.error('Fetching documents', { message: err.message });
