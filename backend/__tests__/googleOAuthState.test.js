@@ -28,6 +28,7 @@ let googleCalls;
 
 beforeEach(async () => {
   users.length = 0;
+  users.push({ email: "user@example.com", role: "viewer", status: "active" });
   googleCalls = [];
   vi.resetModules();
   vi.stubEnv("GOOGLE_CLIENT_ID", "client-id");
@@ -164,6 +165,18 @@ describe.each([
 
     expect(cleared).toMatch(/;\s*Secure/i);
     expect(cleared).toMatch(/;\s*Path=\/(;|$)/i);
+  });
+});
+
+describe("a first Google login while registration is closed", () => {
+  it("creates no account for an unknown address and starts no session", async () => {
+    users.length = 0;
+    const { state, cookie } = await startLogin();
+    const res = await get(`/api/auth/google/callback?code=abc&state=${state}`, cookie);
+
+    expect(res.headers.get("location")).toBe(`${FRONTEND_URL}/login?error=registration_closed`);
+    expect(users).toHaveLength(0);
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("access_token="))).toBe(false);
   });
 });
 

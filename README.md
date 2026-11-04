@@ -259,7 +259,7 @@ Status checks to require in branch protection for `main`, after the workflows ha
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `POST` | `/api/auth/login` | — | Login, returns JWT cookie |
-| `POST` | `/api/auth/register` | — | Create an account |
+| `POST` | `/api/auth/register` | — | Refused with 403: registration is closed |
 | `POST` | `/api/auth/demo` | — | Start a private demo workspace |
 | `GET` | `/api/auth/google` | — | Start Google sign-in (503 if not configured) |
 | `GET` | `/api/auth/google/callback` | — | Google sign-in callback |

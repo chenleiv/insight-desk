@@ -7,6 +7,11 @@ Security controls in Insight Desk and the tests that guard them.
 - **No hard-coded accounts.** The server never creates fixed demo users such as `admin@demo.com`, in any environment.
   On an empty database it creates one admin from `ADMIN_EMAIL` and `ADMIN_PASSWORD`, or no user at all.
   Test: `backend/__tests__/authHardening.test.js`, `backend/__tests__/seedUsers.test.js`.
+- **Self-registration is closed.** `POST /api/auth/register` answers 403 without reading the body and the login
+  page does not offer it. A Google login for an unknown address is refused too, with
+  `/login?error=registration_closed`; the code for a later Google sign-up stays behind the `GOOGLE_SIGNUP_OPEN`
+  constant in `backend/auth.js`. Accounts come from the seed, and the demo and existing accounts are unaffected.
+  Tests: `backend/__tests__/registrationClosed.test.js`, `src/pages/loginPage/__tests__/LoginPage.test.tsx`.
 - **Emails are lowercase.** Login, the seed and Google normalize an address, so case cannot split or hide an account. Accounts stored earlier are converted by `backend/scripts/normalizeEmails.js`: `--dry-run` reports
   what would change, `--apply` writes, and addresses that collide are reported and never merged. Until it has run,
   login also tries the spelling as typed, so an existing account keeps working.
@@ -141,7 +146,7 @@ stop another site from acting as the user.
     because Google returns with a GET (we do not use `response_mode=form_post`).
   - The session cookie stays Lax rather than Strict. The SPA's own API calls are same-site either way, so Strict
     would mainly break links to the API opened from outside, such as a document download link. The only GET route
-    that changes state is `GET /api/auth/google/callback`, which can create a user and a session. The one-time
+    that changes state is `GET /api/auth/google/callback`, which can create a session. The one-time
     OAuth state check protects it instead of the Origin check, so Strict would add almost nothing.
 - **Origin check on state-changing requests.** `rejectCrossSiteRequests` in `backend/middleware/setup.js` refuses
   any non-GET/HEAD/OPTIONS request under `/api` whose `Origin` is not ours (403). That covers routes that need no

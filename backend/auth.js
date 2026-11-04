@@ -9,7 +9,7 @@ import { canEditDocuments, isDemoUser } from './access.js';
 import { createDemoWorkspace, removeDemoWorkspace } from './demo.js';
 import { isDevOrTest } from './runtimeEnv.js';
 
-import { changePasswordSchema, loginSchema, normalizeEmail, registerSchema, sendValidationError } from './schemas.js';
+import { changePasswordSchema, loginSchema, normalizeEmail, sendValidationError } from './schemas.js';
 
 const router = express.Router();
 
@@ -233,26 +233,14 @@ router.post('/login', passwordAttemptLimiter, async (req, res) => {
     }
 });
 
-router.post('/register', async (req, res) => {
-    try {
-        const { email, password, displayName } = registerSchema.parse(req.body);
-
-        const existing = await User.findOne({ email });
-        if (existing) {
-            return res.status(409).json({ detail: 'An account with this email already exists' });
-        }
-
-        const hash = await bcrypt.hash(password, 10);
-        const user = await User.create({ email, password_hash: hash, role: 'viewer', displayName: displayName?.trim() || '' });
-
-        const token = createAccessToken(user);
-        setAuthCookie(res, token);
-        res.status(201).json({ user: formatUser(user) });
-    } catch (err) {
-        if (handleZodError(err, res)) return;
-        res.status(500).json({ detail: 'Internal server error' });
-    }
+// Public sign-up is closed. Accounts come from the seed or an existing Google login.
+router.post('/register', (_req, res) => {
+    res.status(403).json({ detail: 'Registration is closed' });
 });
+
+// Whether a first Google login may create an account. Closed for now; the later
+// Google sign-up turns this on, and nothing can change it at runtime.
+const GOOGLE_SIGNUP_OPEN = false;
 
 // --- Google OAuth (redirect flow) ---
 // Requires env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APP_BASE_URL
@@ -342,9 +330,11 @@ router.get('/google/callback', async (req, res) => {
             return res.redirect(`${FRONTEND_URL}/login?error=google_no_email`);
         }
 
-        // Find existing user or create a new one (viewer role by default)
         let user = await findUserByEmail(profile.email);
         if (!user) {
+            if (!GOOGLE_SIGNUP_OPEN) {
+                return res.redirect(`${FRONTEND_URL}/login?error=registration_closed`);
+            }
             user = await User.create({ email: normalizeEmail(profile.email), role: 'viewer' });
         }
         if (user.status === 'inactive') {

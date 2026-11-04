@@ -1,7 +1,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, BrainCircuit, Sun, Moon } from "lucide-react";
-import { login, register, startDemo } from "../../api/authClient";
+import { login, startDemo } from "../../api/authClient";
 import { useAuth } from "../../auth/useAuth";
 import { safeReturnPath } from "../../auth/returnPath";
 import { useStatus } from "../../components/statusBar/useStatus";
@@ -19,9 +19,7 @@ export default function LoginPage() {
   const { isAuthed, sessionExpired, loginSuccess } = useAuth();
   const { theme, setTheme } = useTheme();
 
-  const [mode, setMode] = useState<"login" | "register">("login");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [demoPending, setDemoPending] = useState(false);
   const [demoSlow, setDemoSlow] = useState(false);
 
@@ -33,16 +31,8 @@ export default function LoginPage() {
       const passVal = formData.get("password") as string;
 
       try {
-        if (mode === "register") {
-          const confirmVal = formData.get("confirm") as string;
-          const displayNameVal = (formData.get("displayName") as string)?.trim();
-          if (passVal !== confirmVal) return "Passwords do not match";
-          const res = await register(emailVal.trim(), passVal, displayNameVal || undefined);
-          loginSuccess(res.user);
-        } else {
-          const res = await login(emailVal.trim(), passVal);
-          loginSuccess(res.user);
-        }
+        const res = await login(emailVal.trim(), passVal);
+        loginSuccess(res.user);
         nav(redirectTo, { replace: true });
         return null;
       } catch (err: unknown) {
@@ -81,12 +71,6 @@ export default function LoginPage() {
     }
   };
 
-  const switchMode = (next: "login" | "register") => {
-    setMode(next);
-    setShowPassword(false);
-    setShowConfirm(false);
-  };
-
   return (
     <div className="login-page-wrapper">
       <div className="login-logo">
@@ -102,23 +86,6 @@ export default function LoginPage() {
         </button>
       </div>
     <div className="login-panel">
-      <div className="login-tabs">
-        <button
-          className={`login-tab${mode === "login" ? " active" : ""}`}
-          type="button"
-          onClick={() => switchMode("login")}
-        >
-          Sign In
-        </button>
-        <button
-          className={`login-tab${mode === "register" ? " active" : ""}`}
-          type="button"
-          onClick={() => switchMode("register")}
-        >
-          Sign Up
-        </button>
-      </div>
-
       <form className="login-form" action={formAction}>
         {sessionExpired && (
           <div className="login-notice" role="status">
@@ -134,23 +101,9 @@ export default function LoginPage() {
             className="login-input"
             type="email"
             placeholder="you@example.com"
-            autoComplete={mode === "register" ? "email" : "username"}
+            autoComplete="username"
           />
         </label>
-
-        {mode === "register" && (
-          <label className="login-field">
-            Name
-            <input
-              name="displayName"
-              className="login-input"
-              type="text"
-              placeholder="Your name"
-              autoComplete="name"
-              maxLength={80}
-            />
-          </label>
-        )}
 
         <label className="login-field">
           Password
@@ -160,7 +113,7 @@ export default function LoginPage() {
               className="login-input"
               type={showPassword ? "text" : "password"}
               placeholder="••••••••"
-              autoComplete={mode === "register" ? "new-password" : "current-password"}
+              autoComplete="current-password"
             />
             <button
               type="button"
@@ -173,73 +126,42 @@ export default function LoginPage() {
           </div>
         </label>
 
-        {mode === "register" && (
-          <label className="login-field">
-            Confirm Password
-            <div className="password-input-wrapper">
-              <input
-                name="confirm"
-                className="login-input"
-                type={showConfirm ? "text" : "password"}
-                placeholder="••••••••"
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                className="eye-btn"
-                onClick={() => setShowConfirm((v) => !v)}
-                aria-label={showConfirm ? "Hide password" : "Show password"}
-              >
-                {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </label>
-        )}
-
         <button
           className="primary-btn signin-btn"
           type="submit"
           disabled={isPending || demoPending}
         >
-          {isPending
-            ? mode === "register"
-              ? "Creating account..."
-              : "Signing in..."
-            : mode === "register"
-              ? "Create Account"
-              : "Sign In"}
+          {isPending ? "Signing in..." : "Sign In"}
         </button>
 
       </form>
 
-      {mode === "login" && (
-        <div className="login-demo-section">
-          <div className="login-demo-divider">
-            <span>or</span>
-          </div>
-          <button
-            type="button"
-            className="login-demo-btn"
-            disabled={isPending || demoPending}
-            aria-busy={demoPending}
-            onClick={startDemoSession}
-          >
-            {demoPending ? (
-              <>
-                <Loader size={16} />
-                Preparing your demo workspace...
-              </>
-            ) : (
-              "Try Demo"
-            )}
-          </button>
-          {demoSlow && (
-            <p className="login-demo-wait" role="status">
-              The server may be waking up. This can take up to a minute.
-            </p>
-          )}
+      <div className="login-demo-section">
+        <div className="login-demo-divider">
+          <span>or</span>
         </div>
-      )}
+        <button
+          type="button"
+          className="login-demo-btn"
+          disabled={isPending || demoPending}
+          aria-busy={demoPending}
+          onClick={startDemoSession}
+        >
+          {demoPending ? (
+            <>
+              <Loader size={16} />
+              Preparing your demo workspace...
+            </>
+          ) : (
+            "Try Demo"
+          )}
+        </button>
+        {demoSlow && (
+          <p className="login-demo-wait" role="status">
+            The server may be waking up. This can take up to a minute.
+          </p>
+        )}
+      </div>
     </div>
     </div>
   );
