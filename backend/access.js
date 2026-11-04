@@ -1,3 +1,5 @@
+import { DEMO_MAX_UPLOAD_BYTES } from '../shared/uploadRules.js';
+
 // Who may see and change which documents.
 // Demo users work in a private sandbox of documents they own. Everyone else
 // shares the regular (non-demo) documents, which only admins may change.
@@ -12,6 +14,9 @@ export const DEMO_LIMITS = {
     documents: 20,
     contentLength: 20000,
     attachmentsPerDocument: 1,
+    uploadBytes: DEMO_MAX_UPLOAD_BYTES,
+    storageBytes: 5 * 1024 * 1024,
+    liveWorkspaces: 40,
 };
 
 export function canEditDocuments(user) {

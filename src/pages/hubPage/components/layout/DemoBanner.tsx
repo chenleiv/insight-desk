@@ -2,7 +2,8 @@ import { useId, useState } from "react";
 import { ChevronDown, FlaskConical } from "lucide-react";
 import { DEMO_LIMITS } from "../../../../auth/demoLimits";
 
-const { documents, contentLength, attachmentsPerDocument } = DEMO_LIMITS;
+const { documents, contentLength, attachmentsPerDocument, uploadBytes } = DEMO_LIMITS;
+const MEGABYTE = 1024 * 1024;
 const ATTACHMENTS = `${attachmentsPerDocument} attachment${attachmentsPerDocument === 1 ? "" : "s"}`;
 
 // Each text is one string, so no spaces depend on how it is split into DOM nodes.
@@ -11,7 +12,7 @@ const SHORT_SUMMARY = "Demo workspace · Details";
 const DETAILS = "Demo workspace: your own private copy of the sample documents, reset when you sign out. "
   + "Edit, add and chat freely. "
   + `Limits: ${documents} documents, ${contentLength.toLocaleString("en-US")} characters `
-  + `and ${ATTACHMENTS} per document. Import and admin settings are disabled.`;
+  + `and ${ATTACHMENTS} (up to ${uploadBytes / MEGABYTE} MB) per document. Import and admin settings are disabled.`;
 
 type Props = {
   // The shorter one-line text, for narrow screens.

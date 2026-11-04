@@ -20,7 +20,8 @@ Security controls in Insight Desk and the tests that guard them.
 - **Demo workspaces are temporary.** A demo account and everything it owns (documents, chunks, uploaded files)
   are deleted on logout, since a demo account has no password and cannot be reached again. If the visitor never
   logs out, they are deleted after 24 hours by a cleanup that runs when the server starts and every hour after,
-  so data can outlive its expiry by up to an hour, or until the next start if the server is asleep.
+  so data can outlive its expiry by up to an hour, or until the next start if the server is asleep. A workspace can
+  also go sooner when the demo is busy (see Demo limits).
   Only accounts with the `demo` role are ever matched, and the logs record only how many were removed.
   Tests: `backend/__tests__/demoCleanup.integration.test.js`, `backend/__tests__/demoCleanup.test.js`,
   `backend/__tests__/demoLogout.test.js`.
@@ -43,6 +44,8 @@ Security controls in Insight Desk and the tests that guard them.
 | Document content | 500,000 characters | 400 |
 | Bulk import | 50 documents | 400 |
 | Document download as PDF or Word | 200,000 characters of content (`MAX_EXPORT_CHARS`) | 422, suggests Markdown |
+| Uploaded file | 10 MB; 2 MB in a demo workspace | 413, names the limit |
+| Upload form | One file, no other fields or parts, a file name of at most 255 characters | 400 |
 
 Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.test.js`.
 
@@ -78,13 +81,15 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 ## Rate limiting
 
 - All `/api/` routes share one limit per client IP (100 per 15 minutes in production), plus stricter limits on
-  password attempts (10 failed per 15 minutes) and demo creation (10 per hour).
+  password attempts (10 failed per 15 minutes), demo creation (10 per hour) and uploads (20 per 15 minutes, counting
+  attachments and text extraction together), so one client cannot keep the extraction queue full.
 - The SPA fallback (`index.html`) has its own generous limit: 1000 requests per 15 minutes per client IP, in every
   environment. Only full page loads and refreshes reach it (static assets are served first, and in-app navigation
   stays in the browser), so the limit leaves room for many visitors behind one shared IP while stopping a client
   that requests pages in a loop. It uses the same client IP as the `/api/` limits (`TRUST_PROXY_HOPS`).
 - Static files under `dist/` are not rate-limited: they are fixed files with no user input.
-- Tests: the login limit in `backend/__tests__/authRateLimit.test.js`, the SPA fallback limit in
+- Tests: the upload limit in `backend/routes/__tests__/uploadLimits.test.js`, the login limit in
+  `backend/__tests__/authRateLimit.test.js`, the SPA fallback limit in
   `backend/middleware/__tests__/setup.test.js`.
 
 ## Cross-site requests (CSRF)
@@ -144,14 +149,65 @@ Test: `backend/__tests__/crossSiteRequests.test.js`.
 
 Tests: `backend/routes/__tests__/documentDownload.test.js`, `backend/__tests__/documentExport.test.js`.
 
+## File uploads
+
+- **The content must match the type.** The extension and the MIME type both come from the client, so
+  `backend/fileSignature.js` also checks the first bytes: `%PDF-` for PDF, a ZIP header for `.docx` and `.xlsx`, an OLE
+  header for `.xls`, `{\rtf` for RTF. A text file must hold no NUL byte in its first 8 KB and must not start with a
+  known binary signature. Legacy one-byte encodings still pass.
+- **The extension decides the stored type.** The browser's type can only refuse a file that claims another type. What
+  is stored, parsed and served comes from the extension, so `text/x-markdown` for a `.md` file is parsed like `text/markdown`.
+- **Clear refusals.** UTF-16 text files and password-protected Office files get a 400 that says what to do.
+- A file is served as an attachment with `nosniff` whatever it holds, so these checks limit what reaches the parsers;
+  they do not prove a file is harmless.
+  Tests: `backend/__tests__/fileSignature.test.js`, `backend/routes/__tests__/uploadLimits.test.js`.
+
 ## Text extraction
 
+- **Parsing runs in a separate process.** A small file can expand enormously: a 1.4 KB spreadsheet or a 243 KB Word
+  file used to crash the whole server out of memory. `backend/textExtract.js` now parses each upload in a new child
+  process (`backend/extractWorker.js`), so a hostile file can only kill that process.
+  - **Limits:** 160 MB of V8 heap, 256 MB of total memory, 20 seconds. Total memory is watched by a thread inside
+    the worker, because the heap limit does not count Buffers. A file that hits a limit gets a 422 and is not stored.
+  - **One at a time:** one file is parsed at a time and three may wait. Beyond that the answer is 503 with `Retry-After`.
+  - **No secrets:** the worker starts with an empty environment.
+- **ZIP files are checked before they are parsed.** For `.docx` and `.xlsx`, `backend/zipGuard.js` inflates every entry
+  with a 20 MB total limit, so a forged size in the archive does not help. It walks the central directory, as the
+  parsers do, and refuses encrypted and ZIP64 archives.
+- **Spreadsheets are measured before they are converted.** At most 1,000,000 cells across 50 sheets, checked on the
+  sheet range before `sheet_to_json` builds it.
+- **Known gap, accepted: PDF.** A PDF has no reliable decompressed size to check in advance, since streams can sit
+  inside compressed object streams. Only the first 200 pages are read, and the worker's limits are what stop a hostile
+  PDF. It costs one worker run, not the server.
+- A damaged file, as before, is stored with no extracted text.
+  Tests: `backend/__tests__/extractionSafety.test.js`, `backend/routes/__tests__/documentAttachments.test.js`.
 - **RTF parsing runs in linear time and bounded memory.** Uploaded RTF is converted to text in
-  `backend/textExtract.js`. Blanks before line breaks are removed by a single pass, not by the regex
+  `backend/textParsers.js`. Blanks before line breaks are removed by a single pass, not by the regex
   `/[ \t]+\n/`, which backtracked quadratically on a long run of spaces: a 10 MB upload, open to any demo
   visitor, could block the server for hours. Group state is saved for at most 1000 nested `{` groups
   (`MAX_RTF_DEPTH`); deeper groups are only counted, so a file of nested braces cannot exhaust memory.
   Test: `backend/__tests__/textExtract.test.js`.
+
+## Demo limits
+
+- **Limits hold under parallel requests.** A check followed by a separate write let parallel requests all pass: ten
+  at once could leave 28 documents in a workspace limited to 20, and ten attachments on a document limited to one.
+  `backend/demoQuota.js` now takes a document slot with one conditional update, and an attachment is added or removed
+  by an update whose filter includes the limit. A loser of the race gets a 403 and leaves no file behind, and a slot
+  is given back when a write fails or a document is deleted.
+  Test: `backend/__tests__/demoLimitsRace.integration.test.js`, against a real in-memory MongoDB.
+
+- **Storage is bounded.** Anyone can open a demo workspace, and without a cap one address could store 500 MB in 15
+  minutes. In a demo workspace, a file is at most 2 MB and at most 20,000 characters of its text are kept. Uploads
+  count against a 5 MB quota per workspace, as the file size plus 12 bytes per character of text, since chunks with
+  vectors take far more room than the text itself. At the worst case, with content written directly on top, a workspace
+  takes about 10 MB.
+- **At most 40 live workspaces.** When a new one goes over the cap, the least recently active workspace is removed with
+  everything in it. New visitors are never refused, because a refusal would let one address block the demo for everyone
+  by filling the cap. At the worst case this is about 400 MB. Activity is recorded at most every 5 minutes.
+- **Known gap, accepted.** A request that creates a document at the same moment its workspace is removed can leave that
+  document behind. It is invisible to everyone, and it takes a request racing a removal to create.
+  Tests: `backend/__tests__/demoQuota.integration.test.js`, `backend/__tests__/demoActivity.test.js`.
 
 ## Data integrity
 

@@ -24,7 +24,7 @@ const DOCS = {
 const query = (value) => Object.assign(Promise.resolve(value), { lean: async () => value });
 
 const { User, Document, groqCreate } = vi.hoisted(() => ({
-  User: { findOne: vi.fn(), find: vi.fn(), findByIdAndUpdate: vi.fn() },
+  User: { findOne: vi.fn(), find: vi.fn(), findByIdAndUpdate: vi.fn(), updateOne: vi.fn(async () => ({ modifiedCount: 1 })) },
   Document: {
     find: vi.fn(),
     findById: vi.fn(),

@@ -10,12 +10,20 @@ const userSchema = new mongoose.Schema({
     jobTitle: { type: String, default: '' },
     // Demo users only: when the demo workspace and its documents are removed.
     expiresAt: { type: Date, default: null, index: true },
+    // Demo users only: documents in the workspace, kept by the atomic updates in demoQuota.js.
+    demoDocuments: { type: Number },
+    demoStorageBytes: { type: Number },
+    // Demo users only: the least recently active workspace is removed when too many are live.
+    lastActiveAt: { type: Date },
 }, { timestamps: true });
+
+userSchema.index({ role: 1, lastActiveAt: 1 });
 
 const attachmentSchema = new mongoose.Schema({
     url: { type: String, required: true },
     fileName: { type: String, required: true },
     fileType: { type: String, required: true },
+    fileSize: { type: Number },
     extractedText: { type: String, default: '' },
     gridfsId: { type: mongoose.Schema.Types.ObjectId, default: null },
 });

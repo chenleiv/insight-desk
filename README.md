@@ -124,7 +124,10 @@ ai-workspace/
 │   ├── models.js                   # Mongoose models: User, Document, AIConfig, Chunk, RetrievalLog
 │   ├── schemas.js                  # Zod validation schemas
 │   ├── prompts.js                  # Default system prompt + metadata
-│   ├── textExtract.js              # PDF / DOCX / Excel text extraction
+│   ├── textExtract.js              # Runs text extraction in a limited child process
+│   ├── textParsers.js              # PDF / DOCX / Excel parsers (run only in that process)
+│   ├── extractWorker.js            # The child process
+│   ├── zipGuard.js                 # Checks a ZIP's real expanded size before parsing
 │   ├── documentExport.js           # Markdown / PDF / Word files for document download
 │   ├── logger.js                   # Structured logger
 │   ├── loadEnv.js                  # .env loader

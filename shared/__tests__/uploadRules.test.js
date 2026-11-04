@@ -2,7 +2,9 @@
 import { describe, it, expect } from "vitest";
 import {
   MAX_UPLOAD_BYTES,
+  DEMO_MAX_UPLOAD_BYTES,
   UPLOAD_ACCEPT,
+  uploadMimeForName,
   resolveUploadMime,
   uploadError,
 } from "../uploadRules.js";
@@ -33,6 +35,20 @@ describe("resolveUploadMime", () => {
   });
 });
 
+describe("uploadMimeForName", () => {
+  it("gives one type per extension, whatever its case", () => {
+    expect(uploadMimeForName("notes.md")).toBe("text/markdown");
+    expect(uploadMimeForName("NOTES.MD")).toBe("text/markdown");
+    expect(uploadMimeForName("a.rtf")).toBe("application/rtf");
+  });
+
+  it("gives nothing for an extension that is not allowed", () => {
+    expect(uploadMimeForName("page.html")).toBeNull();
+    expect(uploadMimeForName("noextension")).toBeNull();
+    expect(uploadMimeForName("x.constructor")).toBeNull();
+  });
+});
+
 describe("uploadError", () => {
   it("accepts an allowed file within the size limit", () => {
     expect(uploadError({ name: "a.pdf", type: "application/pdf", size: MAX_UPLOAD_BYTES })).toBeNull();
@@ -41,6 +57,12 @@ describe("uploadError", () => {
   it("gives the server's message for a file that is too large", () => {
     expect(uploadError({ name: "a.pdf", type: "application/pdf", size: MAX_UPLOAD_BYTES + 1 }))
       .toBe("File is too large. The maximum size is 10MB.");
+  });
+
+  it("applies a smaller limit when given one, naming it", () => {
+    expect(uploadError({ name: "a.pdf", type: "application/pdf", size: DEMO_MAX_UPLOAD_BYTES }, DEMO_MAX_UPLOAD_BYTES)).toBeNull();
+    expect(uploadError({ name: "a.pdf", type: "application/pdf", size: DEMO_MAX_UPLOAD_BYTES + 1 }, DEMO_MAX_UPLOAD_BYTES))
+      .toBe("File is too large. The maximum size is 2MB.");
   });
 
   it("gives the server's message for a type that is not allowed", () => {

@@ -6,6 +6,7 @@ import { buildDocumentChunks } from './rag/buildChunks.js';
 import { embeddingKey } from './rag/embeddingInput.js';
 import { logger } from './logger.js';
 import { getAttachmentBucket } from './attachmentBucket.js';
+import { DEMO_LIMITS } from './access.js';
 
 export const DEMO_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -65,6 +66,24 @@ export function removeDemoWorkspace(userId) {
     return removeDemoWorkspaces({ _id: userId });
 }
 
+/**
+ * Remove the least recently active workspaces beyond the cap, never `keepUserId`. A new
+ * visitor is never refused: otherwise one address could fill the cap and block the demo
+ * for everyone until the workspaces expire. Parallel calls may remove one too many,
+ * which costs an idle workspace; the count still settles at or under the cap.
+ */
+export async function enforceLiveWorkspaceCap(keepUserId) {
+    const excess = await User.countDocuments({ role: 'demo' }) - DEMO_LIMITS.liveWorkspaces;
+    if (excess <= 0) return 0;
+    const leastActive = await User.find({ role: 'demo', _id: { $ne: keepUserId } }, '_id')
+        .sort({ lastActiveAt: 1 })
+        .limit(excess)
+        .lean();
+    const removed = await removeDemoWorkspaces({ _id: { $in: leastActive.map((u) => u._id) } });
+    logger.info('Removed least active demo workspaces', { count: removed });
+    return removed;
+}
+
 let cleanupRunning = false;
 
 /**
@@ -108,6 +127,8 @@ export async function createDemoWorkspace(now = new Date()) {
         password_hash: null,
         displayName: 'Demo User',
         expiresAt: new Date(now.getTime() + DEMO_TTL_MS),
+        demoDocuments: SAMPLE_DOCUMENTS.length,
+        lastActiveAt: now,
     });
 
     const docs = await Document.insertMany(
@@ -125,6 +146,13 @@ export async function createDemoWorkspace(now = new Date()) {
         await Chunk.insertMany(chunks);
     } catch (err) {
         logger.error('Building demo chunks failed', { message: err.message });
+    }
+
+    try {
+        await enforceLiveWorkspaceCap(user._id);
+    } catch (err) {
+        // The visitor's workspace is fine, and the next new one tries again.
+        logger.error('Removing least active demo workspaces failed', { message: err.message });
     }
 
     return user;

@@ -15,9 +15,11 @@ type Options = {
   doc: DocumentItem | null;
   canEdit: boolean;
   onSaved: (doc: DocumentItem) => void;
+  // A smaller limit than the default, for demo workspaces.
+  maxUploadBytes?: number | undefined;
 };
 
-export function useDocumentAttachments({ doc, canEdit, onSaved }: Options) {
+export function useDocumentAttachments({ doc, canEdit, onSaved, maxUploadBytes }: Options) {
   const status = useStatus();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
@@ -45,10 +47,10 @@ export function useDocumentAttachments({ doc, canEdit, onSaved }: Options) {
 
   // A file the server would reject is not sent or queued; the user gets the server's message.
   const rejectUpload = useCallback((file: File) => {
-    const error = uploadError(file);
+    const error = uploadError(file, maxUploadBytes);
     if (error) status.show({ kind: "error", title: "Upload failed", message: error });
     return error !== null;
-  }, [status]);
+  }, [status, maxUploadBytes]);
 
   // Files picked while creating a document are uploaded once it exists.
   const addPendingFile = useCallback((file: File) => {
