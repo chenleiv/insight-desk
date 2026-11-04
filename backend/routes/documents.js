@@ -2,10 +2,12 @@ import { Router } from 'express';
 import { logger } from '../logger.js';
 import mongoose from 'mongoose';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import { randomUUID } from 'crypto';
 import { Document } from '../models.js';
 import { getAttachmentBucket } from '../attachmentBucket.js';
 import { extractTextFromBuffer } from '../textExtract.js';
+import { signatureError } from '../fileSignature.js';
 import { getCurrentUser, requireEditor } from '../auth.js';
 import { canAccessDocument, documentScope, isDemoUser, DEMO_LIMITS } from '../access.js';
 import { documentSchema, documentDownloadQuerySchema, importBulkSchema, sendValidationError } from '../schemas.js';
@@ -34,6 +36,8 @@ function handleMulterUpload(req, res, next) {
             }
             return res.status(err.status || 400).json({ detail: err.message });
         }
+        const mismatch = req.file && signatureError(req.file.buffer, req.file.mimetype);
+        if (mismatch) return res.status(400).json({ detail: mismatch });
         next();
     });
 }
@@ -86,12 +90,30 @@ async function removeChunks(docIds) {
 // The largest file multer accepts. A bigger one is rejected with 413 and a message naming the limit.
 export { MAX_UPLOAD_BYTES };
 
+// Every upload is parsed in a child process, one at a time, so one client must not
+// keep that queue full. Per client IP, which needs TRUST_PROXY_HOPS set behind a proxy.
+export const UPLOAD_RATE_LIMIT = 20;
+const uploadLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: UPLOAD_RATE_LIMIT,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { detail: 'Too many uploads, please try again in 15 minutes.' },
+});
+
+const MAX_FILE_NAME_LENGTH = 255;
+
 // The allowed types live in shared/uploadRules.js, which the UI uses too. A file the
 // browser sent with no type or a generic one gets its extension's type.
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: MAX_UPLOAD_BYTES },
+    // One file and nothing else: the UI sends no other parts, and each would use memory.
+    limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 0, parts: 1, headerPairs: 20 },
     fileFilter: (_req, file, cb) => {
+        if (file.originalname.length > MAX_FILE_NAME_LENGTH) {
+            cb(Object.assign(new Error('The file name is too long.'), { status: 400 }));
+            return;
+        }
         const mimeType = resolveUploadMime(file.originalname, file.mimetype);
         if (mimeType) {
             file.mimetype = mimeType;
@@ -103,7 +125,7 @@ const upload = multer({
 });
 
 // Extract text from a file without creating any document (editors)
-router.post('/extract-text', requireEditor, handleMulterUpload, async (req, res) => {
+router.post('/extract-text', requireEditor, uploadLimiter, handleMulterUpload, async (req, res) => {
     try {
         const file = req.file;
         if (!file) return res.status(400).json({ detail: 'No file uploaded' });
@@ -339,7 +361,7 @@ router.get('/:id/attachments/:attachmentId/file', getCurrentUser, async (req, re
 });
 
 // Upload attachment
-router.post('/:id/attachments', requireEditor, handleMulterUpload, async (req, res) => {
+router.post('/:id/attachments', requireEditor, uploadLimiter, handleMulterUpload, async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
         if (!canAccessDocument(req.user, doc)) return res.status(404).json({ detail: 'Not found' });

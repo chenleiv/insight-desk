@@ -43,6 +43,7 @@ Security controls in Insight Desk and the tests that guard them.
 | Document content | 500,000 characters | 400 |
 | Bulk import | 50 documents | 400 |
 | Document download as PDF or Word | 200,000 characters of content (`MAX_EXPORT_CHARS`) | 422, suggests Markdown |
+| Upload form | One file, no other fields or parts, a file name of at most 255 characters | 400 |
 
 Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.test.js`.
 
@@ -78,13 +79,15 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 ## Rate limiting
 
 - All `/api/` routes share one limit per client IP (100 per 15 minutes in production), plus stricter limits on
-  password attempts (10 failed per 15 minutes) and demo creation (10 per hour).
+  password attempts (10 failed per 15 minutes), demo creation (10 per hour) and uploads (20 per 15 minutes, counting
+  attachments and text extraction together), so one client cannot keep the extraction queue full.
 - The SPA fallback (`index.html`) has its own generous limit: 1000 requests per 15 minutes per client IP, in every
   environment. Only full page loads and refreshes reach it (static assets are served first, and in-app navigation
   stays in the browser), so the limit leaves room for many visitors behind one shared IP while stopping a client
   that requests pages in a loop. It uses the same client IP as the `/api/` limits (`TRUST_PROXY_HOPS`).
 - Static files under `dist/` are not rate-limited: they are fixed files with no user input.
-- Tests: the login limit in `backend/__tests__/authRateLimit.test.js`, the SPA fallback limit in
+- Tests: the upload limit in `backend/routes/__tests__/uploadLimits.test.js`, the login limit in
+  `backend/__tests__/authRateLimit.test.js`, the SPA fallback limit in
   `backend/middleware/__tests__/setup.test.js`.
 
 ## Cross-site requests (CSRF)
@@ -143,6 +146,17 @@ Test: `backend/__tests__/crossSiteRequests.test.js`.
 - **CORS** exposes `Content-Disposition`, so a frontend on another origin can read the file name.
 
 Tests: `backend/routes/__tests__/documentDownload.test.js`, `backend/__tests__/documentExport.test.js`.
+
+## File uploads
+
+- **The content must match the type.** The extension and the MIME type both come from the client, so
+  `backend/fileSignature.js` also checks the first bytes: `%PDF-` for PDF, a ZIP header for `.docx` and `.xlsx`, an OLE
+  header for `.xls`, `{\rtf` for RTF. A text file must hold no NUL byte in its first 8 KB and must not start with a
+  known binary signature. Legacy one-byte encodings still pass.
+- **Clear refusals.** UTF-16 text files and password-protected Office files get a 400 that says what to do.
+- A file is served as an attachment with `nosniff` whatever it holds, so these checks limit what reaches the parsers;
+  they do not prove a file is harmless.
+  Tests: `backend/__tests__/fileSignature.test.js`, `backend/routes/__tests__/uploadLimits.test.js`.
 
 ## Text extraction
 
