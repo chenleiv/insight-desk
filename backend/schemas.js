@@ -14,12 +14,15 @@ export function normalizeEmail(email) {
   return email.trim().toLowerCase();
 }
 
-const emailField = z.string().trim().toLowerCase().email('Invalid email format');
+const emailField = z.string().trim().toLowerCase().email('Invalid email format').max(254);
+
+// Far above any real password: bcrypt reads only 72 bytes, so this only stops absurd input.
+const MAX_SUBMITTED_PASSWORD_LENGTH = 1024;
 
 // Auth Schemas
 export const loginSchema = z.object({
   email: emailField,
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters').max(MAX_SUBMITTED_PASSWORD_LENGTH),
 });
 
 // Length only, no composition rules. bcrypt ignores everything past 72 bytes,
@@ -28,13 +31,27 @@ const MIN_PASSWORD_LENGTH = 12;
 const MAX_PASSWORD_BYTES = 72;
 
 export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
+  currentPassword: z.string().min(1, 'Current password is required').max(MAX_SUBMITTED_PASSWORD_LENGTH),
   newPassword: z.string()
     .min(MIN_PASSWORD_LENGTH, `New password must be at least ${MIN_PASSWORD_LENGTH} characters`)
     .refine((value) => Buffer.byteLength(value, 'utf8') <= MAX_PASSWORD_BYTES, `New password must be at most ${MAX_PASSWORD_BYTES} bytes`),
 });
 
+// Only the two editable fields; a value over the limit is refused rather than cut.
+export const profileSchema = z.strictObject({
+  displayName: z.string().trim().max(80).optional(),
+  jobTitle: z.string().trim().max(80).optional(),
+});
+
+// A MongoDB ObjectId, so a malformed id is a 400 instead of a cast error.
+const objectIdField = (label) => z.string().regex(/^[0-9a-f]{24}$/i, `Invalid ${label} id`);
+
 // Document Schemas
+export const documentParamsSchema = z.object({
+  id: objectIdField('document'),
+  attachmentId: objectIdField('attachment').optional(),
+});
+
 export const documentSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   category: z.string().min(1, 'Category is required').max(100),
@@ -58,10 +75,18 @@ export const aiFeedbackSchema = z.strictObject({
   rating: z.enum(['up', 'down']),
 });
 
+// Admin settings for the chat. Empty suggestions are dropped by the route, as they always were.
+export const aiPromptSchema = z.strictObject({
+  prompt: z.string().trim().min(1, 'Prompt is required').max(20000),
+});
+
+export const aiSuggestionsSchema = z.strictObject({
+  questions: z.array(z.string().trim().max(300)).max(20),
+});
+
 // User Schemas
-// A MongoDB ObjectId, so a malformed id is a 400 instead of a cast error.
 export const userIdParamSchema = z.object({
-  id: z.string().regex(/^[0-9a-f]{24}$/i, 'Invalid user id'),
+  id: objectIdField('user'),
 });
 
 // Admins change only role and status; any other field is rejected.

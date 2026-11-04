@@ -9,7 +9,7 @@ import { canEditDocuments, isDemoUser } from './access.js';
 import { createDemoWorkspace, removeDemoWorkspace } from './demo.js';
 import { isDevOrTest } from './runtimeEnv.js';
 
-import { changePasswordSchema, loginSchema, normalizeEmail, sendValidationError } from './schemas.js';
+import { changePasswordSchema, loginSchema, normalizeEmail, profileSchema, sendValidationError } from './schemas.js';
 
 const router = express.Router();
 
@@ -452,14 +452,12 @@ router.get('/me', getCurrentUser, (req, res) => {
 
 router.patch('/profile', getCurrentUser, async (req, res) => {
     try {
-        const { displayName, jobTitle } = req.body;
-        const update = {};
-        if (typeof displayName === 'string') update.displayName = displayName.trim().slice(0, 80);
-        if (typeof jobTitle === 'string') update.jobTitle = jobTitle.trim().slice(0, 80);
+        const update = profileSchema.parse(req.body);
 
         const user = await User.findByIdAndUpdate(req.user._id, update, { new: true });
         res.json(formatUser(user));
     } catch (err) {
+        if (handleZodError(err, res)) return;
         logger.error('Update profile failed', { message: err.message });
         res.status(500).json({ detail: 'Internal server error' });
     }

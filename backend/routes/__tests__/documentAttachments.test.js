@@ -56,7 +56,7 @@ import documentsRouter from "../documents.js";
 // Minimal stand-in for a Mongoose document with an attachments subarray.
 function fakeDoc(attachments = []) {
   const doc = {
-    _id: "doc-1",
+    _id: "64b7f0c2a1b2c3d4e5f60001",
     content: "Policy text.",
     attachments: Object.assign([...attachments], {
       id: (id) => doc.attachments.find((a) => String(a._id) === id),
@@ -69,7 +69,7 @@ function fakeDoc(attachments = []) {
 function upload(blobParts, type, fileName) {
   const form = new FormData();
   form.append("file", new Blob(blobParts, { type }), fileName);
-  return fetch(`${baseUrl}/doc-1/attachments`, { method: "POST", body: form });
+  return fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001/attachments`, { method: "POST", body: form });
 }
 
 let server;
@@ -166,10 +166,10 @@ describe("attachment file download", () => {
   it("serves the file as a download with its extension's type, never sniffed", async () => {
     gridfs.content = "<script>alert(1)</script>";
     Document.findById.mockResolvedValue(fakeDoc([
-      { _id: "att-1", gridfsId: "g-1", fileName: "notes.md", fileType: "text/markdown" },
+      { _id: "64b7f0c2a1b2c3d4e5f600a1", gridfsId: "g-1", fileName: "notes.md", fileType: "text/markdown" },
     ]));
 
-    const res = await fetch(`${baseUrl}/doc-1/attachments/att-1/file`);
+    const res = await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001/attachments/64b7f0c2a1b2c3d4e5f600a1/file`);
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toMatch(/^text\/markdown/);
@@ -180,10 +180,10 @@ describe("attachment file download", () => {
   it("must not be cached", async () => {
     gridfs.content = "private";
     Document.findById.mockResolvedValue(fakeDoc([
-      { _id: "att-1", gridfsId: "g-1", fileName: "notes.md", fileType: "text/markdown" },
+      { _id: "64b7f0c2a1b2c3d4e5f600a1", gridfsId: "g-1", fileName: "notes.md", fileType: "text/markdown" },
     ]));
 
-    const res = await fetch(`${baseUrl}/doc-1/attachments/att-1/file`);
+    const res = await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001/attachments/64b7f0c2a1b2c3d4e5f600a1/file`);
 
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -192,10 +192,10 @@ describe("attachment file download", () => {
   it("serves a stored type that does not match the extension as a generic download", async () => {
     gridfs.content = "<html></html>";
     Document.findById.mockResolvedValue(fakeDoc([
-      { _id: "att-1", gridfsId: "g-1", fileName: "page.html", fileType: "text/html" },
+      { _id: "64b7f0c2a1b2c3d4e5f600a1", gridfsId: "g-1", fileName: "page.html", fileType: "text/html" },
     ]));
 
-    const res = await fetch(`${baseUrl}/doc-1/attachments/att-1/file`);
+    const res = await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001/attachments/64b7f0c2a1b2c3d4e5f600a1/file`);
 
     expect(res.headers.get("content-type")).toBe("application/octet-stream");
     expect(res.headers.get("content-disposition")).toMatch(/^attachment/);

@@ -10,7 +10,7 @@ import { extractTextFromBuffer } from '../textExtract.js';
 import { signatureError } from '../fileSignature.js';
 import { getCurrentUser, requireEditor } from '../auth.js';
 import { canAccessDocument, documentScope, isDemoUser, DEMO_LIMITS } from '../access.js';
-import { documentSchema, documentDownloadQuerySchema, importBulkSchema, sendValidationError } from '../schemas.js';
+import { documentSchema, documentDownloadQuerySchema, documentParamsSchema, importBulkSchema, sendValidationError } from '../schemas.js';
 import { exportDocument, ExportError } from '../documentExport.js';
 import {
     reserveDemoDocument,
@@ -55,6 +55,14 @@ function handleMulterUpload(req, res, next) {
         if (mismatch) return res.status(400).json({ detail: mismatch });
         next();
     });
+}
+
+// After the auth check, so it tells nothing to a caller without a session, and before
+// an upload is read. A malformed id would otherwise be a cast error and a 500.
+function validDocumentParams(req, res, next) {
+    const parsed = documentParamsSchema.safeParse(req.params);
+    if (!parsed.success) return sendValidationError(res, parsed.error);
+    next();
 }
 
 function handleZodError(err, res) {
@@ -217,7 +225,7 @@ router.get('/', getCurrentUser, async (req, res) => {
 });
 
 // Get single document
-router.get('/:id', getCurrentUser, async (req, res) => {
+router.get('/:id', getCurrentUser, validDocumentParams, async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
         if (!canAccessDocument(req.user, doc)) {
@@ -231,7 +239,7 @@ router.get('/:id', getCurrentUser, async (req, res) => {
 });
 
 // Download one document as a file. Same access rule as reading it.
-router.get('/:id/download', getCurrentUser, async (req, res) => {
+router.get('/:id/download', getCurrentUser, validDocumentParams, async (req, res) => {
     try {
         const { format } = documentDownloadQuerySchema.parse(req.query);
         const doc = await Document.findById(req.params.id);
@@ -292,7 +300,7 @@ router.post('/', requireEditor, async (req, res) => {
 });
 
 // Update document
-router.put('/:id', requireEditor, async (req, res) => {
+router.put('/:id', requireEditor, validDocumentParams, async (req, res) => {
     try {
         const validated = documentSchema.parse(req.body);
         if (!canAccessDocument(req.user, await Document.findById(req.params.id))) {
@@ -315,7 +323,7 @@ router.put('/:id', requireEditor, async (req, res) => {
 });
 
 // Delete document
-router.delete('/:id', requireEditor, async (req, res) => {
+router.delete('/:id', requireEditor, validDocumentParams, async (req, res) => {
     try {
         if (!canAccessDocument(req.user, await Document.findById(req.params.id))) {
             return res.status(404).json({ detail: 'Not found' });
@@ -347,7 +355,7 @@ router.delete('/:id', requireEditor, async (req, res) => {
 });
 
 // Toggle favorite
-router.post('/:id/toggle-favorite', getCurrentUser, async (req, res) => {
+router.post('/:id/toggle-favorite', getCurrentUser, validDocumentParams, async (req, res) => {
     try {
         const docId = req.params.id;
         const user = req.user;
@@ -371,7 +379,7 @@ router.post('/:id/toggle-favorite', getCurrentUser, async (req, res) => {
 });
 
 // Stream attachment file
-router.get('/:id/attachments/:attachmentId/file', getCurrentUser, async (req, res) => {
+router.get('/:id/attachments/:attachmentId/file', getCurrentUser, validDocumentParams, async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
         if (!canAccessDocument(req.user, doc)) return res.status(404).json({ detail: 'Not found' });
@@ -417,7 +425,7 @@ async function addAttachment(user, doc, attachment) {
 }
 
 // Upload attachment
-router.post('/:id/attachments', requireEditor, uploadLimiter, handleMulterUpload, async (req, res) => {
+router.post('/:id/attachments', requireEditor, validDocumentParams, uploadLimiter, handleMulterUpload, async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
         if (!canAccessDocument(req.user, doc)) return res.status(404).json({ detail: 'Not found' });
@@ -500,7 +508,7 @@ async function removeAttachment(user, doc, attachmentId) {
 }
 
 // Delete attachment
-router.delete('/:id/attachments/:attachmentId', requireEditor, async (req, res) => {
+router.delete('/:id/attachments/:attachmentId', requireEditor, validDocumentParams, async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
         if (!canAccessDocument(req.user, doc)) return res.status(404).json({ detail: 'Not found' });

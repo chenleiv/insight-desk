@@ -101,7 +101,7 @@ describe("upload rate limit", () => {
     // Earlier tests in this file used part of the limit, so this runs until it is refused.
     for (let i = 0; i <= UPLOAD_RATE_LIMIT; i++) {
       const res = i % 2
-        ? await fetch(`${baseUrl}/doc-1/attachments`, { method: "POST", body: formWith(["hello"], "text/plain", "a.txt") })
+        ? await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001/attachments`, { method: "POST", body: formWith(["hello"], "text/plain", "a.txt") })
         : await extract(formWith(["hello"], "text/plain", "a.txt"));
       statuses.push(res.status);
     }

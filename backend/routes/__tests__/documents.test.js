@@ -62,7 +62,7 @@ const BODY = { title: "Policy", category: "HR", content: "Policy text." };
 // Minimal stand-in for a Mongoose document with an attachments subarray.
 function fakeDoc(attachments = []) {
   const doc = {
-    _id: "doc-1",
+    _id: "64b7f0c2a1b2c3d4e5f60001",
     content: "Policy text.",
     attachments: Object.assign([...attachments], {
       id: (id) => doc.attachments.find((a) => String(a._id) === id),
@@ -100,7 +100,7 @@ const json = (method, body) => ({
 
 describe("document routes keep chunks in sync", () => {
   it("create sets ownerId from the logged-in user and builds chunks with embeddings", async () => {
-    const created = { _id: "doc-1", ...BODY, ownerId: USER._id };
+    const created = { _id: "64b7f0c2a1b2c3d4e5f60001", ...BODY, ownerId: USER._id };
     Document.create.mockResolvedValue(created);
 
     const res = await fetch(baseUrl, json("POST", BODY));
@@ -111,14 +111,14 @@ describe("document routes keep chunks in sync", () => {
   });
 
   it("edit rebuilds chunks with embeddings and does not change the owner", async () => {
-    const updated = { _id: "doc-1", ...BODY, ownerId: "owner-0" };
+    const updated = { _id: "64b7f0c2a1b2c3d4e5f60001", ...BODY, ownerId: "owner-0" };
     Document.findById.mockResolvedValue(fakeDoc());
     Document.findByIdAndUpdate.mockResolvedValue(updated);
 
-    const res = await fetch(`${baseUrl}/doc-1`, json("PUT", { ...BODY, ownerId: "attacker" }));
+    const res = await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001`, json("PUT", { ...BODY, ownerId: "attacker" }));
 
     expect(res.status).toBe(200);
-    expect(Document.findByIdAndUpdate).toHaveBeenCalledWith("doc-1", BODY, { new: true });
+    expect(Document.findByIdAndUpdate).toHaveBeenCalledWith("64b7f0c2a1b2c3d4e5f60001", BODY, { new: true });
     expect(sync).toHaveBeenCalledWith(updated, undefined, { embed, reuseEmbeddings: true });
   });
 
@@ -128,7 +128,7 @@ describe("document routes keep chunks in sync", () => {
     const form = new FormData();
     form.append("file", new Blob(["hello"], { type: "text/plain" }), "notes.txt");
 
-    const res = await fetch(`${baseUrl}/doc-1/attachments`, { method: "POST", body: form });
+    const res = await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001/attachments`, { method: "POST", body: form });
 
     expect(res.status).toBe(200);
     expect(doc.save).toHaveBeenCalled();
@@ -142,7 +142,7 @@ describe("document routes keep chunks in sync", () => {
     const form = new FormData();
     form.append("file", new Blob([new Uint8Array(MAX_UPLOAD_BYTES + 1)], { type: "text/plain" }), "big.txt");
 
-    const res = await fetch(`${baseUrl}/doc-1/attachments`, { method: "POST", body: form });
+    const res = await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001/attachments`, { method: "POST", body: form });
 
     expect(res.status).toBe(413);
     expect(await res.json()).toEqual({ detail: "File is too large. The maximum size is 10MB." });
@@ -150,10 +150,10 @@ describe("document routes keep chunks in sync", () => {
   });
 
   it("attachment delete rebuilds chunks without the removed attachment", async () => {
-    const doc = fakeDoc([{ _id: "att-1", gridfsId: "gridfs-1", extractedText: "Old." }]);
+    const doc = fakeDoc([{ _id: "64b7f0c2a1b2c3d4e5f600a1", gridfsId: "gridfs-1", extractedText: "Old." }]);
     Document.findById.mockResolvedValue(doc);
 
-    const res = await fetch(`${baseUrl}/doc-1/attachments/att-1`, { method: "DELETE" });
+    const res = await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001/attachments/64b7f0c2a1b2c3d4e5f600a1`, { method: "DELETE" });
 
     expect(res.status).toBe(204);
     expect(sync).toHaveBeenCalledWith(doc, undefined, { embed, reuseEmbeddings: true });
@@ -161,11 +161,11 @@ describe("document routes keep chunks in sync", () => {
   });
 
   it("attachment delete hides internal error details from the client", async () => {
-    const doc = fakeDoc([{ _id: "att-1", gridfsId: "gridfs-1" }]);
+    const doc = fakeDoc([{ _id: "64b7f0c2a1b2c3d4e5f600a1", gridfsId: "gridfs-1" }]);
     doc.save.mockRejectedValueOnce(new Error("MongoServerError: connection to 10.0.0.5 closed"));
     Document.findById.mockResolvedValue(doc);
 
-    const res = await fetch(`${baseUrl}/doc-1/attachments/att-1`, { method: "DELETE" });
+    const res = await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001/attachments/64b7f0c2a1b2c3d4e5f600a1`, { method: "DELETE" });
 
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ detail: "Delete failed" });
@@ -173,12 +173,12 @@ describe("document routes keep chunks in sync", () => {
 
   it("document delete removes its chunks", async () => {
     Document.findById.mockResolvedValue(fakeDoc());
-    Document.findByIdAndDelete.mockResolvedValue({ _id: "doc-1", attachments: [] });
+    Document.findByIdAndDelete.mockResolvedValue({ _id: "64b7f0c2a1b2c3d4e5f60001", attachments: [] });
 
-    const res = await fetch(`${baseUrl}/doc-1`, { method: "DELETE" });
+    const res = await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001`, { method: "DELETE" });
 
     expect(res.status).toBe(204);
-    expect(remove).toHaveBeenCalledWith("doc-1");
+    expect(remove).toHaveBeenCalledWith("64b7f0c2a1b2c3d4e5f60001");
     expect(sync).not.toHaveBeenCalled();
   });
 
@@ -238,7 +238,7 @@ describe("document routes keep chunks in sync", () => {
   });
 
   it("still succeeds when rebuilding chunks fails after the document is saved", async () => {
-    Document.create.mockResolvedValue({ _id: "doc-1", ...BODY });
+    Document.create.mockResolvedValue({ _id: "64b7f0c2a1b2c3d4e5f60001", ...BODY });
     sync.mockRejectedValueOnce(new Error("db down"));
 
     const res = await fetch(baseUrl, json("POST", BODY));
@@ -247,12 +247,12 @@ describe("document routes keep chunks in sync", () => {
   });
 
   it("when embedding fails, saves the new chunks without embeddings and schedules a retry", async () => {
-    const updated = { _id: "doc-1", ...BODY };
+    const updated = { _id: "64b7f0c2a1b2c3d4e5f60001", ...BODY };
     Document.findById.mockResolvedValue(fakeDoc());
     Document.findByIdAndUpdate.mockResolvedValue(updated);
     sync.mockRejectedValueOnce(new Error("model down"));
 
-    const res = await fetch(`${baseUrl}/doc-1`, json("PUT", BODY));
+    const res = await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001`, json("PUT", BODY));
 
     expect(res.status).toBe(200);
     expect(sync.mock.calls).toEqual([
@@ -263,7 +263,7 @@ describe("document routes keep chunks in sync", () => {
   });
 
   it("does not schedule a retry when the save without embeddings also fails", async () => {
-    Document.create.mockResolvedValue({ _id: "doc-1", ...BODY });
+    Document.create.mockResolvedValue({ _id: "64b7f0c2a1b2c3d4e5f60001", ...BODY });
     sync.mockRejectedValueOnce(new Error("db down")).mockRejectedValueOnce(new Error("db down"));
 
     const res = await fetch(baseUrl, json("POST", BODY));

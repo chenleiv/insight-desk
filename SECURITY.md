@@ -79,8 +79,16 @@ Security controls in Insight Desk and the tests that guard them.
 | Document download as PDF or Word | 200,000 characters of content (`MAX_EXPORT_CHARS`) | 422, suggests Markdown |
 | Uploaded file | 10 MB; 2 MB in a demo workspace | 413, names the limit |
 | Upload form | One file, no other fields or parts, a file name of at most 255 characters | 400 |
+| Ids in a document URL | A valid ObjectId, checked after the session and before an upload is read | 400 |
+| Email | 254 characters | 400 |
+| Password sent to log in or as the current password | 1024 characters | 400 |
+| New password | 12 characters to 72 bytes | 400 |
+| Profile name, job title | 80 characters, no other fields | 400 |
+| System prompt (admin) | 20,000 characters, not empty, no other fields | 400 |
+| Suggested questions (admin) | 20 questions of 300 characters, no other fields | 400 |
 
-Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.test.js`.
+Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.test.js`,
+`backend/__tests__/inputValidation.integration.test.js`.
 
 ## Browser
 
