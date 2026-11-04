@@ -6,6 +6,8 @@ import { useStatus } from "../../../../../components/statusBar/useStatus";
 import { resetGuides } from "../../../utils/guides";
 import type { Role } from "../../../../../auth/authTypes";
 
+const MIN_PASSWORD_LENGTH = 12;
+
 const ROLE_LABELS: Record<Role, string> = { admin: "Administrator", viewer: "Viewer", demo: "Demo" };
 
 function PasswordField({
@@ -86,7 +88,7 @@ export function AccountSection({ onSignOut }: { onSignOut?: () => void }) {
       const next = formData.get("next") as string;
       const confirm = formData.get("confirm") as string;
 
-      if (next.length < 6) return "New password must be at least 6 characters";
+      if (next.length < MIN_PASSWORD_LENGTH) return `New password must be at least ${MIN_PASSWORD_LENGTH} characters`;
       if (next !== confirm) return "Passwords do not match";
 
       try {

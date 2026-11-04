@@ -22,9 +22,16 @@ export const loginSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+// Length only, no composition rules. bcrypt ignores everything past 72 bytes,
+// so a longer password would look stronger than it is.
+const MIN_PASSWORD_LENGTH = 12;
+const MAX_PASSWORD_BYTES = 72;
+
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+  newPassword: z.string()
+    .min(MIN_PASSWORD_LENGTH, `New password must be at least ${MIN_PASSWORD_LENGTH} characters`)
+    .refine((value) => Buffer.byteLength(value, 'utf8') <= MAX_PASSWORD_BYTES, `New password must be at most ${MAX_PASSWORD_BYTES} bytes`),
 });
 
 // Document Schemas

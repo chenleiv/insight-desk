@@ -25,6 +25,19 @@ const passwordAttemptLimiter = rateLimit({
     message: { detail: 'Too many failed attempts, please try again in 15 minutes.' },
 });
 
+// Per account, so guessing from many addresses is limited too. Above the per-address limit, so
+// a mistyping user meets that one first. The key is a hash, so memory never holds an address.
+const accountAttemptLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    skipSuccessfulRequests: true,
+    standardHeaders: false,
+    legacyHeaders: false,
+    skip: (req) => typeof req.body?.email !== 'string',
+    keyGenerator: (req) => keyedHash(normalizeEmail(req.body.email)),
+    message: { detail: 'Too many failed attempts, please try again in 15 minutes.' },
+});
+
 // Each demo workspace copies the sample documents, so creation is capped per IP.
 const demoCreationLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
@@ -78,6 +91,10 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 // In production this is the same as the app URL. In dev set FRONTEND_URL=http://localhost:5173
 const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:8000';
 const FRONTEND_URL = process.env.FRONTEND_URL || APP_BASE_URL;
+
+// The hash of a random value nobody kept, at the cost real passwords use. Compared when there is
+// no password to check, so the response time does not reveal whether an account exists.
+const DUMMY_PASSWORD_HASH = '$2a$10$y6rSqbOUoXRrEQieLZY.sewtpIP/Mseu1pN7UlZh4799mR5XMEBtm';
 
 // Seed the first admin into an empty database. There are no hard-coded accounts
 // in any environment: the admin comes from ADMIN_EMAIL / ADMIN_PASSWORD, or is not created at all.
@@ -211,12 +228,13 @@ function setAuthCookie(res, token) {
     res.cookie(COOKIE_NAME, token, sessionCookieOptions({ maxAge: ACCESS_TOKEN_MINUTES * 60 * 1000 }));
 }
 
-router.post('/login', passwordAttemptLimiter, async (req, res) => {
+router.post('/login', passwordAttemptLimiter, accountAttemptLimiter, async (req, res) => {
     try {
         const { password } = loginSchema.parse(req.body);
 
         const user = await findUserByEmail(req.body.email);
-        if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
+        const matches = await bcrypt.compare(password, user?.password_hash || DUMMY_PASSWORD_HASH);
+        if (!user?.password_hash || !matches) {
             return res.status(401).json({ detail: 'Invalid credentials' });
         }
         // Checked after the password, so the account status is revealed only to its owner.
@@ -404,12 +422,12 @@ router.post('/logout', async (req, res) => {
 
 router.patch('/password', passwordAttemptLimiter, getCurrentUser, async (req, res) => {
     try {
-        const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
-
         const user = req.user;
         if (isDemoUser(user)) {
             return res.status(403).json({ detail: 'Not available in the demo' });
         }
+        const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+
         if (user.password_hash && !(await bcrypt.compare(currentPassword, user.password_hash))) {
             // 400, not 401: the session is valid, so the client must not treat this as an expired session.
             return res.status(400).json({ detail: 'Current password is incorrect' });

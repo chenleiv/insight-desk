@@ -12,6 +12,11 @@ Security controls in Insight Desk and the tests that guard them.
   `/login?error=registration_closed`; the code for a later Google sign-up stays behind the `GOOGLE_SIGNUP_OPEN`
   constant in `backend/auth.js`. Accounts come from the seed, and the demo and existing accounts are unaffected.
   Tests: `backend/__tests__/registrationClosed.test.js`, `src/pages/loginPage/__tests__/LoginPage.test.tsx`.
+- **Password rules.** A new password has at least 12 characters and at most 72 bytes, where bcrypt stops reading, and
+  no composition rules. Login does not apply the new minimum, so existing shorter passwords keep working.
+  Test: `backend/__tests__/changePassword.test.js`.
+- **Login timing does not reveal accounts.** When the email is unknown or the account has no password, the password
+  is compared with a dummy bcrypt hash of the same cost. Test: `backend/__tests__/loginAccounts.test.js`.
 - **Emails are lowercase.** Login, the seed and Google normalize an address, so case cannot split or hide an account. Accounts stored earlier are converted by `backend/scripts/normalizeEmails.js`: `--dry-run` reports
   what would change, `--apply` writes, and addresses that collide are reported and never merged. Until it has run,
   login also tries the spelling as typed, so an existing account keeps working.
@@ -125,15 +130,17 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 ## Rate limiting
 
 - All `/api/` routes share one limit per client IP (100 per 15 minutes in production), plus stricter limits on
-  password attempts (10 failed per 15 minutes), demo creation (10 per hour) and uploads (20 per 15 minutes, counting
+  password attempts (10 failed per 15 minutes per address, and 20 failed login attempts per 15 minutes per account,
+  counted the same for unknown addresses; both also block the correct password until the window ends, and restarting
+  the server clears them), demo creation (10 per hour) and uploads (20 per 15 minutes, counting
   attachments and text extraction together), so one client cannot keep the extraction queue full.
 - The SPA fallback (`index.html`) has its own generous limit: 1000 requests per 15 minutes per client IP, in every
   environment. Only full page loads and refreshes reach it (static assets are served first, and in-app navigation
   stays in the browser), so the limit leaves room for many visitors behind one shared IP while stopping a client
   that requests pages in a loop. It uses the same client IP as the `/api/` limits (`TRUST_PROXY_HOPS`).
 - Static files under `dist/` are not rate-limited: they are fixed files with no user input.
-- Tests: the upload limit in `backend/routes/__tests__/uploadLimits.test.js`, the login limit in
-  `backend/__tests__/authRateLimit.test.js`, the SPA fallback limit in
+- Tests: the upload limit in `backend/routes/__tests__/uploadLimits.test.js`, the login limits in
+  `backend/__tests__/authRateLimit.test.js` and `backend/__tests__/loginAccounts.test.js`, the SPA fallback limit in
   `backend/middleware/__tests__/setup.test.js`.
 
 ## Cross-site requests (CSRF)
