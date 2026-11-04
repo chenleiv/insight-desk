@@ -48,6 +48,15 @@ export function resolveUploadMime(fileName, mimeType) {
     return GENERIC_MIMES.has(mime) ? allowed[0] : null;
 }
 
+/**
+ * The one MIME type for a file's extension, or null when it is not allowed. This is the
+ * type to store and parse: browsers have several names for some types, and parsers know one.
+ */
+export function uploadMimeForName(fileName) {
+    const ext = fileExtension(fileName);
+    return Object.hasOwn(UPLOAD_TYPES, ext) ? UPLOAD_TYPES[ext][0] : null;
+}
+
 export function fileTypeNotAllowedMessage(mimeType) {
     return `File type "${mimeType}" is not allowed`;
 }

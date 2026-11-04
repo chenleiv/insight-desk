@@ -106,6 +106,17 @@ describe("attachment upload file types", () => {
     expect([...gridfs.files.values()][0].contentType).toBe("text/markdown");
   });
 
+  it("decides the type from the extension when the browser sends another name for it", async () => {
+    Document.findById.mockResolvedValue(fakeDoc());
+
+    const res = await upload(["# Notes"], "text/x-markdown", "notes.md");
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).fileType).toBe("text/markdown");
+    expect(extractTextFromBuffer).toHaveBeenCalledWith(expect.any(Buffer), "text/markdown");
+    expect([...gridfs.files.values()][0].contentType).toBe("text/markdown");
+  });
+
   it("rejects a file whose MIME type belongs to another type", async () => {
     const doc = fakeDoc();
     Document.findById.mockResolvedValue(doc);

@@ -155,6 +155,8 @@ Tests: `backend/routes/__tests__/documentDownload.test.js`, `backend/__tests__/d
   `backend/fileSignature.js` also checks the first bytes: `%PDF-` for PDF, a ZIP header for `.docx` and `.xlsx`, an OLE
   header for `.xls`, `{\rtf` for RTF. A text file must hold no NUL byte in its first 8 KB and must not start with a
   known binary signature. Legacy one-byte encodings still pass.
+- **The extension decides the stored type.** The browser's type can only refuse a file that claims another type. What
+  is stored, parsed and served comes from the extension, so `text/x-markdown` for a `.md` file is parsed like `text/markdown`.
 - **Clear refusals.** UTF-16 text files and password-protected Office files get a 400 that says what to do.
 - A file is served as an attachment with `nosniff` whatever it holds, so these checks limit what reaches the parsers;
   they do not prove a file is harmless.

@@ -4,6 +4,7 @@ import {
   MAX_UPLOAD_BYTES,
   DEMO_MAX_UPLOAD_BYTES,
   UPLOAD_ACCEPT,
+  uploadMimeForName,
   resolveUploadMime,
   uploadError,
 } from "../uploadRules.js";
@@ -31,6 +32,20 @@ describe("resolveUploadMime", () => {
     expect(resolveUploadMime("file.bin", "application/pdf")).toBeNull();
     expect(resolveUploadMime("noextension", "application/octet-stream")).toBeNull();
     expect(resolveUploadMime("x.constructor", "")).toBeNull();
+  });
+});
+
+describe("uploadMimeForName", () => {
+  it("gives one type per extension, whatever its case", () => {
+    expect(uploadMimeForName("notes.md")).toBe("text/markdown");
+    expect(uploadMimeForName("NOTES.MD")).toBe("text/markdown");
+    expect(uploadMimeForName("a.rtf")).toBe("application/rtf");
+  });
+
+  it("gives nothing for an extension that is not allowed", () => {
+    expect(uploadMimeForName("page.html")).toBeNull();
+    expect(uploadMimeForName("noextension")).toBeNull();
+    expect(uploadMimeForName("x.constructor")).toBeNull();
   });
 });
 

@@ -26,6 +26,7 @@ import {
     MAX_UPLOAD_BYTES,
     fileTooLargeMessage,
     resolveUploadMime,
+    uploadMimeForName,
     fileTypeNotAllowedMessage,
 } from '../../shared/uploadRules.js';
 
@@ -117,8 +118,8 @@ const uploadLimiter = rateLimit({
 
 const MAX_FILE_NAME_LENGTH = 255;
 
-// The allowed types live in shared/uploadRules.js, which the UI uses too. A file the
-// browser sent with no type or a generic one gets its extension's type.
+// The allowed types live in shared/uploadRules.js, which the UI uses too. The browser's
+// type can only refuse a file; the type that is stored and parsed comes from the extension.
 function uploadParser(maxBytes) {
     return multer({
         storage: multer.memoryStorage(),
@@ -129,9 +130,8 @@ function uploadParser(maxBytes) {
                 cb(Object.assign(new Error('The file name is too long.'), { status: 400 }));
                 return;
             }
-            const mimeType = resolveUploadMime(file.originalname, file.mimetype);
-            if (mimeType) {
-                file.mimetype = mimeType;
+            if (resolveUploadMime(file.originalname, file.mimetype)) {
+                file.mimetype = uploadMimeForName(file.originalname);
                 cb(null, true);
             } else {
                 cb(Object.assign(new Error(fileTypeNotAllowedMessage(file.mimetype)), { status: 400 }));
