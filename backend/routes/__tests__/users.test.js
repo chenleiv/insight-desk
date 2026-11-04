@@ -102,7 +102,7 @@ describe("PATCH /api/users/:id", () => {
     });
     expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
       USER_ID,
-      { role: "admin", status: "inactive" },
+      { role: "admin", status: "inactive", $inc: { tokenVersion: 1 } },
       { new: true },
     );
   });
@@ -113,7 +113,21 @@ describe("PATCH /api/users/:id", () => {
     const res = await patch(USER_ID, { status: "inactive" });
 
     expect(res.status).toBe(200);
-    expect(User.findByIdAndUpdate).toHaveBeenCalledWith(USER_ID, { status: "inactive" }, { new: true });
+    expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+      USER_ID,
+      { status: "inactive", $inc: { tokenVersion: 1 } },
+      { new: true },
+    );
+  });
+
+  it("leaves the token version alone when enabling a user or changing a role", async () => {
+    User.findByIdAndUpdate.mockReturnValueOnce(updatedUser({ status: "active" }));
+    await patch(USER_ID, { status: "active" });
+    expect(User.findByIdAndUpdate).toHaveBeenLastCalledWith(USER_ID, { status: "active" }, { new: true });
+
+    User.findByIdAndUpdate.mockReturnValueOnce(updatedUser({ role: "admin" }));
+    await patch(USER_ID, { role: "admin" });
+    expect(User.findByIdAndUpdate).toHaveBeenLastCalledWith(USER_ID, { role: "admin" }, { new: true });
   });
 
   it("returns 404 for a valid id with no user", async () => {
@@ -122,6 +136,39 @@ describe("PATCH /api/users/:id", () => {
     const res = await patch(USER_ID, { role: "viewer" });
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe("an admin acting on their own account", () => {
+  beforeEach(() => {
+    auth.currentUser = { _id: USER_ID, role: "admin" };
+  });
+
+  it.each([
+    ["role", { role: "viewer" }],
+    ["status", { status: "inactive" }],
+    ["role and status", { role: "viewer", status: "inactive" }],
+  ])("cannot change their own %s", async (_label, body) => {
+    const res = await patch(USER_ID, body);
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).detail).toBe("Cannot change your own role or status");
+    expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it("cannot get around the check by writing the id in uppercase", async () => {
+    expect((await patch(USER_ID.toUpperCase(), { status: "inactive" })).status).toBe(400);
+    expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+
+    const res = await fetch(`${baseUrl}/api/users/${USER_ID.toUpperCase()}`, { method: "DELETE" });
+    expect(res.status).toBe(400);
+    expect(User.findByIdAndDelete).not.toHaveBeenCalled();
+  });
+
+  it("can still change another user", async () => {
+    User.findByIdAndUpdate.mockReturnValueOnce(updatedUser({ status: "inactive" }));
+
+    expect((await patch("64b7f0c2a1b2c3d4e5f60719", { status: "inactive" })).status).toBe(200);
   });
 });
 

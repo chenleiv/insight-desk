@@ -4,7 +4,7 @@ import { getQualitySummary, type QualityDays } from "../../../api/aiClient";
 export function useQualitySummary(days: QualityDays) {
   return useQuery({
     queryKey: ["qualitySummary", days],
-    queryFn: () => getQualitySummary(days),
+    queryFn: ({ signal }) => getQualitySummary(days, signal),
     staleTime: 1000 * 60,
   });
 }

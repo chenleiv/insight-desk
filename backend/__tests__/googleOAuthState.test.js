@@ -25,10 +25,13 @@ const FRONTEND_URL = "http://app.test";
 let server;
 let baseUrl;
 let googleCalls;
+let googleProfile;
 
 beforeEach(async () => {
   users.length = 0;
+  users.push({ email: "user@example.com", role: "viewer", status: "active" });
   googleCalls = [];
+  googleProfile = { email: "user@example.com", verified_email: true };
   vi.resetModules();
   vi.stubEnv("GOOGLE_CLIENT_ID", "client-id");
   vi.stubEnv("GOOGLE_CLIENT_SECRET", "client-secret");
@@ -41,7 +44,7 @@ beforeEach(async () => {
     }
     if (String(url).startsWith("https://www.googleapis.com/oauth2/v2/userinfo")) {
       googleCalls.push("userinfo");
-      return Response.json({ email: "user@example.com" });
+      return Response.json(googleProfile);
     }
     return realFetch(url, init);
   });
@@ -150,10 +153,65 @@ describe.each([
     expect(setCookie).toMatch(/;\s*Secure/i);
 
     const res = await get(`/api/auth/google/callback?code=abc&state=${state}`, cookie);
-    const session = res.headers.getSetCookie().find((c) => c.startsWith("access_token="));
+    const session = res.headers.getSetCookie().find((c) => c.startsWith("__Host-access_token="));
     expect(session).toMatch(/;\s*Secure/i);
     expect(session).toMatch(/HttpOnly/i);
     expect(session).toMatch(/SameSite=Lax/i);
+    expect(session).toMatch(/;\s*Path=\/(;|$)/i);
+    expect(session).not.toMatch(/Domain=/i);
+  });
+
+  it("clears the session cookie on logout with the attributes the __Host- prefix requires", async () => {
+    const res = await fetch(`${baseUrl}/api/auth/logout`, { method: "POST" });
+    const cleared = res.headers.getSetCookie().find((c) => c.startsWith("__Host-access_token=;"));
+
+    expect(cleared).toMatch(/;\s*Secure/i);
+    expect(cleared).toMatch(/;\s*Path=\/(;|$)/i);
+  });
+});
+
+describe("Google account checks", () => {
+  it("asks Google for no offline access", async () => {
+    const { res } = await startLogin();
+    const params = new URL(res.headers.get("location")).searchParams;
+
+    expect(params.get("access_type")).toBeNull();
+    expect(params.get("scope")).toBe("openid email profile");
+  });
+
+  it.each([
+    ["false", { verified_email: false }],
+    ["missing", {}],
+    ["not a real boolean", { verified_email: "true" }],
+  ])("refuses a login when verified_email is %s, even for an existing password account", async (_label, fields) => {
+    users[0].password_hash = "existing-hash";
+    googleProfile = { email: "user@example.com", ...fields };
+    const { state, cookie } = await startLogin();
+    const res = await get(`/api/auth/google/callback?code=abc&state=${state}`, cookie);
+
+    expect(res.headers.get("location")).toBe(`${FRONTEND_URL}/login?error=google_email_not_verified`);
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("access_token="))).toBe(false);
+  });
+
+  it("signs in to an existing account when the email is verified, whatever its case", async () => {
+    googleProfile = { email: "User@Example.com", verified_email: true };
+    const { state, cookie } = await startLogin();
+    const res = await get(`/api/auth/google/callback?code=abc&state=${state}`, cookie);
+
+    expect(res.headers.get("location")).toBe(`${FRONTEND_URL}/hub`);
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("access_token="))).toBe(true);
+  });
+});
+
+describe("a first Google login while registration is closed", () => {
+  it("creates no account for an unknown address and starts no session", async () => {
+    users.length = 0;
+    const { state, cookie } = await startLogin();
+    const res = await get(`/api/auth/google/callback?code=abc&state=${state}`, cookie);
+
+    expect(res.headers.get("location")).toBe(`${FRONTEND_URL}/login?error=registration_closed`);
+    expect(users).toHaveLength(0);
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("access_token="))).toBe(false);
   });
 });
 

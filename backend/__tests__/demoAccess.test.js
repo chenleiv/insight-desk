@@ -13,11 +13,11 @@ const USERS = {
   "admin@corp.example": { _id: "admin-1", email: "admin@corp.example", role: "admin", favorites: [] },
 };
 const DOCS = {
-  "own-1": { _id: "own-1", ownerId: "demo-1", demo: true, title: "Own", content: "Own text.",
+  "64b7f0c2a1b2c3d4e5f60011": { _id: "64b7f0c2a1b2c3d4e5f60011", ownerId: "demo-1", demo: true, title: "Own", content: "Own text.",
     attachments: [{ fileName: "own.txt", extractedText: "OWN ATTACHMENT TEXT" }] },
-  "real-1": { _id: "real-1", ownerId: "admin-1", demo: false, title: "Real", content: "Real text.",
+  "64b7f0c2a1b2c3d4e5f60012": { _id: "64b7f0c2a1b2c3d4e5f60012", ownerId: "admin-1", demo: false, title: "Real", content: "Real text.",
     attachments: [{ fileName: "real.pdf", extractedText: "REAL ATTACHMENT TEXT" }] },
-  "other-1": { _id: "other-1", ownerId: "demo-2", demo: true, title: "Other", content: "Other text.", attachments: [] },
+  "64b7f0c2a1b2c3d4e5f60013": { _id: "64b7f0c2a1b2c3d4e5f60013", ownerId: "demo-2", demo: true, title: "Other", content: "Other text.", attachments: [] },
 };
 
 // Resolves like a Mongoose query, with .lean() for the routes that use it.
@@ -107,20 +107,20 @@ describe("demo workspace isolation", () => {
   });
 
   it("lets a demo user open their own document but not anyone else's", async () => {
-    expect((await demo("/api/documents/own-1")).status).toBe(200);
-    expect((await demo("/api/documents/real-1")).status).toBe(404);
-    expect((await demo("/api/documents/other-1")).status).toBe(404);
+    expect((await demo("/api/documents/64b7f0c2a1b2c3d4e5f60011")).status).toBe(200);
+    expect((await demo("/api/documents/64b7f0c2a1b2c3d4e5f60012")).status).toBe(404);
+    expect((await demo("/api/documents/64b7f0c2a1b2c3d4e5f60013")).status).toBe(404);
   });
 
   it("hides demo documents from regular users", async () => {
-    expect((await admin("/api/documents/real-1")).status).toBe(200);
-    expect((await admin("/api/documents/own-1")).status).toBe(404);
+    expect((await admin("/api/documents/64b7f0c2a1b2c3d4e5f60012")).status).toBe(200);
+    expect((await admin("/api/documents/64b7f0c2a1b2c3d4e5f60011")).status).toBe(404);
   });
 
   it("blocks a demo user from editing or deleting a document that is not theirs", async () => {
     const body = JSON.stringify({ title: "x", category: "y", content: "z" });
-    expect((await demo("/api/documents/real-1", { method: "PUT", body })).status).toBe(404);
-    expect((await demo("/api/documents/other-1", { method: "DELETE" })).status).toBe(404);
+    expect((await demo("/api/documents/64b7f0c2a1b2c3d4e5f60012", { method: "PUT", body })).status).toBe(404);
+    expect((await demo("/api/documents/64b7f0c2a1b2c3d4e5f60013", { method: "DELETE" })).status).toBe(404);
     expect(Document.findByIdAndUpdate).not.toHaveBeenCalled();
     expect(Document.findByIdAndDelete).not.toHaveBeenCalled();
   });
@@ -191,7 +191,7 @@ describe("demo write limits", () => {
   it("rejects demo content over the length limit on create and edit", async () => {
     const long = "a".repeat(20001);
     expect((await demo("/api/documents", { method: "POST", body: doc(long) })).status).toBe(400);
-    expect((await demo("/api/documents/own-1", { method: "PUT", body: doc(long) })).status).toBe(400);
+    expect((await demo("/api/documents/64b7f0c2a1b2c3d4e5f60011", { method: "PUT", body: doc(long) })).status).toBe(400);
     expect(Document.create).not.toHaveBeenCalled();
     expect(Document.findByIdAndUpdate).not.toHaveBeenCalled();
   });
@@ -201,15 +201,15 @@ describe("demo write limits", () => {
     form.append("file", new Blob(["hello"], { type: "text/plain" }), "notes.txt");
     const token = jwt.sign({ sub: "demo@demo.invalid", role: "demo" }, "dev-secret-change-me");
 
-    // own-1 already has one attachment.
-    const res = await fetch(`${base}/api/documents/own-1/attachments`, {
+    // 64b7f0c2a1b2c3d4e5f60011 already has one attachment.
+    const res = await fetch(`${base}/api/documents/64b7f0c2a1b2c3d4e5f60011/attachments`, {
       method: "POST",
       body: form,
       headers: { Cookie: `access_token=${token}` },
     });
 
     expect(res.status).toBe(403);
-    expect(DOCS["own-1"].attachments).toHaveLength(1);
+    expect(DOCS["64b7f0c2a1b2c3d4e5f60011"].attachments).toHaveLength(1);
   });
 
   it("does not apply demo limits to admins", async () => {

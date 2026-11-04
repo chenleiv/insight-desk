@@ -7,13 +7,49 @@ Security controls in Insight Desk and the tests that guard them.
 - **No hard-coded accounts.** The server never creates fixed demo users such as `admin@demo.com`, in any environment.
   On an empty database it creates one admin from `ADMIN_EMAIL` and `ADMIN_PASSWORD`, or no user at all.
   Test: `backend/__tests__/authHardening.test.js`, `backend/__tests__/seedUsers.test.js`.
+- **Self-registration is closed.** `POST /api/auth/register` answers 403 without reading the body and the login
+  page does not offer it. A Google login for an unknown address is refused too, with
+  `/login?error=registration_closed`; the code for a later Google sign-up stays behind the `GOOGLE_SIGNUP_OPEN`
+  constant in `backend/auth.js`. Accounts come from the seed, and the demo and existing accounts are unaffected.
+  Tests: `backend/__tests__/registrationClosed.test.js`, `src/pages/loginPage/__tests__/LoginPage.test.tsx`.
+- **Password rules.** A new password has at least 12 characters and at most 72 bytes, where bcrypt stops reading, and
+  no composition rules. Login does not apply the new minimum, so existing shorter passwords keep working.
+  Test: `backend/__tests__/changePassword.test.js`.
+- **Login timing does not reveal accounts.** When the email is unknown or the account has no password, the password
+  is compared with a dummy bcrypt hash of the same cost. Test: `backend/__tests__/loginAccounts.test.js`.
+- **Emails are lowercase.** Login, the seed and Google normalize an address, so case cannot split or hide an account. Accounts stored earlier are converted by `backend/scripts/normalizeEmails.js`: `--dry-run` reports
+  what would change, `--apply` writes, and addresses that collide are reported and never merged. Until it has run,
+  login also tries the spelling as typed, so an existing account keeps working.
+  Tests: `backend/__tests__/emailNormalization.test.js`, `backend/__tests__/normalizeEmails.integration.test.js`.
 - **Inactive accounts cannot sign in.** Password and Google login both reject a user whose status is `inactive`.
   The status is checked after the password, so it is revealed only to the account owner.
+- **Disabling a user takes effect at once.** `getCurrentUser` already loads the user on every authenticated request,
+  so the check costs no extra query. An inactive user gets 401 on the next request, including an admin on an admin
+  route. Test: `backend/__tests__/disabledUser.test.js`.
+- **Logging out or changing the password ends existing sessions.** Each token carries the user's `tokenVersion`, and
+  a token with an old version gets 401. Logout raises it, which ends the user's sessions on every device. A password
+  change raises it and gives the current session a new token. Disabling a user raises it too, so re-enabling does
+  not bring old sessions back. A token issued before this field existed counts as version 0.
+  Test: `backend/__tests__/tokenVersion.integration.test.js`.
+- **An admin cannot change their own role or status, or delete themselves.** The API refuses it with 400, as the
+  screen already does, so an admin cannot lock themselves out. Test: `backend/routes/__tests__/users.test.js`.
 - **Google login checks an OAuth `state`.** `GET /api/auth/google` sends a random 256-bit state to Google and
   stores it in an HttpOnly, `SameSite=Lax` cookie scoped to `/api/auth/google` for 10 minutes. The callback
   compares it in constant time, clears the cookie whatever the outcome, and on a missing or wrong state
   redirects to `/login?error=google_state_mismatch` without exchanging the code. This blocks login CSRF.
   Test: `backend/__tests__/googleOAuthState.test.js`.
+- **Google login needs a verified email.** The profile must have `verified_email: true`, or the login is refused
+  before any account is looked up, so an unverified address can never reach an existing password account. The app
+  asks only for `openid email profile`, with no offline access. Test: `backend/__tests__/googleOAuthState.test.js`.
+
+## Logging
+
+- **Request logs hold the path only.** The query string is left out, so Google's authorization code never reaches a log.
+  A failed Google token exchange logs Google's error code, not its response.
+- **Failed logins and refused registrations** log a method and a reason, never the address, the IP or what was typed.
+- **Admin actions** (changing or deleting a user, saving the system prompt or the suggested questions) log the action
+  and the ids of the admin and the target, and a changed role or status. No email, and never the prompt text.
+- Test: `backend/__tests__/authLogging.integration.test.js`.
 
 ## Data retention
 
@@ -52,8 +88,16 @@ Security controls in Insight Desk and the tests that guard them.
 | Document download as PDF or Word | 200,000 characters of content (`MAX_EXPORT_CHARS`) | 422, suggests Markdown |
 | Uploaded file | 10 MB; 2 MB in a demo workspace | 413, names the limit |
 | Upload form | One file, no other fields or parts, a file name of at most 255 characters | 400 |
+| Ids in a document URL | A valid ObjectId, checked after the session and before an upload is read | 400 |
+| Email | 254 characters | 400 |
+| Password sent to log in or as the current password | 1024 characters | 400 |
+| New password | 12 characters to 72 bytes | 400 |
+| Profile name, job title | 80 characters, no other fields | 400 |
+| System prompt (admin) | 20,000 characters, not empty, no other fields | 400 |
+| Suggested questions (admin) | 20 questions of 300 characters, no other fields | 400 |
 
-Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.test.js`.
+Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.test.js`,
+`backend/__tests__/inputValidation.integration.test.js`.
 
 ## Browser
 
@@ -83,8 +127,13 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 
 ## Session cookie
 
-- The session is a JWT signed with `JWT_SECRET` (HS256) in the `access_token` cookie: HttpOnly, `SameSite=Lax`,
+- The session is a JWT signed with `JWT_SECRET`, with HS256 pinned on sign and verify, so any other algorithm is
+  rejected. Test: `backend/__tests__/sessionToken.test.js`. The cookie is `__Host-access_token` (plain `access_token`
+  in development and tests, which run over http and could not set the prefix): HttpOnly, `SameSite=Lax`,
   Secure unless `NODE_ENV` is `development` or `test` and `ENV` is not `prod`, path `/`, expiry `ACCESS_TOKEN_MINUTES` (60).
+- **Signing out cannot disturb the next session.** The client aborts running queries before it calls logout. Login and
+  demo start wait for a pending logout, whose response would otherwise clear the new cookie. A 401 to a request sent
+  before the current sign-in is ignored. Test: `src/auth/__tests__/signOutRaces.test.tsx`.
 - **The server refuses to start without a real `JWT_SECRET`.** The built-in development secret and the README's
   example are refused, as is a blank value, unless `NODE_ENV` is `development` or `test` and `ENV` is not `prod`.
   Any other environment, including an unset `NODE_ENV`, counts as production (`backend/runtimeEnv.js`), and also
@@ -101,15 +150,17 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 ## Rate limiting
 
 - All `/api/` routes share one limit per client IP (100 per 15 minutes in production), plus stricter limits on
-  password attempts (10 failed per 15 minutes), demo creation (10 per hour) and uploads (20 per 15 minutes, counting
+  password attempts (10 failed per 15 minutes per address, and 20 failed login attempts per 15 minutes per account,
+  counted the same for unknown addresses; both also block the correct password until the window ends, and restarting
+  the server clears them), demo creation (10 per hour) and uploads (20 per 15 minutes, counting
   attachments and text extraction together), so one client cannot keep the extraction queue full.
 - The SPA fallback (`index.html`) has its own generous limit: 1000 requests per 15 minutes per client IP, in every
   environment. Only full page loads and refreshes reach it (static assets are served first, and in-app navigation
   stays in the browser), so the limit leaves room for many visitors behind one shared IP while stopping a client
   that requests pages in a loop. It uses the same client IP as the `/api/` limits (`TRUST_PROXY_HOPS`).
 - Static files under `dist/` are not rate-limited: they are fixed files with no user input.
-- Tests: the upload limit in `backend/routes/__tests__/uploadLimits.test.js`, the login limit in
-  `backend/__tests__/authRateLimit.test.js`, the SPA fallback limit in
+- Tests: the upload limit in `backend/routes/__tests__/uploadLimits.test.js`, the login limits in
+  `backend/__tests__/authRateLimit.test.js` and `backend/__tests__/loginAccounts.test.js`, the SPA fallback limit in
   `backend/middleware/__tests__/setup.test.js`.
 
 ## Cross-site requests (CSRF)
@@ -123,9 +174,9 @@ stop another site from acting as the user.
   - `oauth_state` must be Lax: Google's redirect to `/api/auth/google/callback` is a top-level GET navigation
     from another site. `Strict` would drop the cookie there and every Google login would fail. Lax works only
     because Google returns with a GET (we do not use `response_mode=form_post`).
-  - `access_token` stays Lax rather than Strict. The SPA's own API calls are same-site either way, so Strict
+  - The session cookie stays Lax rather than Strict. The SPA's own API calls are same-site either way, so Strict
     would mainly break links to the API opened from outside, such as a document download link. The only GET route
-    that changes state is `GET /api/auth/google/callback`, which can create a user and a session. The one-time
+    that changes state is `GET /api/auth/google/callback`, which can create a session. The one-time
     OAuth state check protects it instead of the Origin check, so Strict would add almost nothing.
 - **Origin check on state-changing requests.** `rejectCrossSiteRequests` in `backend/middleware/setup.js` refuses
   any non-GET/HEAD/OPTIONS request under `/api` whose `Origin` is not ours (403). That covers routes that need no
@@ -143,6 +194,9 @@ stop another site from acting as the user.
   not recognize this check, so its alert on `backend/app.js` is dismissed with a reference to this section.
   Test directories are excluded from CodeQL in `.github/codeql/codeql-config.yml`: test code never runs in
   production, and its stand-in Express apps raised the same alert.
+- **Session cookie alert.** CodeQL's "Clear text storage of sensitive information" alert on `setAuthCookie` in
+  `backend/auth.js` is dismissed as a false positive. The session JWT is signed, contains only email, role and token
+  version, and is stored in an HttpOnly, `SameSite=Lax` cookie (Secure in production), the intended session mechanism.
 
 Test: `backend/__tests__/crossSiteRequests.test.js`.
 

@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { logger } from './logger.js';
 import Groq from 'groq-sdk';
 import { getCurrentUser, requireAdmin } from './auth.js';
-import { aiChatSchema, aiFeedbackSchema, qualityQuerySchema, sendValidationError } from './schemas.js';
+import { aiChatSchema, aiFeedbackSchema, aiPromptSchema, aiSuggestionsSchema, qualityQuerySchema, sendValidationError } from './schemas.js';
 import { promptState, PROMPT_METADATA, CONTEXT_RULES, NO_INFO_ANSWER, LEGACY_NO_INFO_ANSWERS } from './prompts.js';
 import { AIConfig } from './models.js';
 import { search } from './rag/search.js';
@@ -370,14 +370,13 @@ router.get('/api/ai/prompt', getCurrentUser, (req, res) => {
 });
 
 router.patch('/api/ai/prompt', requireAdmin, async (req, res) => {
-    const { prompt } = req.body;
-    if (!prompt || typeof prompt !== 'string') {
-        return res.status(400).json({ detail: 'Invalid prompt' });
-    }
+    const parsed = aiPromptSchema.safeParse(req.body);
+    if (!parsed.success) return sendValidationError(res, parsed.error);
     try {
         // Saved first, so the running prompt never differs from the stored one.
-        const { systemPrompt } = await AIConfig.findByIdAndUpdate('ai', { systemPrompt: prompt.trim() }, { upsert: true, returnDocument: 'after' });
+        const { systemPrompt } = await AIConfig.findByIdAndUpdate('ai', { systemPrompt: parsed.data.prompt }, { upsert: true, returnDocument: 'after' });
         promptState.prompt = systemPrompt;
+        logger.info('Admin action', { action: 'ai.prompt.update', actorId: req.user._id });
         res.json({ prompt: promptState.prompt, ...PROMPT_METADATA });
     } catch (error) {
         logger.error('Prompt save error', { message: error?.message ?? String(error) });
@@ -396,13 +395,12 @@ router.get('/api/ai/suggestions', getCurrentUser, async (_req, res) => {
 });
 
 router.patch('/api/ai/suggestions', requireAdmin, async (req, res) => {
-    const { questions } = req.body;
-    if (!Array.isArray(questions) || questions.some((q) => typeof q !== 'string')) {
-        return res.status(400).json({ detail: 'questions must be an array of strings' });
-    }
-    const filtered = questions.map((q) => q.trim()).filter(Boolean);
+    const parsed = aiSuggestionsSchema.safeParse(req.body);
+    if (!parsed.success) return sendValidationError(res, parsed.error);
+    const filtered = parsed.data.questions.filter(Boolean);
     try {
         await AIConfig.findByIdAndUpdate('ai', { exampleQuestions: filtered }, { upsert: true, returnDocument: 'after' });
+        logger.info('Admin action', { action: 'ai.suggestions.update', actorId: req.user._id });
         res.json({ questions: filtered });
     } catch (error) {
         logger.error('Suggestions save error', { message: error?.message ?? String(error) });

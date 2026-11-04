@@ -52,41 +52,6 @@
     animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     font-family: inherit;
 
-    .login-tabs {
-        display: flex;
-        gap: 0;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 4px;
-        margin-bottom: 28px;
-        background: var(--bg);
-
-        .login-tab {
-            flex: 1;
-            padding: 9px;
-            border: none;
-            border-radius: 6px;
-            background: transparent;
-            color: var(--muted);
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.18s, color 0.18s;
-            font-family: inherit;
-            @include mixins.touch-target;
-
-            &.active {
-                background: var(--panel);
-                color: var(--text);
-                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-            }
-
-            &:not(.active):hover {
-                color: var(--text);
-            }
-        }
-    }
-
     .login-form {
         display: flex;
         flex-direction: column;

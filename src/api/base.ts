@@ -21,6 +21,12 @@ const SESSION_EXEMPT_PATHS = new Set([
 ]);
 
 let unauthorizedHandler: (() => void) | null = null;
+/** Raised at each sign-in, so a late 401 to a request of the previous session does not end the new one. */
+let sessionGeneration = 0;
+
+export function startSessionGeneration() {
+  sessionGeneration += 1;
+}
 
 /** Registers the callback that ends the session when a signed-in request gets 401. */
 export function setUnauthorizedHandler(handler: (() => void) | null) {
@@ -39,6 +45,7 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const base = getApiBase();
   const url = `${base}${path}`;
+  const sentInGeneration = sessionGeneration;
 
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
@@ -58,7 +65,7 @@ export async function apiFetch<T>(
   const text = await res.text();
 
   if (!res.ok) {
-    notifyIfUnauthorized(path, res.status);
+    if (sentInGeneration === sessionGeneration) notifyIfUnauthorized(path, res.status);
     let message = `Request failed: ${res.status}`;
     try {
       const body = JSON.parse(text);

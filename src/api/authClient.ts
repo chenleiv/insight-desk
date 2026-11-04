@@ -5,22 +5,21 @@ type LoginResponse = {
   user: AuthUser;
 };
 
+// The logout response clears the session cookie, and a demo logout can take a while. A sign-in
+// sent meanwhile would get its new cookie cleared, so it waits for the logout to finish.
+let pendingLogout: Promise<unknown> = Promise.resolve();
+
 export async function login(email: string, password: string) {
+  await pendingLogout;
   return apiFetch<LoginResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
 }
 
-export async function register(email: string, password: string, displayName?: string) {
-  return apiFetch<LoginResponse>("/api/auth/register", {
-    method: "POST",
-    body: JSON.stringify({ email, password, ...(displayName ? { displayName } : {}) }),
-  });
-}
-
 // Start a private demo workspace; the server signs the visitor in.
 export async function startDemo() {
+  await pendingLogout;
   return apiFetch<LoginResponse>("/api/auth/demo", { method: "POST" });
 }
 
@@ -29,7 +28,9 @@ export async function me() {
 }
 
 export async function logout() {
-  return apiFetch<{ ok: true }>("/api/auth/logout", { method: "POST" });
+  const request = apiFetch<{ ok: true }>("/api/auth/logout", { method: "POST" });
+  pendingLogout = request.catch(() => {});
+  return request;
 }
 
 export async function updateProfile(data: { displayName?: string; jobTitle?: string }) {

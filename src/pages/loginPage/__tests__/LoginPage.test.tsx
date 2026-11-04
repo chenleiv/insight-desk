@@ -93,6 +93,16 @@ afterEach(() => {
 });
 
 describe("LoginPage", () => {
+  it("offers sign-in and the demo, and no way to register", async () => {
+    await renderApp("/login");
+
+    expect(text()).toContain("Sign In");
+    expect(text()).toContain("Try Demo");
+    expect(text()).not.toMatch(/sign up|create account/i);
+    expect(container.querySelector('input[name="confirm"]')).toBeNull();
+    expect(container.querySelector('input[name="displayName"]')).toBeNull();
+  });
+
   it("shows its own error for a failed login and no expired-session message", async () => {
     routes["/api/auth/login"] = json(401, { detail: "Invalid credentials" });
     await renderApp("/login");

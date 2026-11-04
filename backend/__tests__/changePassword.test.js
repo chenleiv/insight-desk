@@ -61,6 +61,25 @@ describe("PATCH /api/auth/password", () => {
     expect(await bcrypt.compare("new-password", user.password_hash)).toBe(true);
   });
 
+  it.each([
+    ["11 characters", "x".repeat(11)],
+    ["more than 72 bytes", "x".repeat(73)],
+    ["more than 72 bytes in fewer characters", "é".repeat(37)],
+  ])("refuses a new password of %s", async (_label, newPassword) => {
+    const res = await changePassword({ currentPassword: PASSWORD, newPassword });
+
+    expect(res.status).toBe(400);
+    expect(user.save).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["exactly 12 characters", "x".repeat(12)],
+    ["exactly 72 bytes", "x".repeat(72)],
+    ["no mix of character types", "aaaaaaaaaaaaaaaa"],
+  ])("accepts a new password of %s", async (_label, newPassword) => {
+    expect((await changePassword({ currentPassword: PASSWORD, newPassword })).status).toBe(200);
+  });
+
   it("answers a request without a session with 401", async () => {
     const res = await changePassword({ currentPassword: PASSWORD, newPassword: "new-password" }, null);
 

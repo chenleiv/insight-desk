@@ -29,9 +29,9 @@ vi.mock("../../auth.js", () => {
 import documentsRouter from "../documents.js";
 import { MAX_EXPORT_CHARS } from "../../documentExport.js";
 
-const SHARED_DOC = { _id: "doc-1", title: "Handbook", category: "HR", content: "Policy text.", ownerId: "admin-1", demo: false };
-const OWN_DEMO_DOC = { _id: "doc-2", title: "My notes", category: "Misc", content: "Notes.", ownerId: "demo-1", demo: true };
-const OTHER_DEMO_DOC = { _id: "doc-3", title: "Other", category: "Misc", content: "Secret.", ownerId: "demo-2", demo: true };
+const SHARED_DOC = { _id: "64b7f0c2a1b2c3d4e5f60001", title: "Handbook", category: "HR", content: "Policy text.", ownerId: "admin-1", demo: false };
+const OWN_DEMO_DOC = { _id: "64b7f0c2a1b2c3d4e5f60002", title: "My notes", category: "Misc", content: "Notes.", ownerId: "demo-1", demo: true };
+const OTHER_DEMO_DOC = { _id: "64b7f0c2a1b2c3d4e5f60003", title: "Other", category: "Misc", content: "Secret.", ownerId: "demo-2", demo: true };
 
 let server;
 let baseUrl;
@@ -59,7 +59,7 @@ describe("GET /api/documents/:id/download access", () => {
     auth.user = DEMO;
     Document.findById.mockResolvedValue(OTHER_DEMO_DOC);
 
-    const res = await download("doc-3", format);
+    const res = await download("64b7f0c2a1b2c3d4e5f60003", format);
 
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ detail: "Not found" });
@@ -70,27 +70,27 @@ describe("GET /api/documents/:id/download access", () => {
     auth.user = DEMO;
     Document.findById.mockResolvedValue(SHARED_DOC);
 
-    expect((await download("doc-1", format)).status).toBe(404);
+    expect((await download("64b7f0c2a1b2c3d4e5f60001", format)).status).toBe(404);
   });
 
   it.each([ADMIN, VIEWER])("returns 404 when $role asks for a demo document", async (user) => {
     auth.user = user;
     Document.findById.mockResolvedValue(OWN_DEMO_DOC);
 
-    expect((await download("doc-2", "md")).status).toBe(404);
+    expect((await download("64b7f0c2a1b2c3d4e5f60002", "md")).status).toBe(404);
   });
 
   it("returns 404 for a missing document", async () => {
     Document.findById.mockResolvedValue(null);
 
-    expect((await download("missing", "pdf")).status).toBe(404);
+    expect((await download("64b7f0c2a1b2c3d4e5f6ffff", "pdf")).status).toBe(404);
   });
 
   it("lets a viewer download a shared document, like reading it", async () => {
     auth.user = VIEWER;
     Document.findById.mockResolvedValue(SHARED_DOC);
 
-    const res = await download("doc-1", "md");
+    const res = await download("64b7f0c2a1b2c3d4e5f60001", "md");
 
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("# Handbook\n\nCategory: HR\n\nPolicy text.\n");
@@ -100,14 +100,14 @@ describe("GET /api/documents/:id/download access", () => {
     auth.user = DEMO;
     Document.findById.mockResolvedValue(OWN_DEMO_DOC);
 
-    expect((await download("doc-2", "docx")).status).toBe(200);
+    expect((await download("64b7f0c2a1b2c3d4e5f60002", "docx")).status).toBe(200);
   });
 });
 
 describe("GET /api/documents/:id/download format and headers", () => {
   it("rejects a missing or unknown format with 400 before loading the document", async () => {
     for (const query of ["", "?format=html", "?format=../../x"]) {
-      const res = await fetch(`${baseUrl}/doc-1/download${query}`);
+      const res = await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001/download${query}`);
       expect(res.status).toBe(400);
     }
     expect(Document.findById).not.toHaveBeenCalled();
@@ -120,7 +120,7 @@ describe("GET /api/documents/:id/download format and headers", () => {
   ])("serves %s as an attachment that the browser does not sniff or cache", async (format, type) => {
     Document.findById.mockResolvedValue(SHARED_DOC);
 
-    const res = await download("doc-1", format);
+    const res = await download("64b7f0c2a1b2c3d4e5f60001", format);
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe(type);
@@ -132,7 +132,7 @@ describe("GET /api/documents/:id/download format and headers", () => {
   it("sanitizes the title in Content-Disposition and encodes non-ASCII names", async () => {
     Document.findById.mockResolvedValue({ ...SHARED_DOC, title: 'מדריך\r\nX-Evil: 1 "../a"' });
 
-    const res = await download("doc-1", "md");
+    const res = await download("64b7f0c2a1b2c3d4e5f60001", "md");
 
     expect(res.status).toBe(200);
     expect(res.headers.get("x-evil")).toBeNull();
@@ -147,28 +147,28 @@ describe("GET /api/documents/:id/download format and headers", () => {
   it("returns 422 with a readable message for Hebrew text as PDF, and Word still works", async () => {
     Document.findById.mockResolvedValue({ ...SHARED_DOC, content: "שלום" });
 
-    const pdf = await download("doc-1", "pdf");
+    const pdf = await download("64b7f0c2a1b2c3d4e5f60001", "pdf");
     expect(pdf.status).toBe(422);
     expect((await pdf.json()).detail).toMatch(/Download it as Markdown or Word instead/);
 
-    expect((await download("doc-1", "docx")).status).toBe(200);
+    expect((await download("64b7f0c2a1b2c3d4e5f60001", "docx")).status).toBe(200);
   });
 
   it("enforces the export size cap for PDF and Word", async () => {
     Document.findById.mockResolvedValue({ ...SHARED_DOC, content: "a".repeat(MAX_EXPORT_CHARS + 1) });
 
     for (const format of ["pdf", "docx"]) {
-      const res = await download("doc-1", format);
+      const res = await download("64b7f0c2a1b2c3d4e5f60001", format);
       expect(res.status).toBe(422);
       expect((await res.json()).detail).toMatch(/only be downloaded as Markdown/);
     }
-    expect((await download("doc-1", "md")).status).toBe(200);
+    expect((await download("64b7f0c2a1b2c3d4e5f60001", "md")).status).toBe(200);
   });
 
   it("hides internal error details", async () => {
     Document.findById.mockRejectedValue(new Error("MongoServerError: connection to 10.0.0.5 closed"));
 
-    const res = await download("doc-1", "md");
+    const res = await download("64b7f0c2a1b2c3d4e5f60001", "md");
 
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ detail: "Error downloading document" });

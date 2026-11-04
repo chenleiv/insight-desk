@@ -11,7 +11,7 @@ const USERS = {
 };
 
 const { User, removeDemoWorkspace, logger } = vi.hoisted(() => ({
-  User: { findOne: vi.fn() },
+  User: { findOne: vi.fn(), updateOne: vi.fn() },
   removeDemoWorkspace: vi.fn(),
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }));
@@ -59,6 +59,13 @@ async function expectLoggedOut(res) {
 }
 
 describe("POST /api/auth/logout", () => {
+  it("still logs a regular user out when ending the sessions fails", async () => {
+    User.updateOne.mockRejectedValueOnce(new Error("db hiccup"));
+
+    await expectLoggedOut(await logout(tokenFor("viewer@corp.example")));
+    expect(logger.error).toHaveBeenCalledWith("Ending sessions on logout failed", { message: "db hiccup" });
+  });
+
   it("removes the demo user's workspace right away", async () => {
     await expectLoggedOut(await logout(tokenFor("demo@demo.invalid")));
 
@@ -87,6 +94,6 @@ describe("POST /api/auth/logout", () => {
     removeDemoWorkspace.mockRejectedValue(new Error("db hiccup"));
 
     await expectLoggedOut(await logout(tokenFor("demo@demo.invalid")));
-    expect(logger.error).toHaveBeenCalledWith("Demo removal on logout failed", { message: "db hiccup" });
+    expect(logger.error).toHaveBeenCalledWith("Ending sessions on logout failed", { message: "db hiccup" });
   });
 });

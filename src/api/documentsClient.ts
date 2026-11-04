@@ -35,8 +35,8 @@ export type DocumentItem = {
 
 export type DocumentInput = Omit<DocumentItem, "id">;
 
-export function listDocuments() {
-  return apiFetch<DocumentItem[]>("/api/documents");
+export function listDocuments(signal?: AbortSignal) {
+  return apiFetch<DocumentItem[]>("/api/documents", signal ? { signal } : {});
 }
 
 // admin only

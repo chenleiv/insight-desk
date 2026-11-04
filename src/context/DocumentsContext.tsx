@@ -7,7 +7,7 @@ export function useDocuments() {
   // Pending means no data yet; a background refetch of cached documents keeps it false.
   const { data: docs = [], isPending: loading, error } = useQuery({
     queryKey: DOCUMENTS_QUERY_KEY,
-    queryFn: listDocuments,
+    queryFn: ({ signal }) => listDocuments(signal),
     staleTime: 1000 * 60 * 5,
   });
 

@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { StatusContext, type StatusApi } from "../../../../../../components/statusBar/statusContext";
 import { AccountSection } from "../AccountSection";
+import { changePassword } from "../../../../../../api/authClient";
 
 const { auth } = vi.hoisted(() => ({
   auth: {
@@ -79,5 +80,37 @@ describe("AccountSection guides control", () => {
       kind: "success",
       message: "The guides will show again.",
     });
+  });
+});
+
+describe("AccountSection password form", () => {
+  async function submitNewPassword(next: string) {
+    renderSection();
+    const toggle = [...document.querySelectorAll("button")].find((b) => b.textContent?.includes("Change password"))!;
+    act(() => toggle.click());
+    const form = container.querySelector('input[name="next"]')!.closest("form") as HTMLFormElement;
+    (form.querySelector('input[name="current"]') as HTMLInputElement).value = "old-password";
+    (form.querySelector('input[name="next"]') as HTMLInputElement).value = next;
+    (form.querySelector('input[name="confirm"]') as HTMLInputElement).value = next;
+    await act(async () => {
+      form.requestSubmit();
+    });
+  }
+
+  beforeEach(() => vi.mocked(changePassword).mockReset());
+
+  it("stops a new password shorter than 12 characters before calling the server", async () => {
+    await submitNewPassword("x".repeat(11));
+
+    expect(changePassword).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("at least 12 characters");
+  });
+
+  it("sends a new password of 12 characters", async () => {
+    vi.mocked(changePassword).mockResolvedValue({ ok: true });
+
+    await submitNewPassword("x".repeat(12));
+
+    expect(changePassword).toHaveBeenCalledWith("old-password", "x".repeat(12));
   });
 });

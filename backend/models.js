@@ -1,11 +1,15 @@
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
+    // Normalized by the code that creates users. Not the `lowercase` option: that setter also
+    // rewrites query filters, so an account stored in mixed case could no longer be found.
     email: { type: String, required: true, unique: true },
     password_hash: { type: String, default: null },
     role: { type: String, enum: ['admin', 'viewer', 'demo'], default: 'viewer' },
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Document' }],
     status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+    // Copied into each session token; raising it ends every session issued before.
+    tokenVersion: { type: Number, default: 0 },
     displayName: { type: String, default: '' },
     jobTitle: { type: String, default: '' },
     // Demo users only: when the demo workspace and its documents are removed.

@@ -8,6 +8,11 @@ import { userIdParamSchema, userUpdateSchema, sendValidationError } from '../sch
 
 const router = Router();
 
+// ObjectId strings are lowercase, but the id parameter accepts either case.
+function isOwnAccount(req, id) {
+    return req.user._id.toString() === id.toLowerCase();
+}
+
 // List all users (admin). Demo users get a fictional list for the read-only screen.
 router.get('/', getCurrentUser, async (req, res) => {
     if (isDemoUser(req.user)) return res.json(DEMO_SAMPLE_USERS);
@@ -34,6 +39,10 @@ router.get('/', getCurrentUser, async (req, res) => {
 router.patch('/:id', requireAdmin, async (req, res) => {
     const params = userIdParamSchema.safeParse(req.params);
     if (!params.success) return sendValidationError(res, params.error);
+    // Keeps an admin from locking themselves out, so an active admin always remains.
+    if (isOwnAccount(req, params.data.id)) {
+        return res.status(400).json({ detail: 'Cannot change your own role or status' });
+    }
     const body = userUpdateSchema.safeParse(req.body);
     if (!body.success) return sendValidationError(res, body.error);
 
@@ -41,11 +50,14 @@ router.patch('/:id', requireAdmin, async (req, res) => {
     const update = {};
     if (role !== undefined) update.role = role;
     if (status !== undefined) update.status = status;
+    // Otherwise re-enabling the account would bring its unexpired sessions back.
+    if (status === 'inactive') update.$inc = { tokenVersion: 1 };
 
     try {
         const user = await User.findByIdAndUpdate(params.data.id, update, { new: true }).select('-password_hash');
         if (!user) return res.status(404).json({ detail: 'User not found' });
 
+        logger.info('Admin action', { action: 'user.update', actorId: req.user._id, targetId: user._id, role, status });
         res.json({ id: user._id, email: user.email, role: user.role, status: user.status || 'active' });
     } catch (err) {
         logger.error('Error updating user', { message: err.message });
@@ -59,11 +71,12 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     if (!params.success) return sendValidationError(res, params.error);
 
     try {
-        if (req.user._id.toString() === params.data.id) {
+        if (isOwnAccount(req, params.data.id)) {
             return res.status(400).json({ detail: 'Cannot delete your own account' });
         }
         const deleted = await User.findByIdAndDelete(params.data.id);
         if (!deleted) return res.status(404).json({ detail: 'User not found' });
+        logger.info('Admin action', { action: 'user.delete', actorId: req.user._id, targetId: deleted._id });
         res.status(204).send();
     } catch (err) {
         logger.error('Error deleting user', { message: err.message });

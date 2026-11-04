@@ -9,7 +9,7 @@ import { canEditDocuments, isDemoUser } from './access.js';
 import { createDemoWorkspace, removeDemoWorkspace } from './demo.js';
 import { isDevOrTest } from './runtimeEnv.js';
 
-import { changePasswordSchema, loginSchema, registerSchema, sendValidationError } from './schemas.js';
+import { changePasswordSchema, loginSchema, normalizeEmail, profileSchema, sendValidationError } from './schemas.js';
 
 const router = express.Router();
 
@@ -22,6 +22,19 @@ const passwordAttemptLimiter = rateLimit({
     skipSuccessfulRequests: true,
     standardHeaders: true,
     legacyHeaders: false,
+    message: { detail: 'Too many failed attempts, please try again in 15 minutes.' },
+});
+
+// Per account, so guessing from many addresses is limited too. Above the per-address limit, so
+// a mistyping user meets that one first. The key is a hash, so memory never holds an address.
+const accountAttemptLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    skipSuccessfulRequests: true,
+    standardHeaders: false,
+    legacyHeaders: false,
+    skip: (req) => typeof req.body?.email !== 'string',
+    keyGenerator: (req) => keyedHash(normalizeEmail(req.body.email)),
     message: { detail: 'Too many failed attempts, please try again in 15 minutes.' },
 });
 
@@ -48,7 +61,11 @@ if (!hasSecret || PLACEHOLDER_SECRETS.has(process.env.JWT_SECRET.trim())) {
 const JWT_SECRET = hasSecret ? process.env.JWT_SECRET : DEV_JWT_SECRET;
 
 const ACCESS_TOKEN_MINUTES = parseInt(process.env.ACCESS_TOKEN_MINUTES || '60');
-const COOKIE_NAME = 'access_token';
+// Pinned on both sign and verify, so a token cannot choose its own algorithm.
+const JWT_ALGORITHM = 'HS256';
+// __Host- makes the browser refuse the cookie unless it is Secure, host-only and on path /.
+// Local development runs over plain http, where it could not be set.
+const COOKIE_NAME = isDevOrTest() ? 'access_token' : '__Host-access_token';
 
 function formatUser(user) {
     return {
@@ -59,6 +76,11 @@ function formatUser(user) {
         jobTitle: user.jobTitle || '',
         ...(isDemoUser(user) && { expiresAt: user.expiresAt }),
     };
+}
+
+// A reason and a method only: never the address, the client's IP or anything that was typed.
+function logFailedLogin(method, reason) {
+    logger.warn('Login failed', { method, reason });
 }
 
 function handleZodError(err, res) {
@@ -75,6 +97,10 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:8000';
 const FRONTEND_URL = process.env.FRONTEND_URL || APP_BASE_URL;
 
+// The hash of a random value nobody kept, at the cost real passwords use. Compared when there is
+// no password to check, so the response time does not reveal whether an account exists.
+const DUMMY_PASSWORD_HASH = '$2a$10$y6rSqbOUoXRrEQieLZY.sewtpIP/Mseu1pN7UlZh4799mR5XMEBtm';
+
 // Seed the first admin into an empty database. There are no hard-coded accounts
 // in any environment: the admin comes from ADMIN_EMAIL / ADMIN_PASSWORD, or is not created at all.
 export async function seedUsersIfEmpty() {
@@ -87,8 +113,17 @@ export async function seedUsersIfEmpty() {
         logger.error('No users and ADMIN_EMAIL / ADMIN_PASSWORD not set; no admin created');
         return;
     }
-    await User.create({ email, password_hash: await bcrypt.hash(password, 10), role: 'admin' });
+    await User.create({ email: normalizeEmail(email), password_hash: await bcrypt.hash(password, 10), role: 'admin' });
     logger.info('Seeded initial admin from environment');
+}
+
+// An account stored before emails were normalized keeps its original spelling until
+// scripts/normalizeEmails.js has run, so the spelling as given is tried second.
+async function findUserByEmail(givenEmail) {
+    const email = normalizeEmail(givenEmail);
+    const user = await User.findOne({ email });
+    if (user || givenEmail.trim() === email) return user;
+    return User.findOne({ email: givenEmail.trim() });
 }
 
 /** Keyed hash of a value with the server secret: cannot be reversed or recomputed without it. */
@@ -96,8 +131,20 @@ export function keyedHash(value) {
     return createHmac('sha256', JWT_SECRET).update(value).digest('hex');
 }
 
-function createAccessToken(email, role) {
-    return jwt.sign({ sub: email, role }, JWT_SECRET, { expiresIn: `${ACCESS_TOKEN_MINUTES}m` });
+// A token issued before token versions existed, or an account without one, counts as version 0.
+function createAccessToken(user) {
+    return jwt.sign({ sub: user.email, role: user.role, tv: user.tokenVersion ?? 0 }, JWT_SECRET, {
+        algorithm: JWT_ALGORITHM,
+        expiresIn: `${ACCESS_TOKEN_MINUTES}m`,
+    });
+}
+
+function verifyAccessToken(token) {
+    return jwt.verify(token, JWT_SECRET, { algorithms: [JWT_ALGORITHM] });
+}
+
+function isCurrentTokenVersion(payload, user) {
+    return (payload.tv ?? 0) === (user.tokenVersion ?? 0);
 }
 
 // Written at most this often, so a demo session does not add a write to every request.
@@ -121,7 +168,7 @@ export async function getCurrentUser(req, res, next) {
 
     let payload;
     try {
-        payload = jwt.verify(token, JWT_SECRET);
+        payload = verifyAccessToken(token);
     } catch {
         return res.status(401).json({ detail: 'Invalid token' });
     }
@@ -136,6 +183,13 @@ export async function getCurrentUser(req, res, next) {
     }
     if (!user) {
         return res.status(401).json({ detail: 'User not found' });
+    }
+    if (!isCurrentTokenVersion(payload, user)) {
+        return res.status(401).json({ detail: 'Session ended' });
+    }
+    // 401, so the client ends the session the same way as for an expired token.
+    if (user.status === 'inactive') {
+        return res.status(401).json({ detail: 'This account is not active' });
     }
     if (isDemoUser(user) && user.expiresAt && user.expiresAt < new Date()) {
         return res.status(401).json({ detail: 'Demo session expired' });
@@ -164,58 +218,57 @@ export function requireEditor(req, res, next) {
     });
 }
 
-function setAuthCookie(res, token) {
-    res.cookie(COOKIE_NAME, token, {
+// Setting and clearing must use the same options: a browser ignores a __Host- cookie sent without Secure.
+function sessionCookieOptions(extra = {}) {
+    return {
+        ...extra,
         httpOnly: true,
         secure: !isDevOrTest(),
         sameSite: 'lax',
         path: '/',
-        maxAge: ACCESS_TOKEN_MINUTES * 60 * 1000,
-    });
+    };
 }
 
-router.post('/login', passwordAttemptLimiter, async (req, res) => {
-    try {
-        const { email, password } = loginSchema.parse(req.body);
+function setAuthCookie(res, token) {
+    res.cookie(COOKIE_NAME, token, sessionCookieOptions({ maxAge: ACCESS_TOKEN_MINUTES * 60 * 1000 }));
+}
 
-        const user = await User.findOne({ email });
-        if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
+router.post('/login', passwordAttemptLimiter, accountAttemptLimiter, async (req, res) => {
+    try {
+        const { password } = loginSchema.parse(req.body);
+
+        const user = await findUserByEmail(req.body.email);
+        const matches = await bcrypt.compare(password, user?.password_hash || DUMMY_PASSWORD_HASH);
+        if (!user?.password_hash || !matches) {
+            logFailedLogin('password', 'invalid_credentials');
             return res.status(401).json({ detail: 'Invalid credentials' });
         }
         // Checked after the password, so the account status is revealed only to its owner.
         if (user.status === 'inactive') {
+            logFailedLogin('password', 'account_inactive');
             return res.status(403).json({ detail: 'This account is not active' });
         }
 
-        const token = createAccessToken(user.email, user.role);
+        const token = createAccessToken(user);
         setAuthCookie(res, token);
         res.json({ user: formatUser(user) });
     } catch (err) {
+        if (err.name === 'ZodError') logFailedLogin('password', 'invalid_input');
         if (handleZodError(err, res)) return;
+        logger.error('Login error', { message: err.message });
         res.status(500).json({ detail: 'Internal server error' });
     }
 });
 
-router.post('/register', async (req, res) => {
-    try {
-        const { email, password, displayName } = registerSchema.parse(req.body);
-
-        const existing = await User.findOne({ email });
-        if (existing) {
-            return res.status(409).json({ detail: 'An account with this email already exists' });
-        }
-
-        const hash = await bcrypt.hash(password, 10);
-        const user = await User.create({ email, password_hash: hash, role: 'viewer', displayName: displayName?.trim() || '' });
-
-        const token = createAccessToken(user.email, user.role);
-        setAuthCookie(res, token);
-        res.status(201).json({ user: formatUser(user) });
-    } catch (err) {
-        if (handleZodError(err, res)) return;
-        res.status(500).json({ detail: 'Internal server error' });
-    }
+// Public sign-up is closed. Accounts come from the seed or an existing Google login.
+router.post('/register', (_req, res) => {
+    logger.warn('Registration refused', { reason: 'closed' });
+    res.status(403).json({ detail: 'Registration is closed' });
 });
+
+// Whether a first Google login may create an account. Closed for now; the later
+// Google sign-up turns this on, and nothing can change it at runtime.
+const GOOGLE_SIGNUP_OPEN = false;
 
 // --- Google OAuth (redirect flow) ---
 // Requires env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APP_BASE_URL
@@ -253,11 +306,15 @@ router.get('/google', (req, res) => {
         redirect_uri: `${APP_BASE_URL}/api/auth/google/callback`,
         response_type: 'code',
         scope: 'openid email profile',
-        access_type: 'offline',
         prompt: 'select_account',
     });
     res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
 });
+
+function refuseGoogleLogin(res, reason) {
+    logFailedLogin('google', reason);
+    res.redirect(`${FRONTEND_URL}/login?error=${reason}`);
+}
 
 router.get('/google/callback', async (req, res) => {
     const { code, error, state } = req.query;
@@ -266,13 +323,13 @@ router.get('/google/callback', async (req, res) => {
     res.clearCookie(OAUTH_STATE_COOKIE, oauthStateCookieOptions());
 
     if (error || !code) {
-        return res.redirect(`${FRONTEND_URL}/login?error=google_cancelled`);
+        return refuseGoogleLogin(res, 'google_cancelled');
     }
     if (!isValidOAuthState(state, expectedState)) {
-        return res.redirect(`${FRONTEND_URL}/login?error=google_state_mismatch`);
+        return refuseGoogleLogin(res, 'google_state_mismatch');
     }
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-        return res.redirect(`${FRONTEND_URL}/login?error=google_not_configured`);
+        return refuseGoogleLogin(res, 'google_not_configured');
     }
 
     try {
@@ -291,8 +348,9 @@ router.get('/google/callback', async (req, res) => {
         const tokens = await tokenRes.json();
 
         if (!tokens.access_token) {
-            logger.error('Google token exchange failed', tokens);
-            return res.redirect(`${FRONTEND_URL}/login?error=google_token_failed`);
+            // Google's error code only: the rest of the body is not ours to keep in logs.
+            logger.error('Google token exchange failed', { error: tokens.error });
+            return refuseGoogleLogin(res, 'google_token_failed');
         }
 
         // Get the user's Google profile
@@ -302,19 +360,25 @@ router.get('/google/callback', async (req, res) => {
         const profile = await profileRes.json();
 
         if (!profile.email) {
-            return res.redirect(`${FRONTEND_URL}/login?error=google_no_email`);
+            return refuseGoogleLogin(res, 'google_no_email');
+        }
+        // An unverified address proves nothing about who owns it, so it must not reach an account.
+        if (profile.verified_email !== true) {
+            return refuseGoogleLogin(res, 'google_email_not_verified');
         }
 
-        // Find existing user or create a new one (viewer role by default)
-        let user = await User.findOne({ email: profile.email });
+        let user = await findUserByEmail(profile.email);
         if (!user) {
-            user = await User.create({ email: profile.email, role: 'viewer' });
+            if (!GOOGLE_SIGNUP_OPEN) {
+                return refuseGoogleLogin(res, 'registration_closed');
+            }
+            user = await User.create({ email: normalizeEmail(profile.email), role: 'viewer' });
         }
         if (user.status === 'inactive') {
-            return res.redirect(`${FRONTEND_URL}/login?error=account_inactive`);
+            return refuseGoogleLogin(res, 'account_inactive');
         }
 
-        const token = createAccessToken(user.email, user.role);
+        const token = createAccessToken(user);
         setAuthCookie(res, token);
         res.redirect(`${FRONTEND_URL}/hub`);
     } catch (err) {
@@ -327,7 +391,7 @@ router.get('/google/callback', async (req, res) => {
 router.post('/demo', demoCreationLimiter, async (req, res) => {
     try {
         const user = await createDemoWorkspace();
-        setAuthCookie(res, createAccessToken(user.email, user.role));
+        setAuthCookie(res, createAccessToken(user));
         res.status(201).json({ user: formatUser(user) });
     } catch (err) {
         logger.error('Demo workspace creation failed', { message: err.message });
@@ -335,51 +399,62 @@ router.post('/demo', demoCreationLimiter, async (req, res) => {
     }
 });
 
-// A demo user has no password, so once the cookie is gone the workspace can never
-// be reached again: remove it now instead of keeping it until expiry.
-async function removeDemoWorkspaceOnLogout(token) {
-    let email;
+// Ends the sessions behind this token. A demo user has no password, so once the cookie is
+// gone the workspace can never be reached again: remove it now instead of keeping it until expiry.
+async function endSessionsOnLogout(token) {
+    let payload;
     try {
-        email = jwt.verify(token, JWT_SECRET).sub;
+        payload = verifyAccessToken(token);
     } catch {
         return;
     }
-    const user = await User.findOne({ email });
-    if (!isDemoUser(user)) return;
-    await removeDemoWorkspace(user._id);
-    logger.info('Removed demo workspace on logout');
+    const user = await User.findOne({ email: payload.sub });
+    if (!user) return;
+    if (isDemoUser(user)) {
+        await removeDemoWorkspace(user._id);
+        logger.info('Removed demo workspace on logout');
+        return;
+    }
+    // An old token must not be able to end the sessions that replaced it.
+    if (isCurrentTokenVersion(payload, user)) {
+        await User.updateOne({ _id: user._id }, { $inc: { tokenVersion: 1 } });
+    }
 }
 
-// Always succeeds and clears the cookie; if removing a demo workspace fails,
-// the scheduled cleanup removes it at expiry.
+// Always succeeds and clears the cookie. If the step fails, a demo workspace is removed
+// at expiry by the scheduled cleanup, and a regular token stays valid until it expires.
 router.post('/logout', async (req, res) => {
     const token = req.cookies[COOKIE_NAME];
     if (token) {
         try {
-            await removeDemoWorkspaceOnLogout(token);
+            await endSessionsOnLogout(token);
         } catch (err) {
-            logger.error('Demo removal on logout failed', { message: err.message });
+            logger.error('Ending sessions on logout failed', { message: err.message });
         }
     }
-    res.clearCookie(COOKIE_NAME, { path: '/' });
+    res.clearCookie(COOKIE_NAME, sessionCookieOptions());
     res.json({ ok: true });
 });
 
 router.patch('/password', passwordAttemptLimiter, getCurrentUser, async (req, res) => {
     try {
-        const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
-
         const user = req.user;
         if (isDemoUser(user)) {
             return res.status(403).json({ detail: 'Not available in the demo' });
         }
+        const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+
         if (user.password_hash && !(await bcrypt.compare(currentPassword, user.password_hash))) {
             // 400, not 401: the session is valid, so the client must not treat this as an expired session.
+            logger.warn('Password change failed', { reason: 'wrong_current_password' });
             return res.status(400).json({ detail: 'Current password is incorrect' });
         }
 
         user.password_hash = await bcrypt.hash(newPassword, 10);
+        user.tokenVersion = (user.tokenVersion ?? 0) + 1;
         await user.save();
+        // Every other session ends here; this one continues with a new token.
+        setAuthCookie(res, createAccessToken(user));
         res.json({ ok: true });
     } catch (err) {
         if (handleZodError(err, res)) return;
@@ -394,14 +469,12 @@ router.get('/me', getCurrentUser, (req, res) => {
 
 router.patch('/profile', getCurrentUser, async (req, res) => {
     try {
-        const { displayName, jobTitle } = req.body;
-        const update = {};
-        if (typeof displayName === 'string') update.displayName = displayName.trim().slice(0, 80);
-        if (typeof jobTitle === 'string') update.jobTitle = jobTitle.trim().slice(0, 80);
+        const update = profileSchema.parse(req.body);
 
         const user = await User.findByIdAndUpdate(req.user._id, update, { new: true });
         res.json(formatUser(user));
     } catch (err) {
+        if (handleZodError(err, res)) return;
         logger.error('Update profile failed', { message: err.message });
         res.status(500).json({ detail: 'Internal server error' });
     }
