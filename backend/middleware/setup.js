@@ -33,11 +33,10 @@ export function normalizeOrigin(value) {
 }
 
 // Where the frontend runs: the public URL from FRONTEND_URL or APP_BASE_URL
-// (Render sets only FRONTEND_URL), plus the Vite dev servers.
+// (Render sets only FRONTEND_URL), plus the Vite dev servers in development and tests.
 export function allowedOrigins() {
     return [
-        'http://localhost:5173',
-        'http://localhost:5174',
+        ...(isDevOrTest() ? ['http://localhost:5173', 'http://localhost:5174'] : []),
         process.env.FRONTEND_URL,
         process.env.APP_BASE_URL,
     ].map(normalizeOrigin).filter(Boolean);

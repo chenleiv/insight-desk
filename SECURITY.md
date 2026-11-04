@@ -124,7 +124,8 @@ stop another site from acting as the user.
   any non-GET/HEAD/OPTIONS request under `/api` whose `Origin` is not ours (403). That covers routes that need no
   cookie, which Lax cannot protect: without it, a form on another site could start a demo session in the
   visitor's browser or log them out. Origins are compared after normalizing scheme, host and port. Ours is
-  `FRONTEND_URL` or `APP_BASE_URL` (Render sets only `FRONTEND_URL`), plus the Vite dev servers on localhost.
+  `FRONTEND_URL` or `APP_BASE_URL` (Render sets only `FRONTEND_URL`), plus, only in development and tests, the
+  Vite dev servers on localhost.
   `Origin: null` is refused. A request with no `Origin` passes, since browsers send one on every such request.
   Blocked requests are logged with the origin host and route only. In production, the server logs an error at
   startup if neither variable is set, because every state-changing request would then be refused.

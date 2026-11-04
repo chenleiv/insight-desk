@@ -113,6 +113,42 @@ describe("global /api rate limit", () => {
   });
 });
 
+describe("local development origins", () => {
+  const LOCAL_ORIGIN = "http://localhost:5173";
+  const OWN_ORIGIN = "https://insight.example.com";
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  async function originCheck(env, origin) {
+    vi.stubEnv("FRONTEND_URL", OWN_ORIGIN);
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    const baseUrl = await startApp(undefined);
+    const res = await fetch(`${baseUrl}/api/ip`, { method: "POST", headers: { Origin: origin } });
+    return { status: res.status, allowOrigin: res.headers.get("access-control-allow-origin") };
+  }
+
+  it.each([
+    ["production", { NODE_ENV: "production" }],
+    ["no NODE_ENV", { NODE_ENV: "" }],
+    ["ENV=prod", { NODE_ENV: "development", ENV: "prod" }],
+  ])("are refused under %s", async (_label, env) => {
+    expect(await originCheck(env, LOCAL_ORIGIN)).toEqual({ status: 403, allowOrigin: null });
+  });
+
+  it("are allowed in development", async () => {
+    // 404: past the origin check, and this app has no POST route.
+    expect(await originCheck({ NODE_ENV: "development", ENV: "" }, LOCAL_ORIGIN))
+      .toEqual({ status: 404, allowOrigin: LOCAL_ORIGIN });
+  });
+
+  it("leave the public origin allowed in production", async () => {
+    expect(await originCheck({ NODE_ENV: "production" }, OWN_ORIGIN))
+      .toEqual({ status: 404, allowOrigin: OWN_ORIGIN });
+  });
+});
+
 describe("apiNotFound", () => {
   // Same order as backend/index.js: API routes, then apiNotFound, then the SPA fallback.
   async function startSpaApp() {
