@@ -79,7 +79,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   User.findOne.mockImplementation(async ({ email }) => USERS[email] ?? null);
   Document.findById.mockImplementation((id) => query(DOCS[id] ?? null));
-  Document.find.mockImplementation(() => Object.assign(query([]), { sort: async () => [] }));
+  Document.find.mockImplementation(() => Object.assign(query([]), { sort: () => ({ select: async () => [] }) }));
   Document.countDocuments.mockResolvedValue(0);
   groqCreate.mockResolvedValue({ choices: [{ message: { content: "ok" } }] });
 });
@@ -97,12 +97,14 @@ const admin = as("admin@corp.example");
 
 describe("demo workspace isolation", () => {
   it("lists only the demo user's own documents", async () => {
-    await demo("/api/documents");
+    const res = await demo("/api/documents");
+    expect(res.status).toBe(200);
     expect(Document.find).toHaveBeenCalledWith({ ownerId: "demo-1" });
   });
 
   it("lists only non-demo documents for regular users", async () => {
-    await admin("/api/documents");
+    const res = await admin("/api/documents");
+    expect(res.status).toBe(200);
     expect(Document.find).toHaveBeenCalledWith({ demo: { $ne: true } });
   });
 
