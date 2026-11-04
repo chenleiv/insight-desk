@@ -100,8 +100,17 @@ const aiConfigSchema = new mongoose.Schema({
     exampleQuestions: { type: [String], default: [] },
 }, { _id: false });
 
+// Daily usage counters for the chat, kept in the database so a restart does not reset them.
+// A short wait when the database is away: an admin's chat does not depend on these writes.
+const usageCounterSchema = new mongoose.Schema({
+    _id: { type: String },
+    count: { type: Number, required: true },
+    expiresAt: { type: Date, required: true, expires: 0 },
+}, { versionKey: false, bufferTimeoutMS: 3000 });
+
 export const User = mongoose.model('User', userSchema);
 export const Document = mongoose.model('Document', documentSchema);
 export const AIConfig = mongoose.model('AIConfig', aiConfigSchema);
 export const Chunk = mongoose.model('Chunk', chunkSchema);
 export const RetrievalLog = mongoose.model('RetrievalLog', retrievalLogSchema);
+export const UsageCounter = mongoose.model('UsageCounter', usageCounterSchema);
