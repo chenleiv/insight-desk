@@ -5,12 +5,14 @@ import {
   applyMiddleware,
   apiNotFound,
   jsonBody,
+  maskAddress,
   parseTrustProxyHops,
   spaFallbackLimiter,
   SPA_FALLBACK_LIMIT,
 } from "../setup.js";
 import { errorHandler } from "../errorHandler.js";
 import { logger } from "../../logger.js";
+import healthRouter from "../../routes/health.js";
 
 let server;
 
@@ -98,6 +100,189 @@ describe("startup warning about the hop count", () => {
 
   it("stays quiet in development", async () => {
     expect(await warnedAboutHops({ NODE_ENV: "development", ENV: "" }, undefined)).toBe(false);
+  });
+});
+
+describe("maskAddress", () => {
+  it.each([
+    ["203.0.113.7", "203.0.x.x"],
+    ["::ffff:203.0.113.7", "203.0.x.x"],
+    ["::FFFF:203.0.113.7", "203.0.x.x"],
+    [" 203.0.113.7 ", "203.0.x.x"],
+    ["2001:db8:1:2:3:4:5:6", "2001:db8:1:x"],
+    ["2001:db8::1", "2001:db8:x"],
+    ["2001::1", "2001:x"],
+    ["::1", "::x"],
+    ["::ffff:cb00:7107", "::x"],
+    ["fe80::1%eth0", "fe80:x"],
+  ])("masks %s", (address, masked) => {
+    expect(maskAddress(address)).toBe(masked);
+  });
+
+  it.each(["", "not-an-address", "203.0.113.7:8080", "<script>", "203.0.113"])(
+    "does not repeat %j",
+    (value) => {
+      expect(maskAddress(value)).toBe("invalid");
+    },
+  );
+});
+
+describe("TRUST_PROXY_DIAGNOSTIC", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  let warn;
+
+  async function startHealthApp(hops, switchValue) {
+    if (switchValue !== undefined) vi.stubEnv("TRUST_PROXY_DIAGNOSTIC", switchValue);
+    process.env.TRUST_PROXY_HOPS = hops;
+    warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+    const app = express();
+    applyMiddleware(app);
+    app.use(healthRouter);
+    app.post("/health", (req, res) => res.json({ ok: true }));
+    app.get("/other", (req, res) => res.json({ ok: true }));
+    await new Promise((resolve) => {
+      server = app.listen(0, resolve);
+    });
+    return `http://127.0.0.1:${server.address().port}`;
+  }
+
+  function checks() {
+    return warn.mock.calls.filter(([message]) => message === "client-ip-check").map(([, meta]) => meta);
+  }
+
+  function check(baseUrl, forwardedFor) {
+    const headers = forwardedFor ? { "X-Forwarded-For": forwardedFor } : {};
+    return fetch(`${baseUrl}/health?ipcheck`, { headers });
+  }
+
+  it("logs nothing when the switch is unset", async () => {
+    const baseUrl = await startHealthApp("3");
+    await check(baseUrl, "203.0.113.7, 198.51.100.2, 198.51.100.3");
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it.each(["", "1", "TRUE", "false", "on"])("stays off with the value %j", async (value) => {
+    const baseUrl = await startHealthApp("3", value);
+    await check(baseUrl, "203.0.113.7, 198.51.100.2, 198.51.100.3");
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("warns at startup when it is on", async () => {
+    await startHealthApp("3", "true");
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/^TRUST_PROXY_DIAGNOSTIC is on/));
+  });
+
+  it("logs only GET /health?ipcheck", async () => {
+    const baseUrl = await startHealthApp("3", "true");
+    await fetch(`${baseUrl}/health`);
+    await fetch(`${baseUrl}/health?other`);
+    await fetch(`${baseUrl}/other?ipcheck`);
+    await fetch(`${baseUrl}/health?ipcheck`, { method: "POST" });
+    await fetch(`${baseUrl}/health?ipcheck`, { method: "HEAD" });
+    expect(checks()).toEqual([]);
+
+    await check(baseUrl);
+    expect(checks()).toHaveLength(1);
+  });
+
+  async function healthResponse(path, switchValue) {
+    const baseUrl = await startHealthApp("3", switchValue);
+    const res = await fetch(`${baseUrl}${path}`);
+    const headers = Object.fromEntries(res.headers);
+    delete headers.date;
+    const response = { status: res.status, headers, body: await res.text() };
+    await new Promise((resolve) => server.close(resolve));
+    server = undefined;
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    return response;
+  }
+
+  it.each(["/health", "/health?ipcheck"])("does not change the response of %s", async (path) => {
+    const off = await healthResponse(path);
+    const on = await healthResponse(path, "true");
+    expect(on).toEqual(off);
+    expect(on.status).toBe(200);
+    expect(on.body).toBe('{"ok":true}');
+  });
+
+  it("marks only the ?ipcheck variant as not cacheable", async () => {
+    for (const switchValue of [undefined, "true"]) {
+      const plain = await healthResponse("/health", switchValue);
+      const variant = await healthResponse("/health?ipcheck", switchValue);
+      expect(plain.headers["cache-control"]).toBeUndefined();
+      expect(variant.headers["cache-control"]).toBe("no-store");
+    }
+  });
+
+  it("never logs a full address or a raw header value", async () => {
+    const baseUrl = await startHealthApp("3", "true");
+    await check(baseUrl, "secret-token, 2001:db8::1234, 203.0.113.7, 198.51.100.2, 192.0.2.3");
+
+    const logged = JSON.stringify(warn.mock.calls);
+    for (const raw of ["secret-token", "1234", "113.7", "100.2", "2.3"]) {
+      expect(logged).not.toContain(raw);
+    }
+    expect(checks()[0].forwardedFor).toEqual(["invalid", "2001:db8:x", "203.0.x.x", "198.51.x.x", "192.0.x.x"]);
+  });
+
+  it("masks the address of a request with no header", async () => {
+    const baseUrl = await startHealthApp("3", "true");
+    await check(baseUrl);
+    expect(checks()[0]).toEqual({ trustProxyHops: 3, entryCount: 0, clientIp: "127.0.x.x", forwardedFor: [] });
+  });
+
+  it("prints at most 10 entries, the rightmost, and still counts all of them", async () => {
+    const baseUrl = await startHealthApp("3", "true");
+    const fakes = Array.from({ length: 20 }, (_, n) => `198.51.${n}.1`);
+    await check(baseUrl, [...fakes, "203.0.113.7"].join(", "));
+
+    const { entryCount, forwardedFor } = checks()[0];
+    expect(entryCount).toBe(21);
+    expect(forwardedFor).toHaveLength(10);
+    expect(forwardedFor.at(-1)).toBe("203.0.x.x");
+    expect(forwardedFor[0]).toBe("198.51.x.x");
+  });
+
+  describe("outcomes with 3 hops", () => {
+    const CLIENT = "203.0.113.7";
+    const FAKE = "198.51.100.1";
+
+    async function outcome(forwardedFor) {
+      const baseUrl = await startHealthApp("3", "true");
+      await check(baseUrl, forwardedFor);
+      const { entryCount, clientIp } = checks()[0];
+      return { entryCount, clientIp };
+    }
+
+    it("correct: a real request finds the client", async () => {
+      expect(await outcome(`${CLIENT}, 192.0.2.1, 192.0.2.2`))
+        .toEqual({ entryCount: 3, clientIp: "203.0.x.x" });
+    });
+
+    it("correct: a fake entry does not move the client", async () => {
+      expect(await outcome(`${FAKE}, ${CLIENT}, 192.0.2.1, 192.0.2.2`))
+        .toEqual({ entryCount: 4, clientIp: "203.0.x.x" });
+    });
+
+    it("too high: a real request still looks right", async () => {
+      expect(await outcome(`${CLIENT}, 192.0.2.1`))
+        .toEqual({ entryCount: 2, clientIp: "203.0.x.x" });
+    });
+
+    it("too high: a fake entry becomes the client", async () => {
+      expect(await outcome(`${FAKE}, ${CLIENT}, 192.0.2.1`))
+        .toEqual({ entryCount: 3, clientIp: "198.51.x.x" });
+    });
+
+    it("too low: every request gets a proxy address", async () => {
+      expect(await outcome(`${CLIENT}, 192.0.2.1, 192.0.2.2, 192.0.2.3`))
+        .toEqual({ entryCount: 4, clientIp: "192.0.x.x" });
+    });
   });
 });
 
