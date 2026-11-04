@@ -129,6 +129,7 @@ ai-workspace/
 │   ├── extractWorker.js            # The child process
 │   ├── zipGuard.js                 # Checks a ZIP's real expanded size before parsing
 │   ├── documentExport.js           # Markdown / PDF / Word files for document download
+│   ├── app.js                      # Express app: middleware and route order
 │   ├── logger.js                   # Structured logger
 │   ├── loadEnv.js                  # .env loader
 │   ├── demo/                       # Demo sample documents and precomputed embeddings
