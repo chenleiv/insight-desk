@@ -175,7 +175,9 @@ Tests: `backend/routes/__tests__/documentDownload.test.js`, `backend/__tests__/d
 - **Clear refusals.** UTF-16 text files and password-protected Office files get a 400 that says what to do.
 - A file is served as an attachment with `nosniff` whatever it holds, so these checks limit what reaches the parsers;
   they do not prove a file is harmless.
-  Tests: `backend/__tests__/fileSignature.test.js`, `backend/routes/__tests__/uploadLimits.test.js`.
+- An attachment is sent with `Cache-Control: no-store`, so a shared computer's browser or a proxy keeps no copy.
+  Tests: `backend/__tests__/fileSignature.test.js`, `backend/routes/__tests__/uploadLimits.test.js`,
+  `backend/routes/__tests__/documentAttachments.test.js`.
 
 ## Text extraction
 

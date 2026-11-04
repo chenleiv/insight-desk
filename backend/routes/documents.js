@@ -388,6 +388,8 @@ router.get('/:id/attachments/:attachmentId/file', getCurrentUser, async (req, re
         res.set({
             'Content-Type': resolveUploadMime(attachment.fileName, attachment.fileType) || 'application/octet-stream',
             'X-Content-Type-Options': 'nosniff',
+            // A private file: no browser or proxy may keep a copy.
+            'Cache-Control': 'no-store',
         });
 
         downloadStream.on('error', () => res.status(404).end());
