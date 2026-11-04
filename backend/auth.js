@@ -278,7 +278,6 @@ router.get('/google', (req, res) => {
         redirect_uri: `${APP_BASE_URL}/api/auth/google/callback`,
         response_type: 'code',
         scope: 'openid email profile',
-        access_type: 'offline',
         prompt: 'select_account',
     });
     res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
@@ -328,6 +327,10 @@ router.get('/google/callback', async (req, res) => {
 
         if (!profile.email) {
             return res.redirect(`${FRONTEND_URL}/login?error=google_no_email`);
+        }
+        // An unverified address proves nothing about who owns it, so it must not reach an account.
+        if (profile.verified_email !== true) {
+            return res.redirect(`${FRONTEND_URL}/login?error=google_email_not_verified`);
         }
 
         let user = await findUserByEmail(profile.email);

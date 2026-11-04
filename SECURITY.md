@@ -33,6 +33,9 @@ Security controls in Insight Desk and the tests that guard them.
   compares it in constant time, clears the cookie whatever the outcome, and on a missing or wrong state
   redirects to `/login?error=google_state_mismatch` without exchanging the code. This blocks login CSRF.
   Test: `backend/__tests__/googleOAuthState.test.js`.
+- **Google login needs a verified email.** The profile must have `verified_email: true`, or the login is refused
+  before any account is looked up, so an unverified address can never reach an existing password account. The app
+  asks only for `openid email profile`, with no offline access. Test: `backend/__tests__/googleOAuthState.test.js`.
 
 ## Data retention
 
