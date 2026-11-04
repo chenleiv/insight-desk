@@ -200,7 +200,8 @@ per-minute limits alone still let one address send about 9,600 questions a day. 
 - **The chat shows a plain message.** A refusal has the fields `detail`, `code: "daily_limit"` and `retryAfter`. The chat
   shows the message with the local time the limit resets, and no Retry button.
 - **The address limit relies on `TRUST_PROXY_HOPS`.** If it is wrong, the server sees the proxy's address for everyone,
-  and all demo visitors share the 30 questions.
+  and all demo visitors share the 30 questions. The server logs a warning at startup when the value is unset, zero or
+  invalid. It cannot detect a wrong non-zero value.
 - **Accepted gaps.**
   - Many addresses together can still use up the demo's 130K, which stops the demo chat until the reset. Viewers and
     the admin keep working. Visitors behind one shared address share the 30 questions.

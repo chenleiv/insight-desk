@@ -10,6 +10,7 @@ import {
   SPA_FALLBACK_LIMIT,
 } from "../setup.js";
 import { errorHandler } from "../errorHandler.js";
+import { logger } from "../../logger.js";
 
 let server;
 
@@ -67,6 +68,36 @@ describe("client IP behind a proxy", () => {
     const baseUrl = await startApp("1");
     // The client sent "198.51.100.1"; the proxy appended the real address "203.0.113.7".
     expect(await clientIp(baseUrl, "198.51.100.1, 203.0.113.7")).toBe("203.0.113.7");
+  });
+});
+
+describe("startup warning about the hop count", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  async function warnedAboutHops(env, hops) {
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+    await startApp(hops);
+    return warn.mock.calls.some(([message]) => message.startsWith("TRUST_PROXY_HOPS is unset"));
+  }
+
+  it.each([
+    ["unset", undefined],
+    ["zero", "0"],
+    ["invalid", "abc"],
+  ])("warns in production when the value is %s", async (_label, hops) => {
+    expect(await warnedAboutHops({ NODE_ENV: "production" }, hops)).toBe(true);
+  });
+
+  it("stays quiet in production when a hop count is set", async () => {
+    expect(await warnedAboutHops({ NODE_ENV: "production" }, "3")).toBe(false);
+  });
+
+  it("stays quiet in development", async () => {
+    expect(await warnedAboutHops({ NODE_ENV: "development", ENV: "" }, undefined)).toBe(false);
   });
 });
 

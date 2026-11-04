@@ -72,7 +72,13 @@ function rejectCrossSiteRequests(allowed) {
 }
 
 export function applyMiddleware(app) {
-    app.set('trust proxy', parseTrustProxyHops(process.env.TRUST_PROXY_HOPS));
+    const trustProxyHops = parseTrustProxyHops(process.env.TRUST_PROXY_HOPS);
+    app.set('trust proxy', trustProxyHops);
+    // A warning, not a refusal: every visitor shares one address, but nothing can be spoofed.
+    if (!isDevOrTest() && trustProxyHops === 0) {
+        logger.warn('TRUST_PROXY_HOPS is unset, zero or invalid: behind a proxy, all visitors '
+            + 'share one address in every per-address limit.');
+    }
 
     app.use(compression());
 
