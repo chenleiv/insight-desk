@@ -35,7 +35,6 @@ describe("apiFetch session expiry", () => {
 
   it.each([
     "/api/auth/login",
-    "/api/auth/register",
     "/api/auth/demo",
     "/api/auth/me",
     "/api/auth/logout",

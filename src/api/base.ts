@@ -14,7 +14,6 @@ export class ApiError extends Error {
 // A 401 from these is part of signing in or checking for a session, not an expired session.
 const SESSION_EXEMPT_PATHS = new Set([
   "/api/auth/login",
-  "/api/auth/register",
   "/api/auth/demo",
   "/api/auth/me",
   "/api/auth/logout",
