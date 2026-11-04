@@ -7,6 +7,10 @@ Security controls in Insight Desk and the tests that guard them.
 - **No hard-coded accounts.** The server never creates fixed demo users such as `admin@demo.com`, in any environment.
   On an empty database it creates one admin from `ADMIN_EMAIL` and `ADMIN_PASSWORD`, or no user at all.
   Test: `backend/__tests__/authHardening.test.js`, `backend/__tests__/seedUsers.test.js`.
+- **Emails are lowercase.** Login, the seed and Google normalize an address, so case cannot split or hide an account. Accounts stored earlier are converted by `backend/scripts/normalizeEmails.js`: `--dry-run` reports
+  what would change, `--apply` writes, and addresses that collide are reported and never merged. Until it has run,
+  login also tries the spelling as typed, so an existing account keeps working.
+  Tests: `backend/__tests__/emailNormalization.test.js`, `backend/__tests__/normalizeEmails.integration.test.js`.
 - **Inactive accounts cannot sign in.** Password and Google login both reject a user whose status is `inactive`.
   The status is checked after the password, so it is revealed only to the account owner.
 - **Google login checks an OAuth `state`.** `GET /api/auth/google` sends a random 256-bit state to Google and

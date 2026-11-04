@@ -9,14 +9,21 @@ export function sendValidationError(res, zodError) {
   });
 }
 
+// One spelling per address, so case can neither split nor hide an account.
+export function normalizeEmail(email) {
+  return email.trim().toLowerCase();
+}
+
+const emailField = z.string().trim().toLowerCase().email('Invalid email format');
+
 // Auth Schemas
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email format'),
+  email: emailField,
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 export const registerSchema = z.object({
-  email: z.string().email('Invalid email format'),
+  email: emailField,
   password: z.string().min(6, 'Password must be at least 6 characters'),
   displayName: z.string().max(80).optional(),
 });

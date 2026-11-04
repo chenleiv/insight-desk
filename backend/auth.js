@@ -9,7 +9,7 @@ import { canEditDocuments, isDemoUser } from './access.js';
 import { createDemoWorkspace, removeDemoWorkspace } from './demo.js';
 import { isDevOrTest } from './runtimeEnv.js';
 
-import { changePasswordSchema, loginSchema, registerSchema, sendValidationError } from './schemas.js';
+import { changePasswordSchema, loginSchema, normalizeEmail, registerSchema, sendValidationError } from './schemas.js';
 
 const router = express.Router();
 
@@ -91,8 +91,17 @@ export async function seedUsersIfEmpty() {
         logger.error('No users and ADMIN_EMAIL / ADMIN_PASSWORD not set; no admin created');
         return;
     }
-    await User.create({ email, password_hash: await bcrypt.hash(password, 10), role: 'admin' });
+    await User.create({ email: normalizeEmail(email), password_hash: await bcrypt.hash(password, 10), role: 'admin' });
     logger.info('Seeded initial admin from environment');
+}
+
+// An account stored before emails were normalized keeps its original spelling until
+// scripts/normalizeEmails.js has run, so the spelling as given is tried second.
+async function findUserByEmail(givenEmail) {
+    const email = normalizeEmail(givenEmail);
+    const user = await User.findOne({ email });
+    if (user || givenEmail.trim() === email) return user;
+    return User.findOne({ email: givenEmail.trim() });
 }
 
 /** Keyed hash of a value with the server secret: cannot be reversed or recomputed without it. */
@@ -192,9 +201,9 @@ function setAuthCookie(res, token) {
 
 router.post('/login', passwordAttemptLimiter, async (req, res) => {
     try {
-        const { email, password } = loginSchema.parse(req.body);
+        const { password } = loginSchema.parse(req.body);
 
-        const user = await User.findOne({ email });
+        const user = await findUserByEmail(req.body.email);
         if (!user || !user.password_hash || !(await bcrypt.compare(password, user.password_hash))) {
             return res.status(401).json({ detail: 'Invalid credentials' });
         }
@@ -322,9 +331,9 @@ router.get('/google/callback', async (req, res) => {
         }
 
         // Find existing user or create a new one (viewer role by default)
-        let user = await User.findOne({ email: profile.email });
+        let user = await findUserByEmail(profile.email);
         if (!user) {
-            user = await User.create({ email: profile.email, role: 'viewer' });
+            user = await User.create({ email: normalizeEmail(profile.email), role: 'viewer' });
         }
         if (user.status === 'inactive') {
             return res.redirect(`${FRONTEND_URL}/login?error=account_inactive`);

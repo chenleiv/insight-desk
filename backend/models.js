@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
+    // Normalized by the code that creates users. Not the `lowercase` option: that setter also
+    // rewrites query filters, so an account stored in mixed case could no longer be found.
     email: { type: String, required: true, unique: true },
     password_hash: { type: String, default: null },
     role: { type: String, enum: ['admin', 'viewer', 'demo'], default: 'viewer' },
