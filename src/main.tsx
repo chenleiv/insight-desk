@@ -10,11 +10,15 @@ import "./styles/layout.scss";
 import { ConfirmProvider } from "./components/confirmModal/ConfirmProvider.tsx";
 import { AuthProvider } from "./auth/AuthProvider.tsx";
 import { StatusProvider } from "./components/statusBar/StatusProvider";
+import { ErrorPage } from "./components/errorPage/ErrorPage";
+import { installStaleAssetReload } from "./utils/staleAssetReload";
+
+installStaleAssetReload();
 
 const queryClient = new QueryClient();
 
 // A data router enables useBlocker (unsaved-changes guard); App still declares its own <Routes>.
-const router = createBrowserRouter([{ path: "*", element: <App /> }]);
+const router = createBrowserRouter([{ path: "*", element: <App />, errorElement: <ErrorPage /> }]);
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

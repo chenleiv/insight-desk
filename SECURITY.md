@@ -114,6 +114,11 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 - **Static files keep their cache rules when compressed.** They pass through the same `compression()` as the API.
   Hashed files under `assets/` stay `immutable` for a year, and everything else, including `index.html`, is
   revalidated on each load, so a deploy reaches visitors at once.
+- **A missing file is a 404, not the main page.** A path under `assets/`, or one whose last part has a dot, gets a
+  plain 404 with `no-store` instead of `index.html`, so a missing script or stylesheet is never answered with HTML
+  and status 200, and no cache keeps the 404. Page paths still get `index.html`.
+- **A page that fails to render shows a generic error page.** It shows no error detail, unlike React Router's
+  default screen, which displays the message and stack to the visitor.
   Checked by hand: `dist/index.html` from `npm run build` has no inline `<script>`. Under the real middleware,
   headless Chromium renders the login page with the theme set, and an inline script on a probe page is blocked.
 - **Known gap, accepted:** `style-src` still includes `'unsafe-inline'`, helmet's default, kept on purpose.

@@ -72,6 +72,39 @@ describe("security headers", () => {
   });
 });
 
+describe("SPA fallback", () => {
+  it.each([
+    ["an old build's script", "/assets/HubPage-old.js"],
+    ["an old build's stylesheet", "/assets/HubPage-old.css"],
+    ["a name under assets without an extension", "/assets/old"],
+    ["a missing file at the root", "/missing.js"],
+    ["a missing icon", "/favicon.ico"],
+    ["a hidden file", "/.hidden"],
+  ])("returns 404, not the main page, for %s", async (_label, url) => {
+    const res = await fetch(`${base}${url}`);
+
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain(INDEX_HTML);
+    expect(res.headers.get("content-type")).toMatch(/^text\/plain/);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
+  it.each(["/hub", "/login", "/users", "/some/unknown/page", "/hub/"])("still serves the main page for %s", async (url) => {
+    const res = await fetch(`${base}${url}`);
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe(INDEX_HTML);
+  });
+
+  it("still serves a file that exists", async () => {
+    const res = await fetch(`${base}/assets/main.js`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toContain("immutable");
+  });
+});
+
 describe("static file compression", () => {
   // Raw bytes on the wire: fetch would decompress them before a test could measure them.
   function rawGet(url, acceptEncoding, headers = {}) {

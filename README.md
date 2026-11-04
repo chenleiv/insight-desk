@@ -233,6 +233,13 @@ Render service shell, or locally with the production connection string set:
 
 ---
 
+### After a deploy
+
+A tab left open from the previous build still asks for that build's lazy-loaded files, which
+are gone. The server answers those with 404 instead of the main page, and the page reloads
+itself once to pick up the new build. If the file still fails within a minute, it stops
+reloading and shows a generic error page with a reload button.
+
 ## 🔁 Continuous Integration
 
 GitHub Actions runs two workflows. They use no secrets. The workflow token can only read the repository;

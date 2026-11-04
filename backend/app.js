@@ -57,8 +57,13 @@ export function createApp({ distPath }) {
 
     app.use('/api', apiNotFound);
 
-    // SPA fallback
+    // SPA fallback, for pages only. A missing file, such as an old build's asset after a
+    // deploy, gets a real 404: as a page it would be a 200 of the wrong type. Not stored, so
+    // no cache keeps the 404 once the file exists.
     app.get('*', spaFallbackLimiter(), (req, res) => {
+        if (req.path.startsWith('/assets/') || path.basename(req.path).includes('.')) {
+            return res.status(404).set('Cache-Control', 'no-store').type('text/plain').send('Not found');
+        }
         res.sendFile(path.join(distPath, 'index.html'), (err) => {
             if (err) {
                 logger.error('Error sending index.html', { message: err.message });
