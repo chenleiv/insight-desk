@@ -32,8 +32,9 @@ Security controls in Insight Desk and the tests that guard them.
   into `{ detail: "Internal server error" }` (500) or a generic 4xx message. Messages, stack traces, and queries
   are logged on the server and never sent to the client.
   Test: `backend/middleware/__tests__/errorHandler.test.js`.
-- **Chat errors** return a fixed message; the upstream model error stays in the server log.
-  Test: `backend/__tests__/aiChat.test.js`.
+- **Chat errors** return a fixed message; the upstream model error stays in the server log. A missing provider key
+  gets the same message, and only the log names it, so a response never reveals the server's configuration.
+  Tests: `backend/__tests__/aiChat.test.js`, `backend/__tests__/aiProviderCalls.test.js`.
 
 ## Input limits
 
