@@ -25,7 +25,7 @@ vi.mock("../models.js", () => ({ Document, Chunk }));
 vi.mock("../rag/reindexDocument.js", () => ({ reindexDocument: vi.fn() }));
 vi.mock("../rag/embed.js", () => ({ embed: vi.fn() }));
 
-const URI = "mongodb+srv://admin:s3cret@cluster0.example.net/insightdesk?retryWrites=true";
+const URI = "mongodb+srv://fake-user:fake-password@fake-host.example.invalid/insightdesk?retryWrites=true";
 const argv = process.argv;
 let log;
 
@@ -72,8 +72,8 @@ describe("npm run reindex", () => {
     const lines = await runReindex();
 
     for (const line of lines) {
-      expect(line).not.toContain("admin");
-      expect(line).not.toContain("s3cret");
+      expect(line).not.toContain("fake-user");
+      expect(line).not.toContain("fake-password");
       expect(line).not.toContain("mongodb+srv://");
     }
   });
