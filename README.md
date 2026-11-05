@@ -84,7 +84,7 @@ The evaluation tools, method and limits are described in [docs/EVAL.md](docs/EVA
 
 ### Prerequisites
 
-- Node.js 20.19 or newer. CI uses Node 24.
+- Node.js 20.19 or newer on the 20 line, or 22.12 or newer. CI uses Node 24.
 - MongoDB running as a replica set, since chunk updates and bulk import use transactions. MongoDB Atlas is one by default; a local instance can be a single-node replica set.
 - A Groq API key, for the chat.
 - Network access on first use, to download the embedding model and, for the tests, a `mongod` binary.
