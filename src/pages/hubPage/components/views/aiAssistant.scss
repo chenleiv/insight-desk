@@ -664,8 +664,12 @@
     max-width: 100%;
   }
 
+  .ai-message.user {
+    max-width: 92%;
+  }
+
   .ai-bubble {
-    padding: 12px 14px;
+    padding: 12px;
   }
 
   .ai-input-section {
