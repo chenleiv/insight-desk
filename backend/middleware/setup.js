@@ -4,6 +4,7 @@ import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { IPV6_PREFIX } from '../clientAddress.js';
 import { isDevOrTest } from '../runtimeEnv.js';
 
 // Number of reverse proxies in front of the server. On the current hosting it is 2:
@@ -128,6 +129,7 @@ export function applyMiddleware(app) {
         max: isDevOrTest() ? 1000 : 100,
         standardHeaders: true,
         legacyHeaders: false,
+        ipv6Subnet: IPV6_PREFIX,
         message: { detail: 'Too many requests, please try again later.' }
     });
     app.use('/api/', limiter);
@@ -146,6 +148,7 @@ export function spaFallbackLimiter() {
         max: SPA_FALLBACK_LIMIT,
         standardHeaders: true,
         legacyHeaders: false,
+        ipv6Subnet: IPV6_PREFIX,
         message: 'Too many requests, please try again later.',
     });
 }

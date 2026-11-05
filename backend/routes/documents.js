@@ -3,6 +3,7 @@ import { logger } from '../logger.js';
 import mongoose from 'mongoose';
 import multer from 'multer';
 import rateLimit from 'express-rate-limit';
+import { IPV6_PREFIX } from '../clientAddress.js';
 import { randomUUID } from 'crypto';
 import { Document } from '../models.js';
 import { getAttachmentBucket } from '../attachmentBucket.js';
@@ -121,6 +122,7 @@ const uploadLimiter = rateLimit({
     limit: UPLOAD_RATE_LIMIT,
     standardHeaders: true,
     legacyHeaders: false,
+    ipv6Subnet: IPV6_PREFIX,
     message: { detail: 'Too many uploads, please try again in 15 minutes.' },
 });
 

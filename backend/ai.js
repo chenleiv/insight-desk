@@ -1,5 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import { IPV6_PREFIX } from './clientAddress.js';
 import { logger } from './logger.js';
 import Groq from 'groq-sdk';
 import { getCurrentUser, requireAdmin } from './auth.js';
@@ -224,6 +225,7 @@ const chatLimiter = rateLimit({
     limit: 20,
     standardHeaders: true,
     legacyHeaders: false,
+    ipv6Subnet: IPV6_PREFIX,
     message: { detail: 'Too many questions, please try again in a minute.' },
 });
 
@@ -329,6 +331,7 @@ const feedbackLimiter = rateLimit({
     limit: 30,
     standardHeaders: true,
     legacyHeaders: false,
+    ipv6Subnet: IPV6_PREFIX,
     message: { detail: 'Too much feedback, please try again in a minute.' },
 });
 
@@ -356,6 +359,7 @@ const qualityLimiter = rateLimit({
     limit: 30,
     standardHeaders: true,
     legacyHeaders: false,
+    ipv6Subnet: IPV6_PREFIX,
     message: { detail: 'Too many requests, please try again in a minute.' },
 });
 
