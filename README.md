@@ -1,341 +1,186 @@
-# InsightDesk
+# Insight Desk
 
 [![CI](https://github.com/chenleiv/insight-desk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/chenleiv/insight-desk/actions/workflows/ci.yml)
 
-An AI-powered document workspace for teams. Upload PDF, DOCX, and Excel files — Insight Desk extracts the text, organizes your knowledge base, and lets you chat with an AI assistant (powered by Groq) that can read and reason over your documents.
+A document workspace with a chat that answers from your documents and cites its sources.
 
----
+It is built for teams that keep their knowledge in internal documents, and it is a portfolio project for AppSec and engineering work.
 
-## ✨ Features
+**Live demo: <https://insight-desk-bwji.onrender.com>.** No sign-up is needed. Each visitor gets a private workspace with sample documents, which is reset on sign-out.
 
-### 📄 Document Management
-- **Create, edit, and categorize** documents with rich text content
-- **File attachments** — attach PDF, DOCX, and Excel files; text is automatically extracted and indexed
-- **Drag-to-resize sidebar** — resizable document panel with auto-collapse/expand behavior
-- **Stable document order** — new documents go to the top and the list keeps its order, saved per user via localStorage; documents cannot be reordered by hand
-- **Favorites** — bookmark documents per user account
-- **Import / Export** — backup and restore your knowledge base as JSON (with preview before import)
-- **Download a document** — save one document as Markdown, PDF, or Word (.docx). Anyone who can read the
-  document can download it. PDF supports Latin text only (Windows-1252, the built-in PDF fonts); a document
-  with other characters, such as Hebrew, gets an error that suggests Markdown or Word, which keep any language
-  (Word lays out Hebrew and Arabic paragraphs right to left). PDF and Word are limited to 200,000 characters
-  of content; Markdown has no extra limit
-- **Safe deletions** — confirmation modal before destructive actions
+## Features
 
-### 🤖 AI Assistant ("Brainy")
-- **Contextual chat** — select documents to inject as context for the AI
-- **Attachment-aware** — AI can read the extracted text from attached PDF/DOCX/Excel files
-- **Groq-powered** — uses `openai/gpt-oss-20b` via the Groq SDK for fast inference
-- **Daily usage limits** — 15 questions per demo sandbox, 30 per demo address and 50 per viewer each UTC day, plus a shared token budget that always leaves room for the admin; see [SECURITY.md](SECURITY.md#chat-usage-budget)
-- **Customizable system prompt** — admins can configure the AI's behavior from the Settings view
-- **Example questions** — admins can set suggested prompts shown to users
+- **Chat over documents.** Answers come from the documents the user may read. Source chips below an answer open the cited document.
+- **Documents with attachments.** Attach PDF, DOCX, XLSX, XLS, TXT, Markdown or RTF files. Their text is extracted and included in the chat's search.
+- **Import and export.** Import JSON, TXT or Markdown with a preview, and export the library as JSON. A single document downloads as Markdown, PDF or Word.
+- **Dashboard and Quality view.** The dashboard shows document and usage totals and recent documents. The Quality view shows retrieval scores, "no information" answers and user ratings for the last 7 or 30 days.
+- **Demo workspace.** A private copy of 14 sample documents, with limits on daily questions and on storage.
+- **Mobile layout.** A phone layout with bottom navigation, and light and dark themes on every screen size.
 
-### 👥 Users & Roles
-- **Role-based access control** — `admin` and `viewer` roles
-- **Admin panel** — manage users (create, activate/deactivate) at `/users`
-- **JWT authentication** — secure httpOnly cookie-based sessions
-- **Auto-seeding** — first-run seeds an admin user if the DB is empty
+## Security
 
-### 📱 Responsive UI
-- **Desktop**: resizable document sidebar + main content area
-- **Mobile**: bottom-bar navigation, slide-up document picker, hamburger drawer
-- **Light / Dark theme** — system-aware with manual toggle
-- **Status bar** — non-blocking feedback toasts for actions
+The full list of controls, the tests that guard them and the accepted gaps are in [SECURITY.md](SECURITY.md).
 
----
+- **Client address.** The server reads it from `X-Forwarded-For`, trusting only the number of proxies set in `TRUST_PROXY_HOPS`, and none when unset. Per-address limits count an IPv6 client by its /56 network.
+- **Usage budget.** Per UTC day, tokens stop at 130K for demo users and 150K for viewers, and questions stop at 15 per demo workspace, 30 per demo address and 50 per viewer. Atomic database updates hold these limits under parallel requests.
+- **Uploads.** Files are limited to 10 MB, or 2 MB in the demo. The first bytes must match the file type, and ZIP-based files are limited to 20 MB when expanded. Attachments are served as downloads with `nosniff` and `no-store`.
+- **Parsing.** Each uploaded file is parsed in a separate process with an empty environment and limits on memory and time, so a hostile file can kill only that process.
+- **Accounts.** Self-registration is closed and there are no hard-coded accounts. Passwords are hashed with bcrypt, login timing does not reveal whether an account exists, and failed logins are limited per address and per account.
+- **Sessions.** The session is a JWT with HS256 pinned. Logging out or changing the password ends existing sessions. Outside development and test, the server refuses to start without a real secret.
+- **Browser.** `helmet` sets a CSP with no inline scripts, and HSTS. The cookie is HttpOnly and `SameSite=Lax`, with the `__Host-` prefix in production. State-changing API requests from another origin are refused.
+- **Data access.** Chat search covers only the documents the authenticated user may read, and a demo user can reach only their own workspace.
 
-## 🛠️ Tech Stack
+Known gaps, such as `'unsafe-inline'` in the CSP `style-src` and the absence of a pre-parse size check for PDF files, are also documented in [SECURITY.md](SECURITY.md).
 
-### Frontend
-| Tool | Version | Role |
-|------|---------|------|
-| **React** | 19 | UI framework — uses `useActionState`, lazy loading |
-| **React Compiler** | `babel-plugin-react-compiler` | Automatic memoization |
-| **TypeScript** | 5.9 | Type safety |
-| **Vite** | 7.x | Dev server & build tool |
-| **react-router-dom** | v7 | Client-side routing |
-| **TanStack Query** | v5 | Server-state management, caching, background refetching |
-| **SCSS** | — | Styling with CSS variables theming system |
-| **lucide-react** | — | Icon library |
-| **zod** | v4 | Runtime schema validation (shared with backend) |
-| **Vitest** | v4 | Unit testing |
+## How it works
 
-### Backend
-| Tool | Version | Role |
-|------|---------|------|
-| **Node.js + Express** | — | API server |
-| **MongoDB + Mongoose** | 9.x | Data persistence |
-| **Groq SDK** | — | AI inference (`openai/gpt-oss-20b`) |
-| **MongoDB GridFS** | — | File storage for attachments |
-| **multer** | — | File upload handling |
-| **pdf-parse** | — | PDF text extraction |
-| **mammoth** | — | DOCX text extraction |
-| **pdfkit** | 0.20 | PDF generation for document download |
-| **docx** | 9.x | Word (.docx) generation for document download |
-| **xlsx** | — | Excel text extraction |
-| **jsonwebtoken + bcryptjs** | — | Auth (JWT + password hashing) |
-| **helmet** | — | Security headers (CSP, HSTS, etc.) |
-| **express-rate-limit** | — | Rate limiting (100 req/15min in production) |
-| **compression** | — | Gzip response compression |
-| **zod** | v4 | Request body validation |
-
----
-
-## 📂 Project Structure
-
-```
-ai-workspace/
-├── src/                            # Frontend (React + TypeScript)
-│   ├── main.tsx                    # Entry point
-│   ├── App.tsx                     # Router + layout shell
-│   ├── auth/                       # AuthProvider, RequireAuth, RequireRole, useAuth
-│   ├── api/                        # API clients (documents, auth, ai)
-│   ├── context/                    # DocumentsContext (TanStack Query)
-│   ├── components/
-│   │   ├── confirmModal/           # Global confirm dialog system
-│   │   ├── statusBar/              # Toast-style status messages
-│   │   ├── header/                 # App header
-│   │   ├── userMenu/               # User avatar menu
-│   │   └── ...
-│   ├── hooks/                      # useConfirm, useMobile, useResize, useTheme
-│   ├── pages/
-│   │   ├── loginPage/              # Login + admin Users page
-│   │   └── hubPage/                # Main app
-│   │       ├── HubPage.tsx         # Root layout + panel resize logic
-│   │       ├── components/
-│   │       │   ├── documents/      # DocPanel, DocumentPane, DocumentEdit, DocumentHeader
-│   │       │   ├── views/          # AIAssistantView, DashboardView, QualityView, SettingsView
-│   │       │   ├── dialogs/        # ImportPreviewDialog, EmptyPane, TourOverlay, WelcomeModal
-│   │       │   └── layout/         # TopBar, MobileDrawer, DemoBanner, TypewriterText
-│   │       ├── hooks/              # useDocumentAttachments, useDocumentAutosave,
-│   │       │                       # useDocumentOrdering, useImportExport,
-│   │       │                       # useQualitySummary, useUnsavedChangesGuard
-│   │       └── utils/              # documentForm, ordering, parseImportFile,
-│   │                               # assistantUtils, attachmentLink, categoryColorStore,
-│   │                               # docs, hubView
-│   ├── styles/                     # globals.scss, theme.scss, layout.scss
-│   └── utils/                      # initials, relativeTime, storage
-│
-├── backend/                        # Backend (Node.js + Express)
-│   ├── index.js                    # Server entry — Express setup, MongoDB connect
-│   ├── auth.js                     # JWT middleware, login, Google OAuth, demo sign-in, user seeding
-│   ├── access.js                   # Who may see and change which documents
-│   ├── demo.js                     # Private demo workspaces and their cleanup
-│   ├── ai.js                       # Groq chat, feedback, quality summary, system prompt, suggestions
-│   ├── usageBudget.js              # Daily limits on chat questions and model tokens
-│   ├── models.js                   # Mongoose models: User, Document, AIConfig, Chunk, RetrievalLog, UsageCounter
-│   ├── schemas.js                  # Zod validation schemas
-│   ├── prompts.js                  # Default system prompt + metadata
-│   ├── textExtract.js              # Runs text extraction in a limited child process
-│   ├── textParsers.js              # PDF / DOCX / Excel parsers (run only in that process)
-│   ├── extractWorker.js            # The child process
-│   ├── zipGuard.js                 # Checks a ZIP's real expanded size before parsing
-│   ├── documentExport.js           # Markdown / PDF / Word files for document download
-│   ├── app.js                      # Express app: middleware and route order
-│   ├── logger.js                   # Structured logger
-│   ├── loadEnv.js                  # .env loader
-│   ├── demo/                       # Demo sample documents and precomputed embeddings
-│   ├── middleware/
-│   │   ├── setup.js                # helmet, CORS, rate limiting, compression
-│   │   └── errorHandler.js         # Central error handler
-│   ├── rag/                        # Retrieval: chunking, embeddings, chunk sync,
-│   │                               # semantic search, retrieval logs and stats
-│   ├── routes/
-│   │   ├── documents.js            # CRUD, attachments, import/export, text extraction
-│   │   ├── users.js                # Admin user management
-│   │   ├── search.js               # Semantic search over readable documents
-│   │   └── health.js               # Health check
-│   └── scripts/                    # reindex, embed:demo, eval:prod
-│
-├── eval/                           # Retrieval eval (npm run eval) and its results
-├── docs/                           # EVAL.md, AGENT_WORKFLOW.md
-├── Procfile                        # Heroku-style start command
-└── .claude/                        # Claude Code project configuration
-    ├── CLAUDE.md                   # Project context for Claude
-    ├── memory/context.md           # Stack, architecture, rules
-    ├── agents/                     # Specialized review agents
-    ├── commands/                   # Slash commands (feature, debug, ship, review, cleanup)
-    ├── hooks/build-check.sh        # Auto-runs build + tests on Stop
-    └── skills/                     # React, Express, security, testing review rules
+```mermaid
+flowchart LR
+    B["Browser: React app"] -->|"session cookie"| S["Express server"]
+    S -->|"file to parse"| W["Extraction process"]
+    S -->|"question, chunks"| E["Local embedding model"]
+    S -->|"question, up to 5 chunks"| G["Groq chat model"]
+    S --> M[("MongoDB")]
 ```
 
----
+Retrieval pipeline:
 
-## ⚙️ Setup
+1. **Chunking.** A document's content and each attachment are split separately into chunks of 600 characters with 120 overlap.
+2. **Embedding.** A local model, `Xenova/all-MiniLM-L6-v2` at a pinned revision, turns each chunk into a 384-number vector. Document text does not leave the server at this step.
+3. **Search.** A question is embedded the same way and compared by cosine similarity with the chunks the user may read. A question in a non-Latin script is first turned into English keywords by the chat model.
+4. **Threshold and top results.** The top 5 chunks are kept if they score at least 0.3. If none does, the server returns a fixed "not found" answer and does not call the chat model.
+5. **Answer.** Groq's `openai/gpt-oss-20b` model answers from those chunks and cites them.
+6. **Citation check.** Citations are compared with the retrieved chunks. Any that do not match are removed from the answer, so a source chip always points to a chunk that was retrieved.
+
+What is stored where:
+
+| Location | Data |
+| --- | --- |
+| MongoDB | Users, documents, chunks with vectors, the prompt configuration and daily usage counters |
+| MongoDB GridFS | Attachment files |
+| MongoDB, 30-day TTL | Retrieval logs: ids, scores and ratings, with no question text, answer text or user ID |
+| Groq | Receives the question and retrieved chunks for each answer |
+| Browser | The session cookie, plus chat history and display preferences in `localStorage` |
+
+## Quality and evaluation
+
+The evaluation tools, method and limits are described in [docs/EVAL.md](docs/EVAL.md).
+
+- **Retrieval.** On 14 documents and 20 labeled questions, the chosen chunk size put the right document first for 20 of 20 questions. The margin over other sizes is one question, so this is weak evidence.
+- **Threshold.** 0 of 15 unrelated questions reach the 0.3 threshold, and 1 of 20 related questions falls below it.
+- **Answers.** In the latest recorded run, 19 of 19 answers to related questions had a valid citation, with no invented citations.
+- **Production signals.** The Quality view and `npm run eval:prod` summarize retrieval logs, which hold no question or answer text.
+
+## Tech stack
+
+- **Frontend:** React 19, TypeScript, Vite, TanStack Query, React Router, SCSS
+- **Backend:** Node.js, Express, Mongoose, Zod, helmet, express-rate-limit
+- **Data:** MongoDB with GridFS
+- **AI:** Groq SDK for the chat model, `@huggingface/transformers` for local embeddings
+- **Files:** pdf-parse, mammoth and xlsx for reading; pdfkit and docx for writing
+- **Quality:** Vitest, ESLint, CodeQL
+
+## Running locally
 
 ### Prerequisites
-- Node.js 20+
-- MongoDB instance (local or Atlas)
-- Groq API key
 
-> **MongoDB must run as a replica set.** The server uses MongoDB transactions (document chunk sync and bulk import), and transactions only work on a replica set. MongoDB Atlas always runs as a replica set, so it works out of the box. A local MongoDB must be started as a replica set; a single-node replica set is enough. A plain standalone instance (for example, a default Docker `mongo` container) will fail on import and on document edits.
+- Node.js 20.19 or newer. CI uses Node 24.
+- MongoDB running as a replica set, since chunk updates and bulk import use transactions. MongoDB Atlas is one by default; a local instance can be a single-node replica set.
+- A Groq API key, for the chat.
+- Network access on first use, to download the embedding model and, for the tests, a `mongod` binary.
 
-### Quick Start
-
-1. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-2. **Configure environment** — create `backend/.env`:
-   ```env
-   MONGODB_URI=mongodb+srv://...
-   JWT_SECRET=your-secret
-   GROQ_API_KEY=gsk_...
-   FRONTEND_URL=http://localhost:5173
-   PORT=8000
-   ```
-   Outside `NODE_ENV=development` or `test` the server refuses to start without a
-   real `JWT_SECRET`. `npm run dev:backend` sets `NODE_ENV=development` for you.
-
-   In production behind reverse proxies, also set `TRUST_PROXY_HOPS` to the number
-   of proxies in front of the server. On the current hosting this is `2` (a CDN in
-   front of the hosting provider's proxy). This makes the rate limiter see each
-   client's real IP; a value that is too high lets clients spoof their IP. Verify it
-   again if the hosting or CDN setup changes, as described in
-   [SECURITY.md](SECURITY.md). Leave it unset locally. In production the server logs
-   a warning at startup when it is unset, zero or invalid.
-
-3. **Start development servers**
-   ```bash
-   # Frontend (Vite dev server on :5173)
-   npm run dev
-
-   # Backend (Node with --watch on :8000)
-   npm run dev:backend
-   ```
-
-4. **Run tests**
-   ```bash
-   npm test
-   ```
-
-### Embeddings
-
-Every chunk gets an embedding when its document is saved. If embedding fails, the
-chunks are saved without one and the server fills them in: once a minute after the
-failure, and again on every start. No manual step is needed. A partial index keeps
-that check cheap: it holds only the chunks still waiting. The server builds its
-indexes on start; if one cannot be built, it logs the error and keeps running.
-
-After changing the embedding model or the chunk settings (`CHUNK_SIZE`,
-`CHUNK_OVERLAP` in `backend/rag/buildChunks.js`), rebuild everything against each
-database:
+### Install and start
 
 ```bash
-npm run reindex -- --dry-run   # print the new chunk counts, write nothing
-npm run reindex
-npm run embed:demo   # regenerate the demo sample vectors, then commit them
+npm install
 ```
 
-`npm run reindex` uses `MONGODB_URI` from the environment, which takes precedence
-over `backend/.env`. To rebuild production after the deploy, run it from the
-Render service shell, or locally with the production connection string set:
-`MONGODB_URI="<production connection string>" npm run reindex`.
+Start from `.env.example`: copy it to `backend/.env` and fill it in. The server reads `backend/.env`, or `.env` in the project root if that file does not exist.
 
----
+```bash
+npm run dev:backend   # API server on port 8000
+npm run dev           # Vite dev server on port 5173, which forwards /api to the server
+```
 
-### After a deploy
+### Environment variables
 
-A tab left open from the previous build still asks for that build's lazy-loaded files, which
-are gone. The server answers those with 404 instead of the main page, and the page reloads
-itself once to pick up the new build. If the file still fails within a minute, it stops
-reloading and shows a generic error page with a reload button.
+| Name | Purpose | In production |
+| --- | --- | --- |
+| `JWT_SECRET` | Signs sessions and keyed hashes | Required: the server does not start without it |
+| `MONGODB_URI` | Database connection | Required |
+| `GROQ_API_KEY` | Chat model access | Required for the chat |
+| `FRONTEND_URL` | Public URL of the frontend, used for the origin check and redirects | This or `APP_BASE_URL` is required |
+| `APP_BASE_URL` | Public URL of the app, used for the origin check and redirects | This or `FRONTEND_URL` is required |
+| `TRUST_PROXY_HOPS` | Number of reverse proxies in front of the server | Required behind a proxy |
+| `NODE_ENV` | Runtime mode: `development` and `test` relax production checks | Recommended: `production`; unset counts as production |
+| `ADMIN_EMAIL` | Email of the first admin, created on an empty database | Needed to create the first admin |
+| `ADMIN_PASSWORD` | Password of the first admin | Needed to create the first admin |
+| `ENV` | The value `prod` forces production mode | Optional |
+| `ACCESS_TOKEN_MINUTES` | Session length in minutes | Optional, default 60 |
+| `PORT` | Server port | Optional, default 8000 |
+| `LOG_LEVEL` | Log verbosity | Optional, default `info` |
+| `GOOGLE_CLIENT_ID` | Google OAuth client | Optional |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client | Optional |
+| `BACKEND_URL` | Base URL stored on attachment records; the app does not use it for links | Optional |
+| `VITE_API_BASE` | API base URL, read when the frontend is built | Optional: leave unset when one server hosts both |
 
-## 🔁 Continuous Integration
+### Scripts
 
-GitHub Actions runs two workflows. They use no secrets. The workflow token can only read the repository;
-the CodeQL job can also upload its scan results (`security-events: write`).
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Frontend dev server |
+| `npm run dev:backend` | API server with restart on change |
+| `npm test` | All tests, once |
+| `npm run test:coverage` | All tests with a coverage report |
+| `npm run lint` | ESLint |
+| `npm run build` | Type check and production build |
+| `npm start` | Production server, which also serves the built frontend |
+| `npm run eval` | Retrieval evaluation, offline |
+| `npm run eval:answers` | Compares prompt wordings through the chat model |
+| `npm run eval:prod` | Summarizes stored retrieval logs |
+| `npm run reindex` | Rebuilds chunks and embeddings; add `-- --dry-run` to write nothing |
+| `npm run embed:demo` | Regenerates the demo's precomputed vectors |
 
-- **CI** (`.github/workflows/ci.yml`), on pushes to `main` and on every pull request:
-  - `Lint, test, build`: `npm ci`, `npm run lint`, `npm test`, `npm run build` on Node 24.
-    The backend tests run MongoDB in memory. `npm ci` downloads the `mongod` binary from
-    `fastdl.mongodb.org` (mongodb-memory-server's default version), and the workflow caches it.
-  - `Dependency audit`: `npm audit --omit=dev --audit-level=high` fails the check on a high or
-    critical advisory in a production dependency. A full `npm audit`, including dev dependencies,
-    is reported but does not fail. `xlsx` is not covered by npm audit; see [SECURITY.md](SECURITY.md).
-- **CodeQL** (`.github/workflows/codeql.yml`), on pushes and pull requests to `main` and weekly:
-  - `Analyze`: CodeQL code scanning for JavaScript and TypeScript. Results appear under the Security tab.
+## Testing and CI
 
-Status checks to require in branch protection for `main`, after the workflows have run once:
+The backend tests run against an in-memory MongoDB, and the frontend tests run in jsdom. GitHub Actions runs:
 
-- `Lint, test, build`
-- `Dependency audit`
-- `Analyze`
+- **Lint, test, build** (`.github/workflows/ci.yml`): `npm run lint`, `npm test` and `npm run build` on Node 24, on pushes to `main` and on every pull request.
+- **Dependency audit** (`.github/workflows/ci.yml`): on the same events, fails on a high or critical advisory in a production dependency. A full audit including dev dependencies is reported only. `xlsx` is installed from `vendor/` and is not covered, as [SECURITY.md](SECURITY.md#dependencies) explains.
+- **CodeQL** (`.github/workflows/codeql.yml`): scans the JavaScript and TypeScript code on pushes and pull requests to `main`, and weekly.
 
----
+## Project structure
 
-## 🔑 API Routes
+```text
+├── src/            React frontend: pages, components, auth, API clients, hooks, styles
+├── backend/        Express server
+│   ├── rag/        Chunking, embeddings, search, retrieval logs and stats
+│   ├── routes/     Documents, users, health
+│   ├── middleware/ Security headers, CORS, rate limits, error handler
+│   ├── demo/       Sample documents and precomputed vectors
+│   └── scripts/    Reindex, demo vectors, production stats, email normalization
+├── shared/         Upload rules used by both server and frontend
+├── eval/           Evaluation scripts, question sets and recorded results
+├── docs/           Evaluation notes and the agent workflow
+├── vendor/         The xlsx package: the npm registry release has known advisories
+├── .claude/        Coding agent rules, reviewers and commands
+└── .github/        CI and CodeQL workflows
+```
 
-"Editor" means an admin, or a demo visitor inside their own demo workspace.
+This project is built with a coding agent under a plan-and-approve loop. The rules and guardrails are in [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md).
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/api/auth/login` | — | Login, returns JWT cookie |
-| `POST` | `/api/auth/register` | — | Refused with 403: registration is closed |
-| `POST` | `/api/auth/demo` | — | Start a private demo workspace |
-| `GET` | `/api/auth/google` | — | Start Google sign-in (503 if not configured) |
-| `GET` | `/api/auth/google/callback` | — | Google sign-in callback |
-| `POST` | `/api/auth/logout` | — | Clear session |
-| `GET` | `/api/auth/me` | ✓ | Current user |
-| `PATCH` | `/api/auth/profile` | ✓ | Update display name and job title |
-| `PATCH` | `/api/auth/password` | ✓ | Change password |
-| `GET` | `/api/documents` | ✓ | List readable documents |
-| `GET` | `/api/documents/:id` | ✓ | Get one document |
-| `GET` | `/api/documents/:id/download?format=md\|pdf\|docx` | ✓ | Download one document as a file |
-| `POST` | `/api/documents` | editor | Create document |
-| `PUT` | `/api/documents/:id` | editor | Update document |
-| `DELETE` | `/api/documents/:id` | editor | Delete document |
-| `POST` | `/api/documents/:id/toggle-favorite` | ✓ | Add or remove a favorite |
-| `GET` | `/api/documents/export` | editor | Export documents as JSON |
-| `POST` | `/api/documents/import-bulk` | editor | Import documents (append or replace) |
-| `POST` | `/api/documents/extract-text` | editor | Extract text from an uploaded file |
-| `POST` | `/api/documents/:id/attachments` | editor | Upload file attachment |
-| `GET` | `/api/documents/:id/attachments/:attId/file` | ✓ | Download attachment |
-| `DELETE` | `/api/documents/:id/attachments/:attId` | editor | Remove attachment |
-| `GET` | `/api/search` | ✓ | Semantic search over readable documents |
-| `POST` | `/api/ai/chat` | ✓ | AI chat with document context; daily limits apply |
-| `POST` | `/api/ai/feedback` | ✓ | Rate a chat answer |
-| `GET` | `/api/ai/quality` | admin, demo | Answer-quality summary |
-| `GET` | `/api/ai/prompt` | ✓ | Get current system prompt |
-| `PATCH` | `/api/ai/prompt` | admin | Update system prompt |
-| `GET` | `/api/ai/suggestions` | ✓ | Get example questions |
-| `PATCH` | `/api/ai/suggestions` | admin | Update example questions |
-| `GET` | `/api/users` | admin | List users (demo visitors get sample users) |
-| `PATCH` | `/api/users/:id` | admin | Update user |
-| `DELETE` | `/api/users/:id` | admin | Delete user |
-| `GET` | `/health` | — | Health check |
+## Known limitations and roadmap
 
----
+- Google sign-in is planned.
+- The demo has daily limits, so its chat can stop until the UTC day resets: 15 questions per workspace, 30 per address and a token budget shared by all demo visitors.
+- A demo workspace is deleted on sign-out or after 24 hours, or sooner when more than 40 are live and it is the least recently active.
+- There is no sign-up and no way in the app to create an account. The only account created outside the demo is the first admin.
+- Each question loads all chunks the user may read into memory and scores them there, so search cost grows with the library.
+- Per-minute and login rate limits are held in memory, so they reset when the server restarts. Daily usage counters are stored in the database.
+- PDF download supports Latin text only. Other languages can use Markdown or Word.
+- The evaluation set is small, as [docs/EVAL.md](docs/EVAL.md#limits-of-this-result) explains; a larger one is the next step for it.
+- The hosted demo can be slow on the first load if the server is asleep.
 
-## 🧑‍💻 Development Workflow
+## License
 
-This project uses [Claude Code](https://claude.ai/code) with project-level slash commands:
-
-| Command | Description |
-|---------|-------------|
-| `/feature <description>` | Plan then build — always shows a plan before editing |
-| `/debug [issue]` | Root cause analysis before any fix |
-| `/review` | Code review of current changes |
-| `/ship` | Full validation (build, lint, tests, security) before committing |
-| `/cleanup` | Remove debug leftovers in changed files only |
-
-A build + test hook runs automatically after each Claude session.
-
----
-
-## 🗺️ Roadmap
-
-- [x] React 19 + React Compiler
-- [x] TanStack Query v5 for server state
-- [x] Groq AI integration (openai/gpt-oss-20b)
-- [x] File attachments with PDF/DOCX/Excel text extraction
-- [x] Role-based access control (admin / viewer)
-- [x] Resizable sidebar with auto-collapse
-- [x] Mobile-first responsive layout
-- [x] Customizable AI system prompt + example questions
-- [x] Vitest unit tests
-- [x] React Compiler lint compliance (`react-hooks/set-state-in-effect`, `react-hooks/refs`)
-- [x] Vector embeddings & semantic search (RAG)
-- [x] Retrieval eval and answer-quality dashboard
-- [ ] Real-time collaboration
+MIT
