@@ -23,6 +23,8 @@ backend/schemas.js    Zod validation schemas
 backend/ai.js         Groq AI integration
 backend/auth.js       Auth logic
 backend/prompts.js    AI prompt templates
+backend/rag/          Search layer: chunking, embeddings, retrieval
+backend/demo.js       Demo workspace lifecycle
 backend/textExtract.js Document text extraction
 .claude/memory/       Project context
 .claude/skills/       Review skills
@@ -32,17 +34,20 @@ backend/textExtract.js Document text extraction
 
 ## Product
 
-Insight Desk is an AI-powered document analysis workspace.
+Insight Desk is a document workspace with a chat that answers from the user's documents and cites its sources.
 
 Purpose:
 
-Upload documents, extract text, analyze with AI, generate insights.
+Keep documents and their attachments in one place, and answer questions from the ones the user may read.
 
 Core domains:
 
-- Documents (upload, parse, manage)
-- AI Analysis (Groq-powered insights, summaries, Q&A)
-- Auth (JWT HttpOnly cookie sessions)
+- Documents (create, edit, import, export, download as Markdown, PDF or Word; attachments in GridFS, parsed in a separate process)
+- Search layer (backend/rag/: chunks each document and attachment, embeds chunks with a local model, scores them by cosine similarity in memory, scoped to documents the user may read)
+- Chat (backend/ai.js: search results below a minimum score are dropped; with none left, a fixed "not found" answer skips the model; otherwise Groq answers from the chunks and citations are checked against them)
+- Quality (retrieval logs and answer ratings, shown to admins and demo users)
+- Auth (JWT HttpOnly cookie sessions; roles admin, viewer, demo; registration is closed)
+- Demo (temporary private workspace with sample documents and daily limits)
 - Hub (main workspace view)
 
 ---
@@ -65,7 +70,8 @@ Node.js
 Express
 JWT (HttpOnly cookies)
 helmet, cors, express-rate-limit
-Groq SDK (AI)
+Groq SDK (chat model)
+@huggingface/transformers (local embeddings)
 MongoDB GridFS (file storage)
 Mongoose (MongoDB)
 Zod (validation)

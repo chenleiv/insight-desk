@@ -31,7 +31,7 @@ describe("startup without a real secret", () => {
     ["ENV=prod with NODE_ENV=development", { ENV: "prod", NODE_ENV: "development" }],
     ["a blank secret", { JWT_SECRET: "   " }],
     ["the development secret", { JWT_SECRET: "dev-secret-change-me" }],
-    ["the README's example secret", { NODE_ENV: "production", JWT_SECRET: "your-secret" }],
+    ["the placeholder secret", { NODE_ENV: "production", JWT_SECRET: "your-secret" }],
   ])("refuses with %s", async (_label, env) => {
     const { exitCode, stderr } = await loadAuth(env);
 

@@ -84,7 +84,7 @@ The evaluation tools, method and limits are described in [docs/EVAL.md](docs/EVA
 
 ### Prerequisites
 
-- Node.js 20.19 or newer. CI uses Node 24.
+- Node.js 20.19 or newer on the 20 line, or 22.12 or newer. CI uses Node 24.
 - MongoDB running as a replica set, since chunk updates and bulk import use transactions. MongoDB Atlas is one by default; a local instance can be a single-node replica set.
 - A Groq API key, for the chat.
 - Network access on first use, to download the embedding model and, for the tests, a `mongod` binary.
@@ -173,11 +173,11 @@ This project is built with a coding agent under a plan-and-approve loop. The rul
 
 - Google sign-in is planned.
 - The demo has daily limits, so its chat can stop until the UTC day resets: 15 questions per workspace, 30 per address and a token budget shared by all demo visitors.
-- A demo workspace is deleted on sign-out or after 24 hours, or sooner when more than 40 are live and it is the least recently active.
+- A demo workspace is deleted on sign-out. Otherwise it stops working 24 hours after it was created and is deleted by the next cleanup, which runs when the server starts and every hour after. It can be deleted sooner when more than 40 are live and it is the least recently active.
 - There is no sign-up and no way in the app to create an account. The only account created outside the demo is the first admin.
 - Each question loads all chunks the user may read into memory and scores them there, so search cost grows with the library.
 - Per-minute and login rate limits are held in memory, so they reset when the server restarts. Daily usage counters are stored in the database.
-- PDF download supports Latin text only. Other languages can use Markdown or Word.
+- PDF download supports the Windows-1252 character set only, which covers English and most Western European text. A document with any other character, such as Hebrew, Polish `ł` or an emoji, is refused and can use Markdown or Word instead.
 - The evaluation set is small, as [docs/EVAL.md](docs/EVAL.md#limits-of-this-result) explains; a larger one is the next step for it.
 - The hosted demo can be slow on the first load if the server is asleep.
 
