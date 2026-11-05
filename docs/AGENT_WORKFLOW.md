@@ -34,6 +34,8 @@ I enable it because the agent works on a project with real secrets and reads unt
 
 ## Real example: a test for `/health`
 
+> **Historical example.** This records the repository at commit `f5871cb`. The Express app has since moved from `backend/index.js` to `backend/app.js`, which now mounts the health router, so the paths, test counts and lint results below describe that commit, not the current code.
+
 **Ask:** "Add a test for the `/health` endpoint."
 
 **Plan (approved):** `backend/index.js` connects to MongoDB and calls `listen()` on import, so it can't be imported in a test. The smallest fix is to move the handler into `backend/routes/health.js` without changing its behavior, mount it with `app.use(healthRouter)`, and test the router on a throwaway Express app. Node's built-in `fetch` sends the request, so no new dependency is needed. The risk is route order: `/health` must stay registered before the `app.get('*')` SPA fallback, or it would return `index.html`.
