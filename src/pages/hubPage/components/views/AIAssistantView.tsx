@@ -481,15 +481,14 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
                 <SlidersHorizontal size={13} />
                 System Prompt
               </button>
-              {hasStartedChat && (
-                <button
-                  type="button"
-                  className="ai-clear-chat-btn"
-                  onClick={clearChat}
-                >
-                  Clear chat
-                </button>
-              )}
+              <button
+                type="button"
+                className="ai-clear-chat-btn"
+                onClick={clearChat}
+                disabled={!hasStartedChat}
+              >
+                Clear chat
+              </button>
             </div>
           </div>
         )}

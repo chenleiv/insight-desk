@@ -415,3 +415,22 @@
   color: var(--text-muted);
   text-align: center;
 }
+
+// .hub-documents wraps the list only when it is the phone's Documents tab, not the desktop sidebar.
+@include mixins.phone {
+  .hub-documents {
+    .doc-panel-header {
+      padding-inline: mixins.$page-gutter;
+    }
+
+    .doc-panel-search {
+      margin-inline: mixins.$page-gutter;
+    }
+
+    .doc-panel-row {
+      // The 3px left border is part of the gutter.
+      padding-left: mixins.$page-gutter - 3px;
+      padding-right: mixins.$page-gutter;
+    }
+  }
+}

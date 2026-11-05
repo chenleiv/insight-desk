@@ -29,6 +29,10 @@
     gap: 0;
     overflow-y: auto;
 
+    @include mixins.phone {
+        padding-inline: mixins.$page-gutter;
+    }
+
     &.notion-doc-body--edit {
         padding-top: 14px;
     }

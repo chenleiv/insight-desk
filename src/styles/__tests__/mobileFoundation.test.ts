@@ -134,3 +134,53 @@ describe("hub layout height", () => {
     expect(css).toMatch(/\.hub-layout \{[^}]*padding: env\(safe-area-inset-top\) env\(safe-area-inset-right\) env\(safe-area-inset-bottom\) env\(safe-area-inset-left\)/);
   });
 });
+
+describe("page gutter on phones", () => {
+  const PHONE = /@media \(max-width: 767px\) \{[^@]*/.source;
+  const css = (path: string) => compile(path).css;
+  const phoneRule = (selector: string, declaration: string) =>
+    new RegExp(`${PHONE}${selector} \\{[^}]*${declaration}`);
+
+  it("comes from the view wrapper for dashboard, settings and quality", () => {
+    expect(css("src/pages/hubPage/hubPage.scss")).toMatch(/\.hub-view-scroll \{\s*padding: 0 16px/);
+    expect(css(`${VIEWS}/dashboard.scss`)).toMatch(/\.dashboard-view \{\s*padding: 20px 0/);
+    expect(css(`${VIEWS}/settings.scss`)).toMatch(phoneRule("\\.settings-view", "padding: 16px 0"));
+    expect(css(`${VIEWS}/quality.scss`)).toMatch(phoneRule("\\.quality-view", "padding: 20px 0"));
+  });
+
+  it("applies to the chat messages and input", () => {
+    const chat = css(`${VIEWS}/aiAssistant.scss`);
+    expect(chat).toMatch(phoneRule("\\.ai-messages", "padding: 16px 16px"));
+    expect(chat).toMatch(phoneRule("\\.ai-input-section", "padding: 0 16px 12px"));
+  });
+
+  it("applies to the documents list on its phone tab", () => {
+    const panel = css(`${DOCS}/docPanel.scss`);
+    expect(panel).toMatch(phoneRule("\\.hub-documents \\.doc-panel-header", "padding-inline: 16px"));
+    expect(panel).toMatch(phoneRule("\\.hub-documents \\.doc-panel-search", "margin-inline: 16px"));
+    expect(panel).toMatch(phoneRule("\\.hub-documents \\.doc-panel-row", "padding-left: 13px;\\s*padding-right: 16px"));
+  });
+
+  it("applies to an open document", () => {
+    const pane = css(`${DOCS}/docPane.scss`);
+    expect(pane).toMatch(phoneRule("\\.doc-pane \\.doc-pane-top-wrapper", "padding-inline: 16px"));
+    expect(pane).toMatch(phoneRule("\\.doc-pane-save-bar", "padding-inline: 16px"));
+    expect(pane).toMatch(phoneRule("\\.doc-pane-save-bar\\.doc-pane-save-bar--visible", "padding-inline: 16px"));
+    expect(pane).toMatch(phoneRule("\\.doc-pane-create-status--visible", "margin-inline: 16px"));
+    expect(css(`${DOCS}/notionEditor.scss`)).toMatch(phoneRule("\\.notion-doc-body", "padding-inline: 16px"));
+  });
+
+  it("leaves the wider layouts alone", () => {
+    expect(css(`${VIEWS}/quality.scss`)).toMatch(/\.quality-view \{[^}]*padding: 32px/);
+    expect(css(`${VIEWS}/quality.scss`)).toMatch(/@container \(max-width: 767px\) \{\s*\.quality-view \{\s*padding: 20px 16px/);
+    const chat = css(`${VIEWS}/aiAssistant.scss`);
+    expect(chat).toMatch(/\.ai-messages \{[^}]*padding: 24px 68px/);
+    expect(chat).toMatch(/@container \(max-width: 767px\) \{[^@]*\.ai-messages \{\s*padding: 16px 32px/);
+    const panel = css(`${DOCS}/docPanel.scss`);
+    expect(panel).toMatch(/\n\.doc-panel-header \{[^}]*padding: 14px 10px 8px 18px/);
+    expect(panel).toMatch(/\n\.doc-panel-row \{[^}]*padding: 10px 8px 10px 14px/);
+    const pane = css(`${DOCS}/docPane.scss`);
+    expect(pane).toMatch(/\.doc-pane-save-bar \{[^}]*padding: 0 24px/);
+    expect(css(`${DOCS}/notionEditor.scss`)).toMatch(/\.notion-doc-body \{[^}]*padding: 18px 18px 48px/);
+  });
+});

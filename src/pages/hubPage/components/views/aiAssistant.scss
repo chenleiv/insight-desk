@@ -179,6 +179,7 @@
 
 .ai-message-sources {
   max-width: 100%;
+  margin-top: 6px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -371,9 +372,14 @@
   margin-left: auto;
   @include mixins.touch-target;
 
-  &:hover {
+  &:hover:not(:disabled) {
     color: var(--danger-text);
     text-decoration: underline;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 
@@ -583,7 +589,7 @@
   }
 
   .ai-assistant-content:not(.has-messages) {
-    padding: 0 16px;
+    padding: 0 mixins.$page-gutter;
   }
 }
 
@@ -646,7 +652,7 @@
   }
 
   .ai-messages {
-    padding: 16px 12px;
+    padding: 16px mixins.$page-gutter;
     gap: 16px;
   }
 
@@ -658,12 +664,16 @@
     max-width: 100%;
   }
 
+  .ai-message.user {
+    max-width: 92%;
+  }
+
   .ai-bubble {
-    padding: 12px 14px;
+    padding: 12px;
   }
 
   .ai-input-section {
-    padding: 0 12px 12px;
+    padding: 0 mixins.$page-gutter 12px;
   }
 
   .ai-composer-container {
@@ -721,6 +731,8 @@
   // under each answer takes most of the room above the keyboard. So only a smaller shape is painted.
   @media (pointer: coarse) {
     .ai-message-sources {
+      // The painted shape already sits 8px inside its target.
+      margin-top: 0;
       row-gap: 0;
 
       button,

@@ -10,6 +10,11 @@
     @include mixins.mobile {
         padding: 20px 16px;
     }
+
+    // .hub-view-scroll already keeps the page gutter there.
+    @include mixins.phone {
+        padding: 20px 0;
+    }
 }
 
 .quality-panel {

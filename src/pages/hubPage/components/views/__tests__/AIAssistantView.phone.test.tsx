@@ -594,6 +594,27 @@ describe("chat actions on a phone", () => {
     expect(container.querySelector(".ai-prompt-config-btn")).not.toBeNull();
     expect(container.querySelector(".ai-clear-chat-btn")).not.toBeNull();
   });
+
+  it("keep both tools in the row on wider screens, with Clear chat disabled until the chat starts", () => {
+    screen.phoneWidth = false;
+    renderChat([]);
+    const clear = container.querySelector<HTMLButtonElement>(".ai-clear-chat-btn")!;
+    expect(clear.closest(".ai-composer-footer-row")).not.toBeNull();
+    expect(clear.disabled).toBe(true);
+    const prompt = container.querySelector<HTMLButtonElement>(".ai-prompt-config-btn")!;
+    expect(prompt.closest(".ai-composer-footer-row")).toBe(clear.closest(".ai-composer-footer-row"));
+    act(() => prompt.click());
+    expect(document.querySelector(".prompt-modal")).not.toBeNull();
+  });
+
+  it("enable Clear chat on wider screens once the chat started, and disable it again after clearing", () => {
+    screen.phoneWidth = false;
+    renderChat();
+    const clear = () => container.querySelector<HTMLButtonElement>(".ai-clear-chat-btn")!;
+    expect(clear().disabled).toBe(false);
+    act(() => clear().click());
+    expect(clear().disabled).toBe(true);
+  });
 });
 
 describe("suggested questions", () => {
@@ -652,8 +673,23 @@ describe("phone styles", () => {
     expect(css.slice(phoneStart)).toMatch(/\.ai-chat-actions-btn \{\s*width: 44px;\s*height: 44px/);
   });
 
+  it("give the bubbles more of the width, only at phone widths", () => {
+    expect(before).toMatch(/\.ai-message \{[^}]*max-width: 85%/);
+    expect(before).toMatch(/\.ai-bubble \{[^}]*padding: 14px 18px/);
+    expect(before).not.toMatch(/\.ai-message\.user \{[^}]*max-width/);
+    const phone = css.slice(phoneStart);
+    expect(phone).toMatch(/\.ai-message\.user \{\s*max-width: 92%/);
+    expect(phone).toMatch(/\.ai-message\.assistant \{\s*max-width: 100%/);
+    expect(phone).toMatch(/\.ai-bubble \{\s*padding: 12px;/);
+  });
+
   it("paint a smaller shape only on touch phones", () => {
     expect(before).not.toContain(".ai-message-sources button::before");
     expect(css).toMatch(/@media \(max-width: 767px\) and \(pointer: coarse\) \{[^@]*\.ai-message-sources button::before/);
+  });
+
+  it("space the sources from the answer, except where the touch target already does", () => {
+    expect(before).toMatch(/\.ai-message-sources \{[^}]*margin-top: 6px/);
+    expect(css).toMatch(/@media \(max-width: 767px\) and \(pointer: coarse\) \{[^@]*\.ai-message-sources \{[^}]*margin-top: 0/);
   });
 });
