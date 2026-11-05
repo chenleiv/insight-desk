@@ -372,9 +372,14 @@
   margin-left: auto;
   @include mixins.touch-target;
 
-  &:hover {
+  &:hover:not(:disabled) {
     color: var(--danger-text);
     text-decoration: underline;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 

@@ -594,6 +594,27 @@ describe("chat actions on a phone", () => {
     expect(container.querySelector(".ai-prompt-config-btn")).not.toBeNull();
     expect(container.querySelector(".ai-clear-chat-btn")).not.toBeNull();
   });
+
+  it("keep both tools in the row on wider screens, with Clear chat disabled until the chat starts", () => {
+    screen.phoneWidth = false;
+    renderChat([]);
+    const clear = container.querySelector<HTMLButtonElement>(".ai-clear-chat-btn")!;
+    expect(clear.closest(".ai-composer-footer-row")).not.toBeNull();
+    expect(clear.disabled).toBe(true);
+    const prompt = container.querySelector<HTMLButtonElement>(".ai-prompt-config-btn")!;
+    expect(prompt.closest(".ai-composer-footer-row")).toBe(clear.closest(".ai-composer-footer-row"));
+    act(() => prompt.click());
+    expect(document.querySelector(".prompt-modal")).not.toBeNull();
+  });
+
+  it("enable Clear chat on wider screens once the chat started, and disable it again after clearing", () => {
+    screen.phoneWidth = false;
+    renderChat();
+    const clear = () => container.querySelector<HTMLButtonElement>(".ai-clear-chat-btn")!;
+    expect(clear().disabled).toBe(false);
+    act(() => clear().click());
+    expect(clear().disabled).toBe(true);
+  });
 });
 
 describe("suggested questions", () => {
