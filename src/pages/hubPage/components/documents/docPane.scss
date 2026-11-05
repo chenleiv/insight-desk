@@ -198,6 +198,10 @@
 
 // On a narrow phone the status gives way first, so Cancel and Save stay on screen.
 @include mixins.phone {
+    .doc-pane .doc-pane-top-wrapper {
+        padding-inline: mixins.$page-gutter;
+    }
+
     .doc-pane .doc-pane-actions {
         flex-shrink: 1;
         min-width: 0;
@@ -298,10 +302,18 @@
     opacity: 0;
     transition: max-height 0.2s ease, opacity 0.15s, padding 0.2s ease;
 
+    @include mixins.phone {
+        padding-inline: mixins.$page-gutter;
+    }
+
     &.doc-pane-save-bar--visible {
         max-height: 60px;
         opacity: 1;
         padding: 10px 24px;
+
+        @include mixins.phone {
+            padding-inline: mixins.$page-gutter;
+        }
 
         // Room for the 44px buttons and the border, or the bar would cut them off.
         @media (pointer: coarse) {
@@ -324,6 +336,10 @@
     border: 1px solid var(--info-border);
     border-radius: 8px;
     flex-shrink: 0;
+
+    @include mixins.phone {
+        margin-inline: mixins.$page-gutter;
+    }
 }
 
 // Keep the busy button readable instead of the faded disabled look.

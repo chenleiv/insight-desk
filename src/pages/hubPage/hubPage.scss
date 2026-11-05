@@ -339,7 +339,7 @@
     container-type: inline-size;
 
     @include mixins.mobile {
-        padding: 0 16px;
+        padding: 0 mixins.$page-gutter;
 
 
     }

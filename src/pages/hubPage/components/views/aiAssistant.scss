@@ -589,7 +589,7 @@
   }
 
   .ai-assistant-content:not(.has-messages) {
-    padding: 0 16px;
+    padding: 0 mixins.$page-gutter;
   }
 }
 
@@ -652,7 +652,7 @@
   }
 
   .ai-messages {
-    padding: 16px 12px;
+    padding: 16px mixins.$page-gutter;
     gap: 16px;
   }
 
@@ -669,7 +669,7 @@
   }
 
   .ai-input-section {
-    padding: 0 12px 12px;
+    padding: 0 mixins.$page-gutter 12px;
   }
 
   .ai-composer-container {

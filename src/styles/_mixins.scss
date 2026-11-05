@@ -1,5 +1,7 @@
 $mobile-breakpoint: 767px;
 $touch-target-size: 44px;
+// Side padding of every page on phones.
+$page-gutter: 16px;
 
 // Only touch input needs the larger size, so desktop controls keep their compact look.
 @mixin touch-target {
