@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import rateLimit from 'express-rate-limit';
+import { IPV6_PREFIX } from './clientAddress.js';
 import { User } from './models.js';
 import { canEditDocuments, isDemoUser } from './access.js';
 import { createDemoWorkspace, removeDemoWorkspace } from './demo.js';
@@ -22,6 +23,7 @@ const passwordAttemptLimiter = rateLimit({
     skipSuccessfulRequests: true,
     standardHeaders: true,
     legacyHeaders: false,
+    ipv6Subnet: IPV6_PREFIX,
     message: { detail: 'Too many failed attempts, please try again in 15 minutes.' },
 });
 
@@ -44,6 +46,7 @@ const demoCreationLimiter = rateLimit({
     limit: 10,
     standardHeaders: true,
     legacyHeaders: false,
+    ipv6Subnet: IPV6_PREFIX,
     message: { detail: 'Too many demo sessions from this network, please try again later.' },
 });
 

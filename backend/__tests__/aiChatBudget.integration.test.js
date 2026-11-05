@@ -17,10 +17,14 @@ vi.mock("groq-sdk", () => ({
 // A fixed query vector, so the test does not load the real model.
 vi.mock("../rag/embed.js", () => ({ embed: vi.fn(async () => [1, 0, 0]) }));
 // This file sends more questions than the per-minute limit allows, on purpose.
-vi.mock("express-rate-limit", () => ({ default: () => (_req, _res, next) => next() }));
+vi.mock("express-rate-limit", async (importOriginal) => {
+  const { ipKeyGenerator } = await importOriginal();
+  return { default: () => (_req, _res, next) => next(), ipKeyGenerator };
+});
 
 import { User, Document, Chunk, UsageCounter } from "../models.js";
 import aiRouter, { AI_BUSY_DETAIL, EMPTY_ANSWER_DETAIL } from "../ai.js";
+import { keyedHash } from "../auth.js";
 import {
   DAILY_BUDGET_DETAIL, DAILY_QUESTION_LIMITS, DAILY_TOKEN_CEILINGS, DEMO_ADDRESS_LIMIT_DETAIL, DEMO_ADDRESS_QUESTION_LIMIT,
   DEMO_QUESTION_LIMIT_DETAIL, TOKENS_RESERVED_PER_QUESTION, VIEWER_QUESTION_LIMIT_DETAIL,
@@ -299,6 +303,47 @@ describe("daily question limits", () => {
     expect((await res.json()).detail).toBe(DEMO_ADDRESS_LIMIT_DETAIL);
     expect(await countOf(userQuestionsKey(third))).toBe(0);
     expect((await chatAs(third, "vacation", "203.0.113.253")).status).toBe(200);
+  });
+
+  const fillAddressLimit = (address) =>
+    UsageCounter.create({ _id: addressQuestionsKey(address), count: DEMO_ADDRESS_QUESTION_LIMIT, expiresAt: new Date(Date.now() + 60_000) });
+
+  it("counts IPv6 addresses in one /64 and one /56 under one address counter", async () => {
+    expect((await chatAs(emptyDemo, "vacation", "2001:db8:2:2:aaaa::1")).status).toBe(200);
+    expect((await chatAs(emptyDemo, "vacation", "2001:db8:2:2:bbbb::2")).status).toBe(200);
+    expect((await chatAs(emptyDemo, "vacation", "2001:db8:2:ff::3")).status).toBe(200);
+
+    expect(await countOf(addressQuestionsKey("2001:db8:2::"))).toBe(3);
+  });
+
+  it("stops a whole /56 at the address limit, not another /56", async () => {
+    await fillAddressLimit("2001:db8:1:2::1");
+
+    const res = await chatAs(emptyDemo, "vacation", "2001:db8:1:ff:aaaa::9");
+
+    expect(res.status).toBe(429);
+    expect((await res.json()).detail).toBe(DEMO_ADDRESS_LIMIT_DETAIL);
+    expect((await chatAs(emptyDemo, "vacation", "2001:db8:1:100::1")).status).toBe(200);
+  });
+
+  it("counts an IPv4-mapped address as its IPv4 address", async () => {
+    await fillAddressLimit("203.0.113.50");
+
+    const res = await chatAs(emptyDemo, "vacation", "::ffff:203.0.113.50");
+
+    expect(res.status).toBe(429);
+    expect((await res.json()).detail).toBe(DEMO_ADDRESS_LIMIT_DETAIL);
+  });
+
+  it("keeps the counter of an IPv4 address as it was, so it does not start over", () => {
+    expect(addressQuestionsKey("203.0.113.50")).toContain(keyedHash("203.0.113.50"));
+  });
+
+  it("still answers from an invalid address, which counts on its own", async () => {
+    expect((await chatAs(emptyDemo, "vacation", "not-an-ip")).status).toBe(200);
+
+    expect(await countOf(addressQuestionsKey("not-an-ip"))).toBe(1);
+    expect(addressQuestionsKey(undefined)).toContain(keyedHash("undefined"));
   });
 
   it("gives a viewer a higher limit per account, with no address limit", async () => {

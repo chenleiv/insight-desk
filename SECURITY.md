@@ -165,9 +165,23 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
   stays in the browser), so the limit leaves room for many visitors behind one shared IP while stopping a client
   that requests pages in a loop. It uses the same client IP as the `/api/` limits (`TRUST_PROXY_HOPS`).
 - Static files under `dist/` are not rate-limited: they are fixed files with no user input.
+- **What counts as one address.** One IPv6 customer controls a whole network and can change the rest of the address at
+  will, so every per-address limit counts the network, not the full address. `backend/clientAddress.js` holds the one
+  prefix, /56, used by all the limiters above and by the chat's questions per address. Many ISPs give one customer a
+  /56, which holds 256 /64 networks, so a /64 prefix would give that customer 256 times the limit. An IPv4 address counts
+  as itself, an IPv4-mapped address (`::ffff:1.2.3.4`) counts as its IPv4 address, and an invalid value counts on its own.
+  The limit on failed logins per account uses a hash of the email and no address.
+  - Visitors in one /56 share each limit. That is usually one household or site, but some networks give separate
+    customers their own /64 from one /56, so up to 256 of them can share. The tightest limits are the 30 demo questions
+    a day and the 10 failed passwords per 15 minutes. This is accepted: near-term visitors use the demo, the demo
+    refusals say the limit is for the network, every limit resets, and successful logins do not count.
+  - Accepted gap: a client controlling a /48 has 256 /56 networks, so 256 times each per-address limit. A shorter
+    prefix would make more unrelated visitors share a limit. The per-sandbox, per-account and daily token limits do not
+    depend on the address, so the token limit still bounds what such a client can spend on the chat.
 - Tests: the upload limit in `backend/routes/__tests__/uploadLimits.test.js`, the login limits in
   `backend/__tests__/authRateLimit.test.js` and `backend/__tests__/loginAccounts.test.js`, the SPA fallback limit in
-  `backend/middleware/__tests__/setup.test.js`.
+  `backend/middleware/__tests__/setup.test.js`, what counts as one address in `backend/__tests__/clientAddress.test.js`
+  and `backend/__tests__/addressLimits.test.js`.
 
 ## Chat usage budget
 
@@ -210,7 +224,8 @@ per-minute limits alone still let one address send about 9,600 questions a day. 
     the real address, not the fake one. Verify it the same way again if the hosting or CDN setup changes.
 - **Accepted gaps.**
   - Many addresses together can still use up the demo's 130K, which stops the demo chat until the reset. Viewers and
-    the admin keep working. Visitors behind one shared address share the 30 questions.
+    the admin keep working. Visitors behind one shared address, or in one IPv6 /56, share the 30 questions. A client
+    controlling a /48 gets 256 times the 30 (see Rate limiting).
   - A fixed UTC day may not match the provider's window, which its documentation does not describe. Usage on both
     sides of midnight can then reach the provider's limit before ours, and the chat answers with the existing "busy"
     message and `Retry-After`. This can also stop the admin.
