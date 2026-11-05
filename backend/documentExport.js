@@ -97,7 +97,7 @@ export async function buildPdf(doc) {
     const undrawable = findUndrawableChars(`${title}\n${category}\n${content}`);
     if (undrawable.length) {
         throw new ExportError(
-            'PDF export supports Latin characters only, and this document contains others '
+            'PDF export supports the Windows-1252 character set only, and this document contains other characters '
             + `(such as ${undrawable.map((c) => JSON.stringify(c)).join(', ')}). `
             + 'Download it as Markdown or Word instead.',
         );

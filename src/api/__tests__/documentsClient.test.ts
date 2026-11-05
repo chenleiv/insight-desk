@@ -36,7 +36,7 @@ describe("downloadDocument", () => {
 
   it("throws the server's message, such as the PDF character limit", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(
-      JSON.stringify({ detail: "PDF export supports Latin characters only" }),
+      JSON.stringify({ detail: "PDF export supports the Windows-1252 character set only" }),
       { status: 422 },
     )));
 
@@ -44,6 +44,6 @@ describe("downloadDocument", () => {
 
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).status).toBe(422);
-    expect((err as ApiError).message).toBe("PDF export supports Latin characters only");
+    expect((err as ApiError).message).toBe("PDF export supports the Windows-1252 character set only");
   });
 });

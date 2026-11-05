@@ -85,7 +85,7 @@ describe("buildPdf", () => {
     const err = await buildPdf({ title: "Handbook", category: "HR", content: "Hello שלום" }).catch((e) => e);
     expect(err).toBeInstanceOf(ExportError);
     expect(err.status).toBe(422);
-    expect(err.message).toMatch(/Latin characters only/);
+    expect(err.message).toMatch(/Windows-1252 character set only/);
     expect(err.message).toMatch(/Markdown or Word/);
     expect(err.message).toContain('"ש"');
   });
