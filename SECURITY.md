@@ -139,12 +139,12 @@ Tests: `backend/middleware/__tests__/setup.test.js`, `backend/__tests__/aiChat.t
 - **Signing out cannot disturb the next session.** The client aborts running queries before it calls logout. Login and
   demo start wait for a pending logout, whose response would otherwise clear the new cookie. A 401 to a request sent
   before the current sign-in is ignored. Test: `src/auth/__tests__/signOutRaces.test.tsx`.
-- **The server refuses to start without a real `JWT_SECRET`.** The built-in development secret and the README's
-  example are refused, as is a blank value, unless `NODE_ENV` is `development` or `test` and `ENV` is not `prod`.
+- **The server refuses to start without a real `JWT_SECRET`.** The built-in development secret and the common
+  placeholder `your-secret` are refused, as is a blank value, unless `NODE_ENV` is `development` or `test` and `ENV` is not `prod`.
   Any other environment, including an unset `NODE_ENV`, counts as production (`backend/runtimeEnv.js`), and also
   gets the production limit of 100 `/api` requests per 15 minutes (1000 in development and test).
   Test: `backend/__tests__/startupSecret.test.js` starts a real process with a clean environment.
-- The JWT is signed, not encrypted: its payload (email and role) is readable by whoever holds the cookie.
+- The JWT is signed, not encrypted: its payload (email, role and token version) is readable by whoever holds the cookie.
   It holds no password or secret. Accepted; CodeQL's "Clear text storage of sensitive information" alert
   on `setAuthCookie` is dismissed with a reference to this section.
 - Both cookies are Secure by default, so a partial production configuration cannot send them without it.

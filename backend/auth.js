@@ -51,7 +51,7 @@ const demoCreationLimiter = rateLimit({
 });
 
 const DEV_JWT_SECRET = 'dev-secret-change-me';
-// Values that must never sign real sessions: the development default and the README's example.
+// Values that must never sign real sessions: the development default and a common placeholder.
 const PLACEHOLDER_SECRETS = new Set([DEV_JWT_SECRET, 'your-secret']);
 const hasSecret = Boolean(process.env.JWT_SECRET?.trim());
 if (!hasSecret || PLACEHOLDER_SECRETS.has(process.env.JWT_SECRET.trim())) {
