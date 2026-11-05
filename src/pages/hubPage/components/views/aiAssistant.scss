@@ -179,6 +179,7 @@
 
 .ai-message-sources {
   max-width: 100%;
+  margin-top: 6px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -721,6 +722,8 @@
   // under each answer takes most of the room above the keyboard. So only a smaller shape is painted.
   @media (pointer: coarse) {
     .ai-message-sources {
+      // The painted shape already sits 8px inside its target.
+      margin-top: 0;
       row-gap: 0;
 
       button,

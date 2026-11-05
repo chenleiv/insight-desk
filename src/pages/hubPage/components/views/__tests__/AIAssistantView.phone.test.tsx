@@ -656,4 +656,9 @@ describe("phone styles", () => {
     expect(before).not.toContain(".ai-message-sources button::before");
     expect(css).toMatch(/@media \(max-width: 767px\) and \(pointer: coarse\) \{[^@]*\.ai-message-sources button::before/);
   });
+
+  it("space the sources from the answer, except where the touch target already does", () => {
+    expect(before).toMatch(/\.ai-message-sources \{[^}]*margin-top: 6px/);
+    expect(css).toMatch(/@media \(max-width: 767px\) and \(pointer: coarse\) \{[^@]*\.ai-message-sources \{[^}]*margin-top: 0/);
+  });
 });
