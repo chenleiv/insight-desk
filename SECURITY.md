@@ -199,9 +199,15 @@ per-minute limits alone still let one address send about 9,600 questions a day. 
   the generic chat error. The address is stored only as a keyed hash.
 - **The chat shows a plain message.** A refusal has the fields `detail`, `code: "daily_limit"` and `retryAfter`. The chat
   shows the message with the local time the limit resets, and no Retry button.
-- **The address limit relies on `TRUST_PROXY_HOPS`.** If it is wrong, the server sees the proxy's address for everyone,
-  and all demo visitors share the 30 questions. The server logs a warning at startup when the value is unset, zero or
-  invalid. It cannot detect a wrong non-zero value.
+- **The address limit relies on `TRUST_PROXY_HOPS`.** On the current hosting, a CDN in front of the hosting provider's
+  proxy, the correct value is 2.
+  - Too low: the server sees a proxy's address, and all demo visitors share the 30 questions.
+  - Too high: the server counts past the address the CDN added and reads an entry the client wrote in
+    `X-Forwarded-For`, so a client can spoof its address and dodge every per-address limit.
+  - The server logs a warning at startup when the value is unset, zero or invalid. It cannot detect a wrong non-zero
+    value.
+  - Verified in production with a request carrying a fake `X-Forwarded-For` from a known address: the server computed
+    the real address, not the fake one. Verify it the same way again if the hosting or CDN setup changes.
 - **Accepted gaps.**
   - Many addresses together can still use up the demo's 130K, which stops the demo chat until the reset. Viewers and
     the admin keep working. Visitors behind one shared address share the 30 questions.

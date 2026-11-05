@@ -1,4 +1,3 @@
-import { isIP } from 'node:net';
 import { logger } from '../logger.js';
 import express from 'express';
 import compression from 'compression';
@@ -7,8 +6,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { isDevOrTest } from '../runtimeEnv.js';
 
-// Number of reverse proxies in front of the server. On Render it is 3:
-// Cloudflare, Render's load balancer, and Render's local proxy.
+// Number of reverse proxies in front of the server. On the current hosting it is 2:
+// a CDN in front of the hosting provider's proxy (see SECURITY.md).
 // Express then takes the client IP from X-Forwarded-For, skipping only that
 // many trusted hops, so a client cannot spoof its IP to dodge the rate limit.
 // Unset, zero, or invalid means no proxy is trusted.
@@ -20,51 +19,6 @@ export function parseTrustProxyHops(value) {
         return 0;
     }
     return hops;
-}
-
-// TEMPORARY: the diagnostic below is removed once TRUST_PROXY_HOPS is verified in production.
-const MAX_LOGGED_FORWARDED_ENTRIES = 10;
-
-// Keeps the network part only: two IPv4 octets or at most three IPv6 groups. Groups
-// after "::" are never kept, as they can be the end of the address. Clients choose what
-// they send in X-Forwarded-For, so anything that is not an address is not logged at all.
-export function maskAddress(value) {
-    const address = value.trim().replace(/^::ffff:(?=\d+\.)/i, '');
-    const version = isIP(address);
-    if (version === 4) return `${address.split('.').slice(0, 2).join('.')}.x.x`;
-    if (version === 6) {
-        const head = address.split('::')[0].split(':').slice(0, 3).join(':');
-        return head ? `${head}:x` : '::x';
-    }
-    return 'invalid';
-}
-
-// With TRUST_PROXY_DIAGNOSTIC=true, logs how a GET /health?ipcheck request reached the
-// server, so TRUST_PROXY_HOPS can be compared with the real proxy chain. Logged as a
-// warning so a quieter LOG_LEVEL does not hide it. The no-store does not depend on the
-// switch: the response is the same with it on or off, and every check reaches the server.
-function trustProxyDiagnostic(trustProxyHops) {
-    const enabled = process.env.TRUST_PROXY_DIAGNOSTIC === 'true';
-    if (enabled) {
-        logger.warn('TRUST_PROXY_DIAGNOSTIC is on: remove it once the check is done.');
-    }
-    return (req, res, next) => {
-        if (req.method === 'GET' && req.path === '/health' && Object.hasOwn(req.query, 'ipcheck')) {
-            res.set('Cache-Control', 'no-store');
-            if (enabled) {
-                const entries = (req.get('X-Forwarded-For') ?? '')
-                    .split(',').map((entry) => entry.trim()).filter(Boolean);
-                logger.warn('client-ip-check', {
-                    trustProxyHops,
-                    entryCount: entries.length,
-                    clientIp: maskAddress(req.ip ?? ''),
-                    // The rightmost entries, as the proxies append theirs and a client can only add to the left.
-                    forwardedFor: entries.slice(-MAX_LOGGED_FORWARDED_ENTRIES).map(maskAddress),
-                });
-            }
-        }
-        next();
-    };
 }
 
 // scheme://host:port as a browser sends it in Origin: lowercase host, no default
@@ -125,7 +79,6 @@ export function applyMiddleware(app) {
         logger.warn('TRUST_PROXY_HOPS is unset, zero or invalid: behind a proxy, all visitors '
             + 'share one address in every per-address limit.');
     }
-    app.use(trustProxyDiagnostic(trustProxyHops));
 
     app.use(compression());
 
