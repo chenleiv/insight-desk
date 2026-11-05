@@ -1,6 +1,6 @@
 # Insight Desk
 
-AI-powered document analysis and insights workspace. Claude acts as an engineering team, not a code generator.
+A document workspace with RAG question answering over a document library, with cited sources. Claude acts as an engineering team, not a code generator.
 
 ---
 
