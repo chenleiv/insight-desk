@@ -3,6 +3,7 @@
 // all write. A counter is removed by its TTL, some time after its UTC day has ended.
 import { UsageCounter } from './models.js';
 import { keyedHash } from './auth.js';
+import { addressKey } from './clientAddress.js';
 import { logger } from './logger.js';
 
 // Below the provider's 200K tokens per day, so visitors cannot reach the last 50K: those are the admin's.
@@ -61,7 +62,7 @@ export function utcDay(now = new Date()) {
 export const tokensKey = (now = new Date()) => `tokens:${utcDay(now)}`;
 export const userQuestionsKey = (user, now = new Date()) => `questions:user:${user._id}:${utcDay(now)}`;
 // Keyed, so the database never holds a visitor's address.
-export const addressQuestionsKey = (address, now = new Date()) => `questions:address:${keyedHash(String(address))}:${utcDay(now)}`;
+export const addressQuestionsKey = (address, now = new Date()) => `questions:address:${keyedHash(String(addressKey(address)))}:${utcDay(now)}`;
 
 /** Whole seconds until the daily counters start over. */
 export function secondsUntilReset(now = new Date()) {
