@@ -6,8 +6,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { isDevOrTest } from '../runtimeEnv.js';
 
-// Number of reverse proxies in front of the server. On Render it is 3:
-// Cloudflare, Render's load balancer, and Render's local proxy.
+// Number of reverse proxies in front of the server. On the current hosting it is 2:
+// a CDN in front of the hosting provider's proxy (see SECURITY.md).
 // Express then takes the client IP from X-Forwarded-For, skipping only that
 // many trusted hops, so a client cannot spoof its IP to dodge the rate limit.
 // Unset, zero, or invalid means no proxy is trusted.
