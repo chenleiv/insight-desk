@@ -29,6 +29,42 @@ The default is now **600 characters with 120 overlap** (`CHUNK_SIZE` and `CHUNK_
 
 After this change, the "(current)" row of `npm run eval` is 600 / 120, so the 800 / 150 row above is kept here as the record of the previous default.
 
+## Current demo library (November 2026)
+
+The results above were measured on the previous demo library (14 documents, 20 questions). On 2026-11-06 the demo documents were replaced by 15 security documents for the fictional company Insight Security, and `eval/questions.json` was rewritten: 24 questions (10 fact, 7 paraphrase, 3 long-document in the employee handbook, and the 4 demo suggestions). Two near-miss questions in `eval/unrelated-questions.json` (u10, u14) were replaced, since the new library covers SQL and DNS.
+
+| chunk size | overlap | chunks | hit@1 | hit@3 | missed at 1 |
+|---|---|---|---|---|---|
+| 300 | 60 | 369 | 24/24 (100%) | 24/24 (100%) | none |
+| **600 (current)** | **120** | **176** | **24/24 (100%)** | **24/24 (100%)** | none |
+| 1000 | 200 | 106 | 23/24 (96%) | 24/24 (100%) | q10 |
+
+- The current setting still ranks the right document first for every question, so the chunk size was not changed. 300 does as well, so this does not show that 600 is better.
+- One draft question, "What can an analyst do remotely to stop an attack on a laptop?", ranked the employee handbook first (it also covers lost and compromised laptops). It was replaced by a wording that names EDR, which is a reminder that these questions were written after reading the documents.
+- **Threshold** (`eval/threshold-results.md`): the lowest related score is 0.342 (q03, "When is the IT help desk open?"), and 3 of 15 unrelated questions reach `MIN_SIMILARITY` 0.3: u11 (0.343), u13 (0.328) and u14 (0.351), all through the malware analysis document. They are sent to the model, which should answer with the "not found" sentence. There is no clean separation (u14 scores above q03), so `MIN_SIMILARITY` was left at 0.3.
+
+Demo suggestions (`backend/demo/suggestions.js`), best chunk of the expected document. Each ranks its document first:
+
+| question | expected document | score |
+|---|---|---|
+| How many paid vacation days do Insight Security employees get? | Insight Security Employee Handbook | 0.768 |
+| How is EDR different from traditional antivirus? | Endpoint Detection and Response (EDR) Overview | 0.658 |
+| How do I prevent SQL injection in my code? | SQL Injection: Causes, Impact and Secure Coding Practices | 0.685 |
+| What are the core principles of zero trust? | Zero Trust Architecture in Brief | 0.764 |
+
+`eval/baseline-results.md`, the [near-miss analysis](#near-miss-suggestions-not-implemented) and the [prompt comparison runs](#comparing-prompt-wordings) were measured on the previous library and have not been rerun.
+
+## Replacing the demo content
+
+1. Edit `backend/demo/sample-documents.json`. Each document has `title`, `category` and `content`. Titles must be unique, content is plain text of at most 20,000 characters, and there are at most 20 documents (`DEMO_LIMITS` in `backend/access.js`).
+2. If the fictional company changes, update `DEMO_SAMPLE_USERS` in `backend/demo.js` and search the repository for the old name, excluding env files.
+3. Write the demo suggestions in `backend/demo/suggestions.js`. A test requires each one to be in `eval/questions.json` with an `expectedDoc` from the sample documents.
+4. Update `eval/questions.json` (`expectedDoc` for every question) and check that the questions in `eval/unrelated-questions.json` are still unrelated to the new documents.
+5. Run `npm run embed:demo` to recompute `backend/demo/sample-embeddings.json`. The first run downloads the embedding model.
+6. Run `npm run eval` and `NODE_ENV=development node eval/threshold.js`. Each demo suggestion should rank its document first, clearly above `MIN_SIMILARITY`.
+7. Update this file and the document count and retrieval numbers in `README.md`.
+8. Run `npm test`, `npm run lint` and `npm run build`.
+
 ## Limits of this result
 
 - The margin is one question out of 20. This is weak evidence: it shows 600 is not worse, not that it is clearly better. The test is close to its ceiling and barely separates the sizes.
