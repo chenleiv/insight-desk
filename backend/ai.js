@@ -10,14 +10,16 @@ import { AIConfig } from './models.js';
 import { search } from './rag/search.js';
 import { logRetrieval, saveFeedback } from './rag/retrievalLog.js';
 import { getRetrievalSummary } from './rag/retrievalStats.js';
-import { canViewQuality } from './access.js';
+import { canViewQuality, isDemoUser } from './access.js';
 import { reserveQuestion } from './usageBudget.js';
 
-const DEFAULT_SUGGESTIONS = [
-    "What security issues are related to this topic?",
-    "Summarize the key decisions and their rationale",
-    "What are the most common mistakes people make in this area?",
-    "What are the most important rules from this topic?",
+// Demo visitors always get the sample documents, so their questions are fixed and
+// listed in eval/questions.json. Phones show the first three.
+export const DEMO_SUGGESTIONS = [
+    "How many days of paid annual leave do Northwind employees get?",
+    "What are the warning signs of a phishing email?",
+    "What rights do people have over their personal data under GDPR?",
+    "How can I stop a React component from re-rendering too often?",
 ];
 
 export async function loadAIConfig() {
@@ -402,13 +404,14 @@ router.patch('/api/ai/prompt', requireAdmin, async (req, res) => {
     }
 });
 
-router.get('/api/ai/suggestions', getCurrentUser, async (_req, res) => {
+// Without a saved list, the client builds questions from the user's own documents.
+router.get('/api/ai/suggestions', getCurrentUser, async (req, res) => {
+    if (isDemoUser(req.user)) return res.json({ questions: DEMO_SUGGESTIONS });
     try {
         const config = await AIConfig.findById('ai');
-        const questions = config?.exampleQuestions?.length ? config.exampleQuestions : DEFAULT_SUGGESTIONS;
-        res.json({ questions });
+        res.json({ questions: config?.exampleQuestions ?? [] });
     } catch {
-        res.json({ questions: DEFAULT_SUGGESTIONS });
+        res.json({ questions: [] });
     }
 });
 

@@ -13,7 +13,7 @@ export function useSuggestions() {
     staleTime: SUGGESTIONS_CACHE_MS,
     // Also kept while no view uses them; the default of 5 minutes would refetch on a later entry.
     gcTime: SUGGESTIONS_CACHE_MS,
-    // The view has default questions to show, and retrying would spend more of the API limit.
+    // The view can do without questions, and retrying would spend more of the API limit.
     retry: false,
   });
 }

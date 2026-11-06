@@ -1,6 +1,7 @@
 // @vitest-environment node
 // Kept apart from aiChat.test.js, which already uses up most of the chat rate limit.
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import { readFileSync } from "fs";
 import express from "express";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
@@ -20,7 +21,7 @@ vi.mock("../rag/embed.js", () => ({ embed: vi.fn(async () => [1, 0, 0]) }));
 
 import { User, Document, Chunk, RetrievalLog, AIConfig } from "../models.js";
 import aiRouter, {
-  EMPTY_ANSWER_DETAIL, TOO_LONG_ANSWER_DETAIL, AI_BUSY_DETAIL, SHORTENED_NOTE, isNoInfoAnswer, cutToLastSentence,
+  DEMO_SUGGESTIONS, EMPTY_ANSWER_DETAIL, TOO_LONG_ANSWER_DETAIL, AI_BUSY_DETAIL, SHORTENED_NOTE, isNoInfoAnswer, cutToLastSentence,
 } from "../ai.js";
 import { DEFAULT_PROMPT, NO_INFO_ANSWER, LEGACY_NO_INFO_ANSWERS, promptState } from "../prompts.js";
 import { EMBEDDING_FORMAT_VERSION } from "../rag/embeddingModel.js";
@@ -299,18 +300,50 @@ describe("PATCH routes for the AI config", () => {
     }
   });
 
-  it("offers the default questions as proper questions when none were saved", async () => {
+  it("offers no questions when none were saved, so the client builds them from the documents", async () => {
     vi.spyOn(AIConfig, "findById").mockResolvedValueOnce(null);
 
     const res = await requestAs(admin, "GET", "/api/ai/suggestions");
 
     expect(res.status).toBe(200);
-    expect((await res.json()).questions).toEqual([
-      "What security issues are related to this topic?",
-      "Summarize the key decisions and their rationale",
-      "What are the most common mistakes people make in this area?",
-      "What are the most important rules from this topic?",
-    ]);
+    expect((await res.json()).questions).toEqual([]);
+  });
+
+  it("offers no questions when the saved list cannot be read", async () => {
+    vi.spyOn(AIConfig, "findById").mockRejectedValueOnce(new Error("db down"));
+
+    const res = await requestAs(admin, "GET", "/api/ai/suggestions");
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).questions).toEqual([]);
+  });
+
+  it("offers the questions an admin saved", async () => {
+    vi.spyOn(AIConfig, "findById").mockResolvedValueOnce({ exampleQuestions: ["What is new?"] });
+
+    const res = await requestAs(admin, "GET", "/api/ai/suggestions");
+
+    expect((await res.json()).questions).toEqual(["What is new?"]);
+  });
+
+  it("offers a demo visitor the fixed demo questions, even when an admin saved a list", async () => {
+    vi.spyOn(AIConfig, "findById").mockResolvedValue({ exampleQuestions: ["What is new?"] });
+
+    const res = await requestAs(demo, "GET", "/api/ai/suggestions");
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).questions).toEqual(DEMO_SUGGESTIONS);
+  });
+
+  it("asks only demo questions that eval/questions.json measures against the sample documents", () => {
+    const evalQuestions = JSON.parse(readFileSync(new URL("../../eval/questions.json", import.meta.url), "utf8"));
+    const samples = JSON.parse(readFileSync(new URL("../demo/sample-documents.json", import.meta.url), "utf8"));
+    const titles = new Set(samples.map((d) => d.title));
+    for (const question of DEMO_SUGGESTIONS) {
+      const entry = evalQuestions.find((q) => q.question === question);
+      expect(entry, question).toBeDefined();
+      expect(titles.has(entry.expectedDoc)).toBe(true);
+    }
   });
 
   it("returns 500 when saving the example questions fails", async () => {
