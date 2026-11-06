@@ -138,5 +138,33 @@
     "expected": "Within 30 days",
     "type": "paraphrase",
     "expectedDoc": "Data Privacy, GDPR and CCPA"
+  },
+  {
+    "id": "q21",
+    "question": "How many days of paid annual leave do Northwind employees get?",
+    "expected": "22 days per year, in addition to public holidays",
+    "type": "demo-suggestion",
+    "expectedDoc": "Northwind Employee Handbook"
+  },
+  {
+    "id": "q22",
+    "question": "What are the warning signs of a phishing email?",
+    "expected": "A sender address that looks almost right, an urgent or fearful subject line, a call to action, and branding that mimics a trusted company or colleague",
+    "type": "demo-suggestion",
+    "expectedDoc": "Phishing and Social Engineering Defense"
+  },
+  {
+    "id": "q23",
+    "question": "What rights do people have over their personal data under GDPR?",
+    "expected": "Access, correction, deletion, restricted processing, portability and objection; requests are answered within 30 days",
+    "type": "demo-suggestion",
+    "expectedDoc": "Data Privacy, GDPR and CCPA"
+  },
+  {
+    "id": "q24",
+    "question": "How can I stop a React component from re-rendering too often?",
+    "expected": "React.memo, useMemo and useCallback, stable keys, and state kept close to where it is used; measure with the Profiler first",
+    "type": "demo-suggestion",
+    "expectedDoc": "React Rendering and Performance Optimization"
   }
 ]
