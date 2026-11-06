@@ -414,6 +414,12 @@
     margin: 0 auto;
     line-height: 1.5;
   }
+
+  .ai-hero-hint {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 16px auto 0;
+  }
 }
 
 .ai-suggestions {
@@ -559,7 +565,8 @@
       margin-bottom: 8px;
     }
 
-    .ai-hero-subtitle {
+    .ai-hero-subtitle,
+    .ai-hero-hint {
       font-size: 13px;
     }
   }

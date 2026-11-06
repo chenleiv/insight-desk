@@ -13,6 +13,7 @@ import { useDocuments } from "../../../../context/DocumentsContext";
 import { useStatus } from "../../../../components/statusBar/useStatus";
 import { useMobile } from "../../../../hooks/useMobile";
 import { useSuggestions } from "../../hooks/useSuggestions";
+import { documentQuestions } from "../../utils/suggestedQuestions";
 import { SystemPromptModal } from "./ai/SystemPromptModal";
 import { SourceChip } from "./ai/SourceChip";
 import { ChatActionsMenu } from "./ai/ChatActionsMenu";
@@ -26,16 +27,9 @@ const ONLY_CITATIONS_TEXT = "See the sources below.";
 // Scrolling down to closer than this to the end counts as being back at the bottom. About one line of text.
 const FOLLOW_THRESHOLD = 32;
 
-// Phones show fewer questions, and this one suits the fewest documents as a first question.
-const PHONE_HIDDEN_SUGGESTION = "What security issues are related to this topic?";
+// Phones show fewer questions.
 const PHONE_SUGGESTION_COUNT = 3;
-
-const DEFAULT_SUGGESTIONS = [
-  PHONE_HIDDEN_SUGGESTION,
-  "Summarize the key decisions and their rationale",
-  "What are the most common mistakes people make in this area?",
-  "What are the most important rules from this topic?",
-];
+const DOCUMENT_SUGGESTION_COUNT = 4;
 
 type Props = {
   onOpenDocument: (id: string) => void;
@@ -50,8 +44,15 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
   // The documents this user may read. While the list is unknown, a chip is not marked as gone.
   const isSourceAvailable = (id: string) => docsLoading || !!docsError || docIds.has(id);
 
+  const libraryEmpty = !docsLoading && !docsError && docs.length === 0;
+  // A list from the server wins. Without one, the questions are about the newest documents.
+  // Nothing is offered while either list is unknown or failed to load.
   const { data: savedSuggestions } = useSuggestions();
-  const suggestions = savedSuggestions?.questions.length ? savedSuggestions.questions : DEFAULT_SUGGESTIONS;
+  const suggestions = useMemo(() => {
+    if (!savedSuggestions) return [];
+    if (savedSuggestions.questions.length) return savedSuggestions.questions;
+    return docsLoading || docsError ? [] : documentQuestions(docs, DOCUMENT_SUGGESTION_COUNT);
+  }, [savedSuggestions, docs, docsLoading, docsError]);
 
   // The view unmounts when a document opens, so a saved answer is shown whole, not typed again.
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
@@ -299,9 +300,7 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
   }
 
   const canSend = !isSending && !!input.trim();
-  const shownSuggestions = isPhone
-    ? suggestions.filter((s) => s !== PHONE_HIDDEN_SUGGESTION).slice(0, PHONE_SUGGESTION_COUNT)
-    : suggestions;
+  const shownSuggestions = isPhone ? suggestions.slice(0, PHONE_SUGGESTION_COUNT) : suggestions;
 
   return (
     <div className="ai-assistant-view">
@@ -314,22 +313,25 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
               </div>
               <h1 className="ai-hero-title">Brainy AI</h1>
               <p className="ai-hero-subtitle">
-                Ask me anything about your documents, or let me help you extract
-                insights and summaries.
+                I'm here to help you find answers in your documents, and I'll always
+                show where they came from.
               </p>
+              {libraryEmpty && <p className="ai-hero-hint">There are no documents to ask about yet.</p>}
             </div>
 
-            <div className="ai-suggestions">
-              {shownSuggestions.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  className="ai-suggestion-card"
-                  onClick={() => handleSuggestionClick(suggestion)}
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
+            {shownSuggestions.length > 0 && (
+              <div className="ai-suggestions">
+                {shownSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    className="ai-suggestion-card"
+                    onClick={() => handleSuggestionClick(suggestion)}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
           </>
         ) : (
           <div className="ai-messages" aria-live="polite" ref={messagesContainerRef} onScroll={handleMessagesScroll}>
