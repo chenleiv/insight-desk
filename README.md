@@ -34,18 +34,8 @@ All screenshots use the dark theme.
   </tr>
   <tr>
     <td width="50%">
-      <img src="docs/screenshots/dashboard.png" alt="Dashboard with document totals and recent documents" />
-      <br />The dashboard with usage totals and recent documents.
-    </td>
-    <td width="50%">
       <img src="docs/screenshots/quality.png" alt="Quality view with retrieval scores and feedback table" />
       <br />The Quality view with retrieval scores and user ratings.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="docs/screenshots/import-preview.png" alt="Import preview dialog with title and category fields" />
-      <br />The import preview before a document is added.
     </td>
     <td width="50%" align="center">
       <img src="docs/screenshots/mobile-chat.png" alt="Phone layout of the chat with bottom navigation" width="220" />
@@ -53,6 +43,8 @@ All screenshots use the dark theme.
     </td>
   </tr>
 </table>
+
+Try it yourself in the [live demo](https://insight-desk-bwji.onrender.com).
 
 ## Security
 
