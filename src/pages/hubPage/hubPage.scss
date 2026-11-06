@@ -46,35 +46,23 @@
     .topbar-logo {
         display: flex;
         align-items: center;
-        background: transparent;
-        border: none;
         padding: 4px 8px 4px 4px;
-        cursor: pointer;
-        border-radius: 8px;
-        text-decoration: none;
-        border: 1px solid transparent;
-        transition: background 0.15s, border-color 0.15s;
         flex-shrink: 0;
-
-
 
         .topbar-logo-icon {
             width: 30px;
             height: 30px;
-            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
             color: var(--text);
-            transition: background 0.15s, color 0.15s, opacity 0.15s;
         }
 
         .topbar-logo-text {
             font-size: 14px;
             font-weight: 700;
             color: var(--text);
-            transition: color 0.15s;
         }
     }
 
@@ -279,15 +267,20 @@
 }
 
 @include mixins.mobile {
-    .hub-topbar {
+    // Scoped under .app-layout to win over the generic `.app-layout header` rules in layout.scss.
+    .app-layout .hub-topbar {
         flex-direction: row;
         align-items: center;
         gap: 8px;
-        padding: 0 16px;
+        padding: 0 8px;
         overflow: visible;
 
         .topbar-left {
             overflow: visible;
+        }
+
+        .topbar-logo {
+            padding-left: 0;
         }
     }
 }
