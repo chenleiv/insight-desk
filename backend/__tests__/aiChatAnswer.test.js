@@ -21,8 +21,9 @@ vi.mock("../rag/embed.js", () => ({ embed: vi.fn(async () => [1, 0, 0]) }));
 
 import { User, Document, Chunk, RetrievalLog, AIConfig } from "../models.js";
 import aiRouter, {
-  DEMO_SUGGESTIONS, EMPTY_ANSWER_DETAIL, TOO_LONG_ANSWER_DETAIL, AI_BUSY_DETAIL, SHORTENED_NOTE, isNoInfoAnswer, cutToLastSentence,
+  EMPTY_ANSWER_DETAIL, TOO_LONG_ANSWER_DETAIL, AI_BUSY_DETAIL, SHORTENED_NOTE, isNoInfoAnswer, cutToLastSentence,
 } from "../ai.js";
+import { DEMO_SUGGESTIONS } from "../demo/suggestions.js";
 import { DEFAULT_PROMPT, NO_INFO_ANSWER, LEGACY_NO_INFO_ANSWERS, promptState } from "../prompts.js";
 import { EMBEDDING_FORMAT_VERSION } from "../rag/embeddingModel.js";
 import { logger } from "../logger.js";
