@@ -9,9 +9,10 @@ import type { ChatResponse } from "../../../../../api/aiClient";
 import type { ChatMessage } from "../assistantTypes";
 import AIAssistantView from "../AIAssistantView";
 
-const { chatWithAI, getSuggestions } = vi.hoisted(() => ({
+const { chatWithAI, getSuggestions, library } = vi.hoisted(() => ({
   chatWithAI: vi.fn<(message: string) => Promise<ChatResponse>>(),
   getSuggestions: vi.fn(() => Promise.resolve({ questions: [] as string[] })),
+  library: { docs: [] as { id: string; title?: string; createdAt?: string }[], loading: false, error: null as string | null },
 }));
 
 vi.mock("../../../../../api/aiClient", async (importOriginal) => ({
@@ -23,7 +24,7 @@ vi.mock("../../../../../auth/useAuth", () => ({
   useAuth: () => ({ user: { email: "admin@example.com", role: "admin" } }),
 }));
 vi.mock("../../../../../context/DocumentsContext", () => ({
-  useDocuments: () => ({ docs: [{ id: "d1" }], loading: false, error: null }),
+  useDocuments: () => library,
 }));
 
 const USER: ChatMessage = { id: "u1", role: "user", text: "Question" };
@@ -134,6 +135,7 @@ beforeEach(() => {
   });
   chatWithAI.mockReset();
   chatWithAI.mockResolvedValue(ANSWER_RESPONSE);
+  Object.assign(library, { docs: [{ id: "d1" }], loading: false, error: null });
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -618,32 +620,102 @@ describe("chat actions on a phone", () => {
 });
 
 describe("suggested questions", () => {
-  const ALL = [
-    "What security issues are related to this topic?",
-    "Summarize the key decisions and their rationale",
-    "What are the most common mistakes people make in this area?",
-    "What are the most important rules from this topic?",
-  ];
+  const LIBRARY = ["Oldest", "Second", "Third", "Fourth", "Newest"].map((title, i) => ({
+    id: `d${i}`,
+    title,
+    createdAt: new Date(2026, 0, i + 1).toISOString(),
+  }));
 
-  it("are the three most useful as a first question on a phone", () => {
-    renderChat([]);
-    expect(suggestionCards()).toEqual(ALL.slice(1));
-  });
+  // The query layer delivers its result on a timer, not on the next microtask.
+  async function settle() {
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve)); });
+  }
 
-  it("are all four, in order, on wider screens", () => {
-    screen.phoneWidth = false;
-    renderChat([]);
-    expect(suggestionCards()).toEqual(ALL);
-  });
+  const hint = () => container.querySelector(".ai-hero-hint");
 
-  it("are the first three of a list an admin saved, on a phone", async () => {
-    getSuggestions.mockResolvedValueOnce({ questions: ["One?", "Two?", "Three?", "Four?"] });
+  it("are about the three newest documents on a phone", async () => {
+    library.docs = LIBRARY;
     renderChat([]);
-    // The query layer delivers its result on a timer, not on the next microtask.
     await vi.waitFor(async () => {
-      await act(async () => { await new Promise((resolve) => setTimeout(resolve)); });
+      await settle();
+      expect(suggestionCards()).toEqual([
+        "What is “Newest” about?",
+        "What are the key points of “Fourth”?",
+        "What are the most important rules in “Third”?",
+      ]);
+    });
+  });
+
+  it("are about the four newest documents on wider screens", async () => {
+    screen.phoneWidth = false;
+    library.docs = LIBRARY;
+    renderChat([]);
+    await vi.waitFor(async () => {
+      await settle();
+      expect(suggestionCards()).toHaveLength(4);
+      expect(suggestionCards()[3]).toBe("What should I know first from “Second”?");
+    });
+  });
+
+  it("are the first three of a list from the server, on a phone", async () => {
+    getSuggestions.mockResolvedValueOnce({ questions: ["One?", "Two?", "Three?", "Four?"] });
+    library.docs = LIBRARY;
+    renderChat([]);
+    await vi.waitFor(async () => {
+      await settle();
       expect(suggestionCards()).toEqual(["One?", "Two?", "Three?"]);
     });
+  });
+
+  it("are the whole list from the server on wider screens", async () => {
+    screen.phoneWidth = false;
+    getSuggestions.mockResolvedValueOnce({ questions: ["One?", "Two?", "Three?", "Four?"] });
+    renderChat([]);
+    await vi.waitFor(async () => {
+      await settle();
+      expect(suggestionCards()).toEqual(["One?", "Two?", "Three?", "Four?"]);
+    });
+  });
+
+  it("are not shown for an empty library, which gets a hint instead", async () => {
+    library.docs = [];
+    renderChat([]);
+    await settle();
+    expect(container.querySelector(".ai-suggestions")).toBeNull();
+    expect(hint()?.textContent).toBe("There are no documents to ask about yet.");
+  });
+
+  it("are not shown, and give no hint, when the documents failed to load", async () => {
+    Object.assign(library, { docs: [], error: "Failed" });
+    renderChat([]);
+    await settle();
+    expect(container.querySelector(".ai-suggestions")).toBeNull();
+    expect(hint()).toBeNull();
+  });
+
+  it("are not shown while the documents are loading", async () => {
+    Object.assign(library, { docs: [], loading: true });
+    renderChat([]);
+    await settle();
+    expect(container.querySelector(".ai-suggestions")).toBeNull();
+    expect(hint()).toBeNull();
+  });
+
+  it("are not shown when the questions failed to load", async () => {
+    getSuggestions.mockRejectedValueOnce(new Error("Too many requests"));
+    library.docs = LIBRARY;
+    renderChat([]);
+    await settle();
+    await settle();
+    expect(getSuggestions).toHaveBeenCalled();
+    expect(container.querySelector(".ai-suggestions")).toBeNull();
+  });
+
+  it("are offered with no hint when the library has documents", async () => {
+    library.docs = LIBRARY;
+    renderChat([]);
+    await settle();
+    expect(hint()).toBeNull();
   });
 });
 
