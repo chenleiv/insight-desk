@@ -17,6 +17,43 @@ It is built for teams that keep their knowledge in internal documents, and it is
 - **Demo workspace.** A private copy of 14 sample documents, with limits on daily questions and on storage.
 - **Mobile layout.** A phone layout with bottom navigation, and light and dark themes on every screen size.
 
+## Screenshots
+
+All screenshots use the dark theme.
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/chat-answer.png" alt="Chat answer with a cited source chip below it" />
+      <br />A chat answer with the document it came from.
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/document.png" alt="Document view with an attached file and its text" />
+      <br />A document with an attachment, opened from a source chip.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/dashboard.png" alt="Dashboard with document totals and recent documents" />
+      <br />The dashboard with usage totals and recent documents.
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/quality.png" alt="Quality view with retrieval scores and feedback table" />
+      <br />The Quality view with retrieval scores and user ratings.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/import-preview.png" alt="Import preview dialog with title and category fields" />
+      <br />The import preview before a document is added.
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/mobile-chat.png" alt="Phone layout of the chat with bottom navigation" width="220" />
+      <br />The chat on a phone, with bottom navigation.
+    </td>
+  </tr>
+</table>
+
 ## Security
 
 The full list of controls, the tests that guard them and the accepted gaps are in [SECURITY.md](SECURITY.md).
