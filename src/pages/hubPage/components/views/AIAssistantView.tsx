@@ -314,8 +314,8 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
               </div>
               <h1 className="ai-hero-title">Brainy AI</h1>
               <p className="ai-hero-subtitle">
-                Ask me anything about your documents, or let me help you extract
-                insights and summaries.
+                I'm here to help you find answers in your documents, and I'll always
+                show where they came from.
               </p>
             </div>
 
