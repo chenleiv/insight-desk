@@ -52,8 +52,6 @@ Demo suggestions (`backend/demo/suggestions.js`), best chunk of the expected doc
 | How do I prevent SQL injection in my code? | SQL Injection: Causes, Impact and Secure Coding Practices | 0.685 |
 | What are the core principles of zero trust? | Zero Trust Architecture in Brief | 0.764 |
 
-`eval/baseline-results.md`, the [near-miss analysis](#near-miss-suggestions-not-implemented) and the [prompt comparison runs](#comparing-prompt-wordings) were measured on the previous library and have not been rerun.
-
 ## Replacing the demo content
 
 1. Edit `backend/demo/sample-documents.json`. Each document has `title`, `category` and `content`. Titles must be unique, content is plain text of at most 20,000 characters, and there are at most 20 documents (`DEMO_LIMITS` in `backend/access.js`).
@@ -87,7 +85,7 @@ Documents already stored in MongoDB keep the chunks and embeddings built with th
 
 ## Near-miss suggestions (not implemented)
 
-A "did you mean" answer was considered for questions whose best chunk is just under `MIN_SIMILARITY`: instead of a flat "not found", point to the closest document titles. It was measured on the demo documents with `eval/questions.json` and `eval/unrelated-questions.json`, using the top chunk across all documents, as the chat would.
+A "did you mean" answer was considered for questions whose best chunk is just under `MIN_SIMILARITY`: instead of a flat "not found", point to the closest document titles. It was measured on the previous demo library (14 documents) with `eval/questions.json` and `eval/unrelated-questions.json`, using the top chunk across all documents, as the chat would.
 
 - Only one related question (q14, 0.275) falls below 0.3, so the most it could help is one question in 20.
 - There is no clean separation: any lower bound that includes q14 (0.27 or lower) also includes the unrelated u11 (0.287, "How does garbage collection work in Java?"), which would be pointed to "Linux Process Management Basics". Lower bounds add more wrong suggestions (u08 at 0.248, u09 at 0.227, u13 at 0.200).
@@ -116,6 +114,22 @@ Correctness is graded by hand from the file. The script only counts what it can 
 **Decision:** switch the stored prompt to the new wording. The token limit was then raised from 300 to 1024, since the model's reasoning tokens count toward it. An answer that still stops at the limit is cut back to its last complete sentence and marked "(The answer was shortened.)"; the eval counts these in the "cut off" column.
 
 **Second run** (related set, 1 run, max_tokens 1024): 0 refusals, 0 empty, 0 cut off, 19 of 19 with a valid citation, 0 invented ids and 0 format violations in both wordings.
+
+The first and second runs used the previous demo library.
+
+### Run on the current demo library (2026-11-06)
+
+3 runs per question and wording, model `openai/gpt-oss-20b`, the 15 Insight Security documents.
+
+- **Related (24 questions, 72 calls per wording):** one call per wording failed at the API (a timeout and a connection error), so 71 answers per wording were checked.
+  - Old wording: 3 of 71 refusals, 67 of 71 with a valid citation.
+  - New wording: 3 of 71 refusals, 1 empty, 1 cut off, 63 of 71 with a valid citation. 4 answers had no citation marker.
+  - The refusals in both wordings were q08, refused in all 3 runs, although its expected document ranks first in retrieval.
+- **Forced (15 unrelated questions, 45 calls per wording):** 45 of 45 refusals and 0 citations in both wordings.
+- **Hebrew (5 questions, 15 calls per wording):** in both wordings, 3 of 15 refusals, 12 of 15 with a valid citation, and 12 of 12 answers in Hebrew.
+- **Everywhere:** 0 invented citation ids, 0 format violations, 0 document titles in brackets.
+
+Correctness was not graded for this run.
 
 ## Measuring in production
 

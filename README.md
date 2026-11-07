@@ -97,7 +97,7 @@ The evaluation tools, method and limits are described in [docs/EVAL.md](docs/EVA
 
 - **Retrieval.** On 15 documents and 24 labeled questions, the chosen chunk size puts the right document first for 24 of 24 questions. Chunks of 300 do as well, so this shows the size is not worse, not that it is better.
 - **Threshold.** 3 of 15 unrelated questions reach the 0.3 threshold (they go to the model, which should answer "not found"), and 0 of 24 related questions fall below it.
-- **Answers.** In the latest recorded run (on the previous demo library), 19 of 19 answers to related questions had a valid citation, with no invented citations.
+- **Answers.** In the latest run (2026-11-06, 24 related questions, 3 runs per wording), 67 of 71 answers with the old prompt wording and 63 of 71 with the new one had a valid citation, with no invented citations. One call per wording failed at the API. Correctness was not graded.
 - **Production signals.** The Quality view and `npm run eval:prod` summarize retrieval logs, which hold no question or answer text.
 
 ## Tech stack
