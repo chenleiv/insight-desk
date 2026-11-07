@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusContext, type StatusApi } from "../../../../components/statusBar/statusContext";
+import { ConfirmContext, type ConfirmFn } from "../../../../components/confirmModal/confirmContext";
 import { AISection } from "../../components/views/settings/AISection";
 import { useSuggestions } from "../useSuggestions";
 
@@ -20,6 +21,7 @@ vi.mock("../../../../api/aiClient", async (importOriginal) => ({
 
 const MINUTE = 60 * 1000;
 const status: StatusApi = { show: vi.fn(), clear: vi.fn() };
+const confirm = vi.fn<ConfirmFn>();
 
 function Chat() {
   const { data } = useSuggestions();
@@ -96,7 +98,7 @@ describe("useSuggestions", () => {
     await show(<Chat />);
     updateSuggestions.mockResolvedValue({ questions: ["Saved?"] });
 
-    await show(<AISection />);
+    await show(<ConfirmContext.Provider value={confirm}><AISection /></ConfirmContext.Provider>);
     const save = [...container.querySelectorAll("button")].filter((b) => b.textContent?.includes("Save")).at(-1)!;
     await act(async () => { save.click(); await vi.advanceTimersByTimeAsync(1); });
     expect(updateSuggestions).toHaveBeenCalledOnce();

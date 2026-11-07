@@ -61,6 +61,11 @@ export async function updateSystemPrompt(prompt: string): Promise<PromptConfig> 
   });
 }
 
+/** Deletes the saved prompt, so the server uses its default; returns that default. */
+export async function resetSystemPrompt(): Promise<PromptConfig> {
+  return await apiFetch<PromptConfig>("/api/ai/prompt", { method: "DELETE" });
+}
+
 export async function getSuggestions(signal?: AbortSignal): Promise<{ questions: string[] }> {
   return await apiFetch<{ questions: string[] }>("/api/ai/suggestions", signal ? { signal } : {});
 }

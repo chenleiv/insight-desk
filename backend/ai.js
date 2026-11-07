@@ -5,7 +5,7 @@ import { logger } from './logger.js';
 import Groq from 'groq-sdk';
 import { getCurrentUser, requireAdmin } from './auth.js';
 import { aiChatSchema, aiFeedbackSchema, aiPromptSchema, aiSuggestionsSchema, qualityQuerySchema, sendValidationError } from './schemas.js';
-import { promptState, PROMPT_METADATA, CONTEXT_RULES, NO_INFO_ANSWER, LEGACY_NO_INFO_ANSWERS } from './prompts.js';
+import { promptState, PROMPT_METADATA, CONTEXT_RULES, NO_INFO_ANSWER, LEGACY_NO_INFO_ANSWERS, DEFAULT_PROMPT } from './prompts.js';
 import { AIConfig } from './models.js';
 import { search } from './rag/search.js';
 import { logRetrieval, saveFeedback } from './rag/retrievalLog.js';
@@ -17,7 +17,8 @@ import { DEMO_SUGGESTIONS } from './demo/suggestions.js';
 export async function loadAIConfig() {
     try {
         const config = await AIConfig.findById('ai');
-        if (config?.systemPrompt) promptState.prompt = config.systemPrompt;
+        // Without a stored prompt, the code's default is the prompt.
+        promptState.prompt = config?.systemPrompt || DEFAULT_PROMPT;
     } catch (e) {
         logger.warn('Could not load AI config from DB, using default', { message: e.message });
     }
@@ -393,6 +394,21 @@ router.patch('/api/ai/prompt', requireAdmin, async (req, res) => {
     } catch (error) {
         logger.error('Prompt save error', { message: error?.message ?? String(error) });
         res.status(500).json({ detail: 'Could not save the prompt. Please try again later.' });
+    }
+});
+
+// Same protection as saving: admins only, plus the Origin check and rate limit on every /api route.
+router.delete('/api/ai/prompt', requireAdmin, async (req, res) => {
+    try {
+        // Cleared first, so the running prompt never differs from the stored one. Only the
+        // prompt is removed; the saved example questions stay.
+        await AIConfig.updateOne({ _id: 'ai' }, { $unset: { systemPrompt: '' } });
+        promptState.prompt = DEFAULT_PROMPT;
+        logger.info('Admin action', { action: 'ai.prompt.reset', actorId: req.user._id });
+        res.json({ prompt: promptState.prompt, ...PROMPT_METADATA });
+    } catch (error) {
+        logger.error('Prompt reset error', { message: error?.message ?? String(error) });
+        res.status(500).json({ detail: 'Could not reset the prompt. Please try again later.' });
     }
 });
 

@@ -3,25 +3,29 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusContext, type StatusApi } from "../../../../../../components/statusBar/statusContext";
+import { ConfirmContext, type ConfirmFn } from "../../../../../../components/confirmModal/confirmContext";
 import type { PromptConfig } from "../../../../../../api/aiClient";
 import { AISection } from "../AISection";
 
 type Suggestions = { questions: string[] };
 
-const { getSystemPrompt, getSuggestions } = vi.hoisted(() => ({
+const { getSystemPrompt, getSuggestions, resetSystemPrompt } = vi.hoisted(() => ({
   getSystemPrompt: vi.fn<() => Promise<PromptConfig>>(),
   getSuggestions: vi.fn<() => Promise<Suggestions>>(),
+  resetSystemPrompt: vi.fn<() => Promise<PromptConfig>>(),
 }));
 
 vi.mock("../../../../../../api/aiClient", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../../../../api/aiClient")>()),
   getSystemPrompt,
   getSuggestions,
+  resetSystemPrompt,
 }));
 
 const PROMPT: PromptConfig = { prompt: "Be helpful.", name: "default", version: "1", description: "" };
 
 const status: StatusApi = { show: vi.fn(), clear: vi.fn() };
+const confirm = vi.fn<ConfirmFn>();
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -34,11 +38,13 @@ let container: HTMLDivElement;
 let root: Root;
 let queryClient: QueryClient;
 
-function render() {
+function render({ readOnly = false } = {}) {
   act(() => root.render(
     <QueryClientProvider client={queryClient}>
       <StatusContext.Provider value={status}>
-        <AISection />
+        <ConfirmContext.Provider value={confirm}>
+          <AISection readOnly={readOnly} />
+        </ConfirmContext.Provider>
       </StatusContext.Provider>
     </QueryClientProvider>
   ));
@@ -60,6 +66,8 @@ beforeEach(() => {
   suggestions = deferred<Suggestions>();
   getSystemPrompt.mockReset().mockReturnValue(prompt.promise);
   getSuggestions.mockReset().mockReturnValue(suggestions.promise);
+  resetSystemPrompt.mockReset();
+  confirm.mockReset();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -110,5 +118,65 @@ describe("AISection loading state", () => {
     expect(textarea()?.disabled).toBe(true);
     expect(textarea()?.placeholder).toBe("Could not load the system prompt.");
     expect(inputs().every((i) => i.disabled && i.placeholder === "Could not load")).toBe(true);
+  });
+});
+
+describe("AISection reset to default", () => {
+  const resetButton = () => [...document.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === "Reset to default");
+  const DEFAULT: PromptConfig = { prompt: "Default prompt.", name: "default", version: "1", description: "" };
+
+  async function renderLoaded(options?: { readOnly?: boolean }) {
+    render(options);
+    await act(async () => {
+      prompt.resolve(PROMPT);
+      suggestions.resolve({ questions: [] });
+    });
+  }
+
+  it("resets the prompt after the admin confirms, and shows the default", async () => {
+    confirm.mockResolvedValue(true);
+    resetSystemPrompt.mockResolvedValue(DEFAULT);
+    await renderLoaded();
+
+    await act(async () => resetButton()!.click());
+
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(resetSystemPrompt).toHaveBeenCalledOnce();
+    expect(textarea()?.value).toBe("Default prompt.");
+    expect(status.show).toHaveBeenCalledWith({ kind: "success", title: "Reset", message: "System prompt reset to the default" });
+  });
+
+  it("does nothing when the admin cancels", async () => {
+    confirm.mockResolvedValue(false);
+    await renderLoaded();
+
+    await act(async () => resetButton()!.click());
+
+    expect(resetSystemPrompt).not.toHaveBeenCalled();
+    expect(textarea()?.value).toBe("Be helpful.");
+  });
+
+  it("keeps the prompt and shows the error when the reset fails", async () => {
+    confirm.mockResolvedValue(true);
+    resetSystemPrompt.mockRejectedValue(new Error("Reset failed"));
+    await renderLoaded();
+
+    await act(async () => resetButton()!.click());
+
+    expect(textarea()?.value).toBe("Be helpful.");
+    expect(status.show).toHaveBeenCalledWith({ kind: "error", title: "Error", message: "Reset failed" });
+    expect(resetButton()?.disabled).toBe(false);
+  });
+
+  it("is disabled until the prompt loads", () => {
+    render();
+
+    expect(resetButton()?.disabled).toBe(true);
+  });
+
+  it("is not offered in the read-only demo view", async () => {
+    await renderLoaded({ readOnly: true });
+
+    expect(resetButton()).toBeUndefined();
   });
 });
