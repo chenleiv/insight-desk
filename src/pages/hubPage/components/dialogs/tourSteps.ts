@@ -10,9 +10,9 @@ export const HUB_TOUR_STEPS: TourStep[] = [
   },
   {
     selector: ".hub-main",
-    title: "🧠 Brainy AI",
+    title: "🧠 InsightDesk AI",
     description:
-      "Ask Brainy anything about your documents — summaries, Q&A, comparisons. It finds the relevant documents for you.",
+      "Ask InsightDesk anything about your documents — summaries, Q&A, comparisons. It finds the relevant documents for you.",
     placement: "left",
   },
   {
@@ -35,9 +35,9 @@ export const MOBILE_HUB_TOUR_STEPS: TourStep[] = [
   },
   {
     selector: ".bottom-nav-item--ai",
-    title: "🧠 Brainy AI",
+    title: "🧠 InsightDesk AI",
     description:
-      "Ask Brainy anything about your documents — summaries, Q&A, comparisons. It finds the relevant documents for you.",
+      "Ask InsightDesk anything about your documents — summaries, Q&A, comparisons. It finds the relevant documents for you.",
     placement: "top",
   },
   {
@@ -61,7 +61,7 @@ export const DOC_TOUR_STEPS: TourStep[] = [
     selector: ".notion-att-chips",
     title: "📎 Attachments",
     description:
-      "Attach files here — PDF, Word, Excel. The text is extracted automatically so Brainy AI can read them.",
+      "Attach files here — PDF, Word, Excel. The text is extracted automatically so InsightDesk AI can read them.",
     placement: "left",
   },
 ];
@@ -84,7 +84,7 @@ export const NEW_DOC_TOUR_STEPS: TourStep[] = [
     selector: ".notion-att-chip--add",
     title: "📎 Add file",
     description:
-      "Attach a raw file to this document. Brainy AI will be able to read its contents.",
+      "Attach a raw file to this document. InsightDesk AI will be able to read its contents.",
     placement: "right",
   },
 ];
@@ -102,7 +102,7 @@ export const MOBILE_DOC_TOUR_STEPS: TourStep[] = [
     selector: ".notion-att-chips",
     title: "📎 Attachments",
     description:
-      "Attach files here — PDF, Word, Excel. The text is extracted automatically so Brainy AI can read them.",
+      "Attach files here — PDF, Word, Excel. The text is extracted automatically so InsightDesk AI can read them.",
     placement: "bottom",
   },
 ];
@@ -125,7 +125,7 @@ export const MOBILE_NEW_DOC_TOUR_STEPS: TourStep[] = [
     selector: ".notion-att-chip--add",
     title: "📎 Add file",
     description:
-      "Attach a raw file to this document. Brainy AI will be able to read its contents.",
+      "Attach a raw file to this document. InsightDesk AI will be able to read its contents.",
     placement: "bottom",
   },
 ];

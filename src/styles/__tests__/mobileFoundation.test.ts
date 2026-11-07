@@ -79,7 +79,7 @@ describe("tooltips", () => {
 describe("touch targets", () => {
   it.each([
     ["src/pages/hubPage/hubPage.scss", ".topbar-icon-btn"],
-    ["src/pages/hubPage/hubPage.scss", ".brainy-fab"],
+    ["src/pages/hubPage/hubPage.scss", ".insightdesk-fab"],
     [`${DOCS}/docPanel.scss`, ".doc-panel-row-star-btn"],
     [`${DOCS}/docPanel.scss`, ".doc-panel-star-btn"],
     [`${DOCS}/notionEditor.scss`, ".notion-att-chip-action"],
