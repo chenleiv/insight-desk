@@ -2,6 +2,8 @@
 
 How chunk size was chosen for RAG retrieval, and what to measure next.
 
+The pre-RAG baseline (six questions graded by hand against the earlier keyword search and the previous demo documents) is kept in git history as `eval/baseline-results.md` at commit 08c2111.
+
 ## What was tested
 
 - **Question:** does retrieval rank a chunk of the right document first?
