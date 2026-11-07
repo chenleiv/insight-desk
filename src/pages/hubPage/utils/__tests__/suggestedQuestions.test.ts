@@ -6,7 +6,7 @@ const doc = (title: string, createdAt?: string): DocumentItem => ({ id: title, t
 
 describe("questionTitle", () => {
   it("keeps a short title as it is", () => {
-    expect(questionTitle("Northwind Employee Handbook")).toBe("Northwind Employee Handbook");
+    expect(questionTitle("Insight Security Employee Handbook")).toBe("Insight Security Employee Handbook");
   });
 
   it("cuts a long title at a word and marks the cut", () => {

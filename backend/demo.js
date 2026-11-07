@@ -161,7 +161,7 @@ export async function createDemoWorkspace(now = new Date()) {
 // Fictional accounts for the read-only Users screen in the demo, so real
 // users' emails are never shown to demo visitors.
 export const DEMO_SAMPLE_USERS = [
-    { id: 'sample-1', email: 'dana.levi@northwind.example', displayName: 'Dana Levi', jobTitle: 'IT Manager', role: 'admin', status: 'active' },
-    { id: 'sample-2', email: 'omer.katz@northwind.example', displayName: 'Omer Katz', jobTitle: 'Security Analyst', role: 'viewer', status: 'active' },
-    { id: 'sample-3', email: 'maya.cohen@northwind.example', displayName: 'Maya Cohen', jobTitle: 'HR Partner', role: 'viewer', status: 'inactive' },
+    { id: 'sample-1', email: 'dana.levi@insight-security.example', displayName: 'Dana Levi', jobTitle: 'IT Manager', role: 'admin', status: 'active' },
+    { id: 'sample-2', email: 'omer.katz@insight-security.example', displayName: 'Omer Katz', jobTitle: 'Security Analyst', role: 'viewer', status: 'active' },
+    { id: 'sample-3', email: 'maya.cohen@insight-security.example', displayName: 'Maya Cohen', jobTitle: 'HR Partner', role: 'viewer', status: 'inactive' },
 ];

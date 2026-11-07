@@ -2,6 +2,8 @@
 
 How chunk size was chosen for RAG retrieval, and what to measure next.
 
+The pre-RAG baseline (six questions graded by hand against the earlier keyword search and the previous demo documents) is kept in git history as `eval/baseline-results.md` at commit 08c2111.
+
 ## What was tested
 
 - **Question:** does retrieval rank a chunk of the right document first?
@@ -29,6 +31,52 @@ The default is now **600 characters with 120 overlap** (`CHUNK_SIZE` and `CHUNK_
 
 After this change, the "(current)" row of `npm run eval` is 600 / 120, so the 800 / 150 row above is kept here as the record of the previous default.
 
+## Current demo library (November 2026)
+
+The results above were measured on the previous demo library (14 documents, 20 questions). On 2026-11-06 the demo documents were replaced by 15 security documents for the fictional company Insight Security, and `eval/questions.json` was rewritten: 24 questions (10 fact, 7 paraphrase, 3 long-document in the employee handbook, and the 4 demo suggestions). Two near-miss questions in `eval/unrelated-questions.json` (u10, u14) were replaced, since the new library covers SQL and DNS.
+
+| chunk size | overlap | chunks | hit@1 | hit@3 | missed at 1 |
+|---|---|---|---|---|---|
+| 300 | 60 | 369 | 24/24 (100%) | 24/24 (100%) | none |
+| **600 (current)** | **120** | **176** | **24/24 (100%)** | **24/24 (100%)** | none |
+| 1000 | 200 | 106 | 23/24 (96%) | 24/24 (100%) | q10 |
+
+- The current setting still ranks the right document first for every question, so the chunk size was not changed. 300 does as well, so this does not show that 600 is better.
+- One draft question, "What can an analyst do remotely to stop an attack on a laptop?", ranked the employee handbook first (it also covers lost and compromised laptops). It was replaced by a wording that names EDR, which is a reminder that these questions were written after reading the documents.
+- **Threshold** (`eval/threshold-results.md`): the lowest related score is 0.342 (q03, "When is the IT help desk open?"), and 3 of 15 unrelated questions reach `MIN_SIMILARITY` 0.3: u11 (0.343), u13 (0.328) and u14 (0.351), all through the malware analysis document. They are sent to the model, which should answer with the "not found" sentence. There is no clean separation (u14 scores above q03), so `MIN_SIMILARITY` was left at 0.3.
+
+### Known retrieval limitation: q08
+
+q08, "How do analysts get a clean machine back after running a malware sample?", counts as a hit (the malware analysis document ranks first), but the chunk that holds the answer is not sent to the model, so the model refuses (see [the answer run](#run-on-the-current-demo-library-2026-11-06)).
+
+- The answer is only in chunk #3 of "Introduction to Malware Analysis: Static and Dynamic Approaches": analysts use virtual machines "with snapshots so that the guest can be restored to a clean state after each run".
+- The section heading "Safety and Lab Setup" ends up in chunk #2, so chunk #3 starts mid-section and loses its lab context.
+- Measured on 2026-11-06 with the chat's context selection (top `CONTEXT_CHUNKS` = 5 chunks, at least `MIN_SIMILARITY`): chunk #3 ranks 14th (0.528). The 5 chunks sent (#11, #18, #0, #9, #12, scores 0.658 to 0.590) are all from the same document, and none mentions snapshots.
+- Questions in lab wording, such as "How is a malware analysis lab virtual machine restored to a clean state?", rank chunk #3 first (0.639).
+- hit@k is measured at the document level, so it does not catch this. Chunk-level hits (item 5 in [What to improve next](#what-to-improve-next)) would.
+
+q08 is kept as it is, so the eval keeps showing the limitation.
+
+Demo suggestions (`backend/demo/suggestions.js`), best chunk of the expected document. Each ranks its document first:
+
+| question | expected document | score |
+|---|---|---|
+| How many paid vacation days do Insight Security employees get? | Insight Security Employee Handbook | 0.768 |
+| How is EDR different from traditional antivirus? | Endpoint Detection and Response (EDR) Overview | 0.658 |
+| How do I prevent SQL injection in my code? | SQL Injection: Causes, Impact and Secure Coding Practices | 0.685 |
+| What are the core principles of zero trust? | Zero Trust Architecture in Brief | 0.764 |
+
+## Replacing the demo content
+
+1. Edit `backend/demo/sample-documents.json`. Each document has `title`, `category` and `content`. Titles must be unique, content is plain text of at most 20,000 characters, and there are at most 20 documents (`DEMO_LIMITS` in `backend/access.js`).
+2. If the fictional company changes, update `DEMO_SAMPLE_USERS` in `backend/demo.js` and search the repository for the old name, excluding env files.
+3. Write the demo suggestions in `backend/demo/suggestions.js`. A test requires each one to be in `eval/questions.json` with an `expectedDoc` from the sample documents.
+4. Update `eval/questions.json` (`expectedDoc` for every question) and check that the questions in `eval/unrelated-questions.json` are still unrelated to the new documents.
+5. Run `npm run embed:demo` to recompute `backend/demo/sample-embeddings.json`. The first run downloads the embedding model.
+6. Run `npm run eval` and `NODE_ENV=development node eval/threshold.js`. Each demo suggestion should rank its document first, clearly above `MIN_SIMILARITY`.
+7. Update this file and the document count and retrieval numbers in `README.md`.
+8. Run `npm test`, `npm run lint` and `npm run build`.
+
 ## Limits of this result
 
 - The margin is one question out of 20. This is weak evidence: it shows 600 is not worse, not that it is clearly better. The test is close to its ceiling and barely separates the sizes.
@@ -51,7 +99,7 @@ Documents already stored in MongoDB keep the chunks and embeddings built with th
 
 ## Near-miss suggestions (not implemented)
 
-A "did you mean" answer was considered for questions whose best chunk is just under `MIN_SIMILARITY`: instead of a flat "not found", point to the closest document titles. It was measured on the demo documents with `eval/questions.json` and `eval/unrelated-questions.json`, using the top chunk across all documents, as the chat would.
+A "did you mean" answer was considered for questions whose best chunk is just under `MIN_SIMILARITY`: instead of a flat "not found", point to the closest document titles. It was measured on the previous demo library (14 documents) with `eval/questions.json` and `eval/unrelated-questions.json`, using the top chunk across all documents, as the chat would.
 
 - Only one related question (q14, 0.275) falls below 0.3, so the most it could help is one question in 20.
 - There is no clean separation: any lower bound that includes q14 (0.27 or lower) also includes the unrelated u11 (0.287, "How does garbage collection work in Java?"), which would be pointed to "Linux Process Management Basics". Lower bounds add more wrong suggestions (u08 at 0.248, u09 at 0.227, u13 at 0.200).
@@ -80,6 +128,22 @@ Correctness is graded by hand from the file. The script only counts what it can 
 **Decision:** switch the stored prompt to the new wording. The token limit was then raised from 300 to 1024, since the model's reasoning tokens count toward it. An answer that still stops at the limit is cut back to its last complete sentence and marked "(The answer was shortened.)"; the eval counts these in the "cut off" column.
 
 **Second run** (related set, 1 run, max_tokens 1024): 0 refusals, 0 empty, 0 cut off, 19 of 19 with a valid citation, 0 invented ids and 0 format violations in both wordings.
+
+The first and second runs used the previous demo library.
+
+### Run on the current demo library (2026-11-06)
+
+3 runs per question and wording, model `openai/gpt-oss-20b`, the 15 Insight Security documents.
+
+- **Related (24 questions, 72 calls per wording):** one call per wording failed at the API (a timeout and a connection error), so 71 answers per wording were checked.
+  - Old wording: 3 of 71 refusals, 67 of 71 with a valid citation.
+  - New wording: 3 of 71 refusals, 1 empty, 1 cut off, 63 of 71 with a valid citation. 4 answers had no citation marker.
+  - The refusals in both wordings were q08, refused in all 3 runs, although its expected document ranks first in retrieval.
+- **Forced (15 unrelated questions, 45 calls per wording):** 45 of 45 refusals and 0 citations in both wordings.
+- **Hebrew (5 questions, 15 calls per wording):** in both wordings, 3 of 15 refusals, 12 of 15 with a valid citation, and 12 of 12 answers in Hebrew.
+- **Everywhere:** 0 invented citation ids, 0 format violations, 0 document titles in brackets.
+
+Correctness was not graded for this run.
 
 ## Measuring in production
 

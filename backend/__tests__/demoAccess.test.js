@@ -48,7 +48,7 @@ vi.mock("groq-sdk", () => ({
 }));
 vi.mock("../demo.js", () => ({
   createDemoWorkspace: vi.fn(async () => USERS["demo@demo.invalid"]),
-  DEMO_SAMPLE_USERS: [{ id: "sample-1", email: "dana.levi@northwind.example", role: "admin", status: "active" }],
+  DEMO_SAMPLE_USERS: [{ id: "sample-1", email: "dana.levi@insight-security.example", role: "admin", status: "active" }],
 }));
 
 import authRouter from "../auth.js";
@@ -159,7 +159,7 @@ describe("demo users cannot change system-wide settings", () => {
   it("shows fictional users instead of real accounts", async () => {
     const res = await demo("/api/users");
     expect(res.status).toBe(200);
-    expect((await res.json())[0].email).toBe("dana.levi@northwind.example");
+    expect((await res.json())[0].email).toBe("dana.levi@insight-security.example");
     expect(User.find).not.toHaveBeenCalled();
   });
 });

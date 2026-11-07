@@ -14,7 +14,7 @@ It is built for teams that keep their knowledge in internal documents, and it is
 - **Documents with attachments.** Attach PDF, DOCX, XLSX, XLS, TXT, Markdown or RTF files. Their text is extracted and included in the chat's search.
 - **Import and export.** Import JSON, TXT or Markdown with a preview, and export the library as JSON. A single document downloads as Markdown, PDF or Word.
 - **Dashboard and Quality view.** The dashboard shows document and usage totals and recent documents. The Quality view shows retrieval scores, "no information" answers and user ratings for the last 7 or 30 days.
-- **Demo workspace.** A private copy of 14 sample documents, with limits on daily questions and on storage.
+- **Demo workspace.** A private copy of 15 sample documents, with limits on daily questions and on storage.
 - **Mobile layout.** A phone layout with bottom navigation, and light and dark themes on every screen size.
 
 ## Screenshots
@@ -95,9 +95,9 @@ What is stored where:
 
 The evaluation tools, method and limits are described in [docs/EVAL.md](docs/EVAL.md).
 
-- **Retrieval.** On 14 documents and 20 labeled questions, the chosen chunk size put the right document first for 20 of 20 questions. The margin over other sizes is one question, so this is weak evidence.
-- **Threshold.** 0 of 15 unrelated questions reach the 0.3 threshold, and 1 of 20 related questions falls below it.
-- **Answers.** In the latest recorded run, 19 of 19 answers to related questions had a valid citation, with no invented citations.
+- **Retrieval.** On 15 documents and 24 labeled questions, the chosen chunk size puts the right document first for 24 of 24 questions. Chunks of 300 do as well, so this shows the size is not worse, not that it is better.
+- **Threshold.** 3 of 15 unrelated questions reach the 0.3 threshold (they go to the model, which should answer "not found"), and 0 of 24 related questions fall below it.
+- **Answers.** In the latest run (2026-11-06, 24 related questions, 3 runs per wording), 67 of 71 answers with the old prompt wording and 63 of 71 with the new one had a valid citation, with no invented citations. One call per wording failed at the API. Correctness was not graded.
 - **Production signals.** The Quality view and `npm run eval:prod` summarize retrieval logs, which hold no question or answer text.
 
 ## Tech stack
