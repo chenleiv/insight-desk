@@ -107,7 +107,7 @@ A "did you mean" answer was considered for questions whose best chunk is just un
 
 ## Comparing prompt wordings
 
-`npm run eval:answers` compares two prompt wordings, `eval/prompts/old.txt` and `eval/prompts/new.txt`, by sending the same questions to Groq with each one. It sends the same model, settings, context and appended rules (`CONTEXT_RULES`) as the chat, and it never uses production data.
+`npm run eval:answers` compares two prompt wordings by sending the same questions to Groq with each one: `default`, read directly from `DEFAULT_PROMPT` in `backend/prompts.js` (the wording the app uses), and `experiment`, from `eval/prompts/experiment.txt` (a candidate wording the app never uses). It sends the same model, settings, context and appended rules (`CONTEXT_RULES`) as the chat, and it never uses production data.
 
 - **Sets:** `related` (questions whose best chunk reaches `MIN_SIMILARITY`), `forced` (the unrelated questions plus related ones below the threshold, sent with their top chunks on purpose, to test refusals on unhelpful context) and `hebrew` (five questions translated to Hebrew by the model at the start of the run; both wordings get the same translation).
 - **Runs:** each question is sent 3 times per wording (`--runs`), since answers vary between calls.
@@ -116,6 +116,8 @@ A "did you mean" answer was considered for questions whose best chunk is just un
 - **Output:** a summary table on the terminal, and the full results (summary, translations and every answer with an empty "correct?" column for manual grading) in a file outside the repository, by default under the system temp folder. `--out` picks another file outside the repository.
 
 Correctness is graded by hand from the file. The script only counts what it can check: refusals, empty answers, citations, forbidden Markdown, document titles in brackets, and the answer language for the Hebrew set.
+
+The three runs below compared two files: "old" was `eval/prompts/old.txt` and "new" was `eval/prompts/new.txt`. On 2026-11-07 `old.txt` was removed (it is in git history at commit d73c2b2) and `new.txt` was renamed to `experiment.txt`, with only the product name changed. `old.txt` was not the same as `DEFAULT_PROMPT`: it had no opening sentence, and its rule 2 asked for an earlier "not found" sentence.
 
 ### First full run
 
