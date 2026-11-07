@@ -45,6 +45,18 @@ The results above were measured on the previous demo library (14 documents, 20 q
 - One draft question, "What can an analyst do remotely to stop an attack on a laptop?", ranked the employee handbook first (it also covers lost and compromised laptops). It was replaced by a wording that names EDR, which is a reminder that these questions were written after reading the documents.
 - **Threshold** (`eval/threshold-results.md`): the lowest related score is 0.342 (q03, "When is the IT help desk open?"), and 3 of 15 unrelated questions reach `MIN_SIMILARITY` 0.3: u11 (0.343), u13 (0.328) and u14 (0.351), all through the malware analysis document. They are sent to the model, which should answer with the "not found" sentence. There is no clean separation (u14 scores above q03), so `MIN_SIMILARITY` was left at 0.3.
 
+### Known retrieval limitation: q08
+
+q08, "How do analysts get a clean machine back after running a malware sample?", counts as a hit (the malware analysis document ranks first), but the chunk that holds the answer is not sent to the model, so the model refuses (see [the answer run](#run-on-the-current-demo-library-2026-11-06)).
+
+- The answer is only in chunk #3 of "Introduction to Malware Analysis: Static and Dynamic Approaches": analysts use virtual machines "with snapshots so that the guest can be restored to a clean state after each run".
+- The section heading "Safety and Lab Setup" ends up in chunk #2, so chunk #3 starts mid-section and loses its lab context.
+- Measured on 2026-11-06 with the chat's context selection (top `CONTEXT_CHUNKS` = 5 chunks, at least `MIN_SIMILARITY`): chunk #3 ranks 14th (0.528). The 5 chunks sent (#11, #18, #0, #9, #12, scores 0.658 to 0.590) are all from the same document, and none mentions snapshots.
+- Questions in lab wording, such as "How is a malware analysis lab virtual machine restored to a clean state?", rank chunk #3 first (0.639).
+- hit@k is measured at the document level, so it does not catch this. Chunk-level hits (item 5 in [What to improve next](#what-to-improve-next)) would.
+
+q08 is kept as it is, so the eval keeps showing the limitation.
+
 Demo suggestions (`backend/demo/suggestions.js`), best chunk of the expected document. Each ranks its document first:
 
 | question | expected document | score |
