@@ -118,7 +118,7 @@ describe("document routes keep chunks in sync", () => {
     const res = await fetch(`${baseUrl}/64b7f0c2a1b2c3d4e5f60001`, json("PUT", { ...BODY, ownerId: "attacker" }));
 
     expect(res.status).toBe(200);
-    expect(Document.findByIdAndUpdate).toHaveBeenCalledWith("64b7f0c2a1b2c3d4e5f60001", BODY, { new: true });
+    expect(Document.findByIdAndUpdate).toHaveBeenCalledWith("64b7f0c2a1b2c3d4e5f60001", BODY, { returnDocument: "after" });
     expect(sync).toHaveBeenCalledWith(updated, undefined, { embed, reuseEmbeddings: true });
   });
 
