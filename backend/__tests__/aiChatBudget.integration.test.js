@@ -8,12 +8,32 @@ import { startMongoServer } from "./mongoMemory.js";
 
 process.env.GROQ_API_KEY = "test-key";
 
-const { groqCreate } = vi.hoisted(() => ({ groqCreate: vi.fn() }));
+const { groqCreate, settling } = vi.hoisted(() => ({ groqCreate: vi.fn(), settling: new Set() }));
 vi.mock("groq-sdk", () => ({
   default: class {
     chat = { completions: { create: groqCreate } };
   },
 }));
+// A question settles after its response is sent, so a test can end before that write lands.
+// Each settle is recorded here for the next beforeEach to wait for.
+vi.mock("../usageBudget.js", async (importOriginal) => {
+  const real = await importOriginal();
+  return {
+    ...real,
+    reserveQuestion: async (...args) => {
+      const reservation = await real.reserveQuestion(...args);
+      if (reservation.budget) {
+        const { settle } = reservation.budget;
+        reservation.budget.settle = () => {
+          const settled = settle();
+          settling.add(settled);
+          return settled;
+        };
+      }
+      return reservation;
+    },
+  };
+});
 // A fixed query vector, so the test does not load the real model.
 vi.mock("../rag/embed.js", () => ({ embed: vi.fn(async () => [1, 0, 0]) }));
 // This file sends more questions than the per-minute limit allows, on purpose.
@@ -86,6 +106,9 @@ const answered = (totalTokens) => ({
 beforeEach(async () => {
   groqCreate.mockReset();
   groqCreate.mockResolvedValue(answered(1000));
+  // A settle that landed after this delete would recreate the counter for the next test.
+  await Promise.all(settling);
+  settling.clear();
   await UsageCounter.deleteMany({});
 });
 
