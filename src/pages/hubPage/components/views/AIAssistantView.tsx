@@ -311,7 +311,7 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
               <div className="ai-hero-icon">
                 <BrainCircuit size={64} />
               </div>
-              <h1 className="ai-hero-title">InsightDesk AI</h1>
+              <h1 className="ai-hero-title">Dex</h1>
               <p className="ai-hero-subtitle">
                 I'm here to help you find answers in your documents, and I'll always
                 show where they came from.

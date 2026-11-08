@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/chenleiv/insight-desk/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/chenleiv/insight-desk/actions/workflows/ci.yml)
 
-A document workspace with a chat that answers from your documents and cites its sources.
+A document workspace with a chat that answers from your documents and cites its sources. The assistant in the chat is called Dex.
 
 It is built for teams that keep their knowledge in internal documents, and it is a portfolio project for AppSec and engineering work.
 

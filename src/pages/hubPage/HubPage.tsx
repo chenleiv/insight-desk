@@ -470,10 +470,10 @@ export default function HubPage() {
                 type="button"
                 className="insightdesk-fab"
                 onClick={goToAI}
-                aria-label="Open the InsightDesk assistant"
+                aria-label="Open Dex, the InsightDesk assistant"
               >
                 <MessageCircle size={19} strokeWidth={2.2} />
-                <span>Ask InsightDesk</span>
+                <span>Ask Dex</span>
               </button>
             </div>
           )}
