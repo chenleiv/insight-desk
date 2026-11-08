@@ -8,10 +8,18 @@ import { UnsafeFileError } from './zipGuard.js';
 // watches total memory, which the V8 heap limit misses (Buffers live outside the heap),
 // and the time, so this process ends even if the server that started it has died.
 const WATCHDOG = `
+const { writeSync } = require('fs');
 const { workerData: { maxRssBytes, maxMs } } = require('worker_threads');
 const start = Date.now();
+// Tells the server why on a separate pipe: a fixed word and a number, nothing from the file.
+function stop(reason, rss) {
+  try { writeSync(3, JSON.stringify({ reason, rssMB: Math.round(rss / 1048576) })); } catch {}
+  process.kill(process.pid, 'SIGKILL');
+}
 setInterval(() => {
-  if (process.memoryUsage.rss() > maxRssBytes || Date.now() - start > maxMs) process.kill(process.pid, 'SIGKILL');
+  const rss = process.memoryUsage.rss();
+  if (rss > maxRssBytes) stop('memory', rss);
+  else if (Date.now() - start > maxMs) stop('time', rss);
 }, 25);`;
 
 const [mimeType, maxRssBytes, maxMs] = process.argv.slice(2);

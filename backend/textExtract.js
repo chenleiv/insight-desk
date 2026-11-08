@@ -12,6 +12,9 @@ export const EXTRACTION_LIMITS = {
     heapMB: 160,
     totalMB: 256,
 };
+// V8's young generation. Its default size lets the worker's peak memory reach totalMB on
+// an ordinary large document, so a valid file was refused at random.
+const SEMI_SPACE_MB = 8;
 // Files waiting behind the one being parsed. Each waits up to timeMs per file ahead of
 // it, so the wait stays under the proxy's 100-second timeout.
 export const MAX_WAITING_EXTRACTIONS = 3;
@@ -20,6 +23,9 @@ const BUSY_RETRY_AFTER_SECONDS = 30;
 const WORKER_BACKSTOP_MS = 5000;
 // 50,000 characters, each up to six bytes once escaped as JSON, plus the wrapper.
 const MAX_OUTPUT_BYTES = 400 * 1000;
+// The watchdog's report on the extra pipe. A hostile worker could write anything there.
+const MAX_WORKER_REPORT_CHARS = 100;
+const WORKER_REPORT_REASONS = new Set(['memory', 'time']);
 
 /** An upload the server refuses to parse. The message is safe to show the user. */
 export class ExtractionError extends Error {
@@ -33,10 +39,22 @@ export class ExtractionError extends Error {
 
 const COULD_NOT_PROCESS = 'This file could not be processed. It may be too large or too complex.';
 
+function parseWorkerReport(raw) {
+    if (raw.length > MAX_WORKER_REPORT_CHARS) return null;
+    try {
+        const { reason, rssMB } = JSON.parse(raw);
+        return WORKER_REPORT_REASONS.has(reason) && Number.isInteger(rssMB) ? { reason, rssMB } : null;
+    } catch {
+        return null;
+    }
+}
+
 function runWorker(buffer, mimeType, limits) {
     return new Promise((resolve, reject) => {
+        const startedAt = Date.now();
         const child = spawn(process.execPath, [
             `--max-old-space-size=${limits.heapMB}`,
+            `--max-semi-space-size=${SEMI_SPACE_MB}`,
             WORKER_PATH,
             mimeType,
             String(limits.totalMB * 1024 * 1024),
@@ -44,18 +62,29 @@ function runWorker(buffer, mimeType, limits) {
         ], {
             // A hostile file must not reach the server's secrets, so the worker gets none.
             env: {},
-            stdio: ['pipe', 'pipe', 'ignore'],
+            stdio: ['pipe', 'pipe', 'ignore', 'pipe'],
         });
 
         const output = [];
         let outputBytes = 0;
-        const timer = setTimeout(() => child.kill('SIGKILL'), limits.timeMs);
+        let workerReport = '';
+        let killedFor = null;
+        const timer = setTimeout(() => {
+            killedFor ??= 'time';
+            child.kill('SIGKILL');
+        }, limits.timeMs);
 
         child.stdout.on('data', (chunk) => {
             outputBytes += chunk.length;
-            if (outputBytes > MAX_OUTPUT_BYTES) child.kill('SIGKILL');
-            else output.push(chunk);
+            if (outputBytes > MAX_OUTPUT_BYTES) {
+                killedFor ??= 'output';
+                child.kill('SIGKILL');
+            } else output.push(chunk);
         });
+        child.stdio[3].on('data', (chunk) => {
+            if (workerReport.length <= MAX_WORKER_REPORT_CHARS) workerReport += chunk;
+        });
+        child.stdio[3].on('error', () => {});
         // The worker may die before reading all its input; its exit reports the outcome.
         child.stdin.on('error', () => {});
         child.stdin.end(buffer);
@@ -67,7 +96,16 @@ function runWorker(buffer, mimeType, limits) {
         child.on('close', (code, signal) => {
             clearTimeout(timer);
             if (code !== 0) {
-                logger.warn('Extraction worker stopped', { code, signal });
+                const report = parseWorkerReport(workerReport);
+                logger.warn('Extraction worker stopped', {
+                    code,
+                    signal,
+                    reason: killedFor ?? report?.reason ?? (signal === 'SIGABRT' ? 'heap' : 'unknown'),
+                    rssMB: report?.rssMB ?? null,
+                    elapsedMs: Date.now() - startedAt,
+                    inputBytes: buffer.length,
+                    mimeType,
+                });
                 reject(new ExtractionError(COULD_NOT_PROCESS, 422));
                 return;
             }

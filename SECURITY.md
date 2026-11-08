@@ -318,6 +318,14 @@ Tests: `backend/routes/__tests__/documentDownload.test.js`, `backend/__tests__/d
   process (`backend/extractWorker.js`), so a hostile file can only kill that process.
   - **Limits:** 160 MB of V8 heap, 256 MB of total memory, 20 seconds. Total memory is watched by a thread inside
     the worker, because the heap limit does not count Buffers. A file that hits a limit gets a 422 and is not stored.
+    V8's young generation is capped at 8 MB, which keeps ordinary large documents clear of the total memory limit.
+  - **Supported Word size:** it depends on the document's XML, not on the upload size. Measured on Node 24 (macOS),
+    including under heavy CPU load, the XML extracts reliably up to 15 MB when it is long paragraphs and up to 2 MB
+    when it is dense markup with short runs of text (about 150 bytes for 40 characters). Larger XML may be refused
+    with a 422, even within the 20 MB ZIP limit below.
+  - **Logging:** when the worker stops early, the server logs `code`, `signal`, `reason` (`memory`, `time`, `output`,
+    `heap` or `unknown`), `rssMB`, `elapsedMs`, `inputBytes` and `mimeType`. It never logs the file name, the worker's
+    stderr, or any text from the file.
   - **One at a time:** one file is parsed at a time and three may wait. Beyond that the answer is 503 with `Retry-After`.
   - **No secrets:** the worker starts with an empty environment.
 - **ZIP files are checked before they are parsed.** For `.docx` and `.xlsx`, `backend/zipGuard.js` inflates every entry
