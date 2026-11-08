@@ -171,7 +171,10 @@ describe("UsersSection loading state", () => {
     expect(emails()).toEqual(["admin@example.com", "viewer@example.com"]);
   });
 
-  it("drops the skeleton and keeps the existing error toast and empty table on failure", async () => {
+  const loadError = () => document.querySelector(".load-error");
+  const retryBtn = () => document.querySelector<HTMLButtonElement>(".load-error-retry")!;
+
+  it("says the load failed with a retry, never the empty table, on failure", async () => {
     const request = deferred<UserRecord[]>();
     getUsers.mockReturnValue(request.promise);
     render();
@@ -180,7 +183,37 @@ describe("UsersSection loading state", () => {
     await act(async () => request.reject(new Error("Forbidden")));
 
     expect(skeleton()).toBeNull();
-    expect(status.show).toHaveBeenCalledWith({ kind: "error", title: "Error", message: "Forbidden" });
-    expect(document.querySelector(".settings-users-empty")?.textContent).toBe("No users found");
+    expect(loadError()?.textContent).toContain("Could not load the users.");
+    expect(document.querySelector(".settings-users-empty")).toBeNull();
+    expect(userCount()).toBe("—");
+  });
+
+  it("shows the skeleton on retry, then the users, with one request for a double click", async () => {
+    getUsers.mockRejectedValueOnce(new Error("down"));
+    await act(async () => render());
+    const retry = deferred<UserRecord[]>();
+    getUsers.mockReturnValue(retry.promise);
+
+    const btn = retryBtn();
+    await act(async () => { btn.click(); btn.click(); });
+
+    expect(getUsers).toHaveBeenCalledTimes(2);
+    expect(skeleton()).not.toBeNull();
+    expect(loadError()).toBeNull();
+
+    await act(async () => retry.resolve(USERS));
+
+    expect(loadError()).toBeNull();
+    expect(emails()).toEqual(["admin@example.com", "viewer@example.com"]);
+  });
+
+  it("shows the failure again when the retry fails too", async () => {
+    getUsers.mockRejectedValue(new Error("down"));
+    await act(async () => render());
+
+    await act(async () => retryBtn().click());
+
+    expect(getUsers).toHaveBeenCalledTimes(2);
+    expect(loadError()).not.toBeNull();
   });
 });

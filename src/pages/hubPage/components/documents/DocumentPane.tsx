@@ -29,6 +29,7 @@ import useConfirm from "../../../../hooks/useConfirm";
 import { toInput, emptyInput, isSameInput, isInputValid } from "../../utils/documentForm";
 import { DocumentDetailSkeleton } from "../../../../components/skeleton/Skeleton";
 import { Loader } from "../../../../components/loader/Loader";
+import { LoadError } from "../../../../components/loadError/LoadError";
 import { Maximize2 } from "lucide-react";
 import { useDocumentSave } from "../../hooks/useDocumentSave";
 import { useDocumentAttachments } from "../../hooks/useDocumentAttachments";
@@ -51,6 +52,8 @@ type Props = {
   hasDocs: boolean;
   onDirtyChange?: (isDirty: boolean) => void;
   loading?: boolean;
+  loadFailed?: boolean;
+  onRetry?: () => void;
   isMaximized?: boolean;
   onToggleMaximize?: () => void;
   onMinimize?: () => void;
@@ -74,6 +77,8 @@ export default function DocumentPane({
   hasDocs,
   onDirtyChange,
   loading,
+  loadFailed = false,
+  onRetry,
   isMaximized,
   onToggleMaximize,
   onMinimize,
@@ -369,6 +374,15 @@ export default function DocumentPane({
   }
 
   if (!isCreating && !doc) {
+    if (loadFailed && onRetry) {
+      return (
+        <div className="doc-pane">
+          <div className="doc-pane-empty">
+            <LoadError message="Could not load this document." onRetry={onRetry} />
+          </div>
+        </div>
+      );
+    }
     return <EmptyPane hasDocs={hasDocs} />;
   }
 

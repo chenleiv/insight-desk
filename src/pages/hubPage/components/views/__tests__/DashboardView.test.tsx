@@ -122,7 +122,7 @@ describe("DashboardView loading state", () => {
     expect(recentTitles()).toEqual(["Notes", "Handbook"]);
   });
 
-  it("drops the placeholders and shows the existing empty state when the request fails", async () => {
+  it("says the load failed with a retry, never an empty library, when the request fails", async () => {
     const request = deferred<DocumentItem[]>();
     listDocuments.mockReturnValue(request.promise);
     render();
@@ -131,8 +131,20 @@ describe("DashboardView loading state", () => {
     await settle(() => request.reject(new Error("Network error")));
 
     expect(skeleton()).toBeNull();
-    expect(statValues()[0]).toBe("0");
-    expect(document.querySelector(".dashboard-recent-empty")).not.toBeNull();
+    expect(statValues()[0]).toBe("—");
+    expect(document.querySelector(".dashboard-recent-empty")).toBeNull();
+    expect(document.querySelector(".load-error")?.textContent).toContain("Could not load your documents.");
+  });
+
+  it("shows the documents after a successful retry", async () => {
+    listDocuments.mockRejectedValueOnce(new Error("Network error"));
+    await settle(() => render());
+    listDocuments.mockResolvedValue(DOCS);
+
+    await settle(() => document.querySelector<HTMLButtonElement>(".load-error-retry")!.click());
+
+    expect(document.querySelector(".load-error")).toBeNull();
+    expect(recentTitles()).toEqual(["Notes", "Handbook"]);
   });
 
   it("keeps the cached documents on screen during a background refetch", async () => {

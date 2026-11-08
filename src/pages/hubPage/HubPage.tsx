@@ -61,7 +61,13 @@ export default function HubPage() {
   const canViewQuality = isAdmin || isDemo;
   const orderKey = scopedKey("documentsOrder", user?.email);
 
-  const { docs, loading: docsLoading, error: docsError } = useDocuments();
+  const {
+    docs,
+    loading: docsLoading,
+    error: docsError,
+    loadFailed: docsLoadFailed,
+    retry: retryDocs,
+  } = useDocuments();
   const setDocs = useSetDocs();
 
   const demoWorkspaceFull = isDemo && docs.length >= DEMO_LIMITS.documents;
@@ -162,8 +168,9 @@ export default function HubPage() {
   );
 
   useEffect(() => {
-    if (docsError) status.show({ kind: "error", message: docsError });
-  }, [docsError, status]);
+    // With nothing on screen, the panel says it failed and offers a retry.
+    if (docsError && !docsLoadFailed) status.show({ kind: "error", message: docsError });
+  }, [docsError, docsLoadFailed, status]);
 
 
   const handleToggleDocPanel = useCallback(() => {
@@ -350,6 +357,8 @@ export default function HubPage() {
     onToggleFavorite: toggleFavorite,
     pendingFavorites,
     loading: docsLoading,
+    loadFailed: docsLoadFailed,
+    onRetry: retryDocs,
   };
 
   return (
@@ -460,6 +469,8 @@ export default function HubPage() {
               onCreated={handleCreated}
               hasDocs={docs.length > 0}
               loading={docsLoading}
+              loadFailed={docsLoadFailed}
+              onRetry={retryDocs}
               onSaved={(updated) =>
                 setDocs((p) => p.map((d) => (d.id === updated.id ? updated : d)))
               }

@@ -3,6 +3,7 @@ import { Search, X, Paperclip, Star, Plus, ChevronRight } from "lucide-react";
 import type { DocumentItem } from "../../../../api/documentsClient";
 import { docHasCategory, getCategoryChipStyle, getCategoryOptions } from "../../utils/docs";
 import { Skeleton, SkeletonLine } from "../../../../components/skeleton/Skeleton";
+import { LoadError } from "../../../../components/loadError/LoadError";
 
 type Props = {
   docs: DocumentItem[];
@@ -17,6 +18,8 @@ type Props = {
   isCollapsed?: boolean;
   onToggleCollapsed?: () => void;
   loading?: boolean;
+  loadFailed?: boolean;
+  onRetry?: () => void;
 };
 
 export default function DocPanel({
@@ -32,6 +35,8 @@ export default function DocPanel({
   isCollapsed,
   onToggleCollapsed,
   loading,
+  loadFailed = false,
+  onRetry,
 }: Props) {
   const [panelSearch, setPanelSearch] = useState("");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -205,7 +210,12 @@ export default function DocPanel({
             </li>
           );
         })}
-        {!loading && filteredDocs.length === 0 && (
+        {loadFailed && onRetry && (
+          <li>
+            <LoadError message="Could not load your documents." onRetry={onRetry} />
+          </li>
+        )}
+        {!loading && !loadFailed && filteredDocs.length === 0 && (
           <div className="doc-panel-empty">{emptyMessage}</div>
         )}
       </ul>

@@ -9,6 +9,7 @@ import type { DocumentItem } from "../../../../api/documentsClient";
 import { getDocTags, getCategoryIconStyle, getCategoryChipStyle } from "../../utils/docs";
 import Menu from "../../../../components/menu/Menu";
 import { Skeleton, SkeletonLine, SkeletonRegion } from "../../../../components/skeleton/Skeleton";
+import { LoadError } from "../../../../components/loadError/LoadError";
 import { loadJson, scopedKey } from "../../../../utils/storage";
 import { AI_QUERY_COUNT_BASE_KEY } from "./AIAssistantView";
 
@@ -26,6 +27,8 @@ type Props = {
 };
 
 const RECENT_LIMIT = 5;
+// A zero would claim the library is empty when it failed to load.
+const UNKNOWN_STAT = "—";
 
 // Same classes as a recent document row, without the button behavior.
 function RecentDocsSkeleton() {
@@ -79,7 +82,7 @@ export default function DashboardView({
       onClick: () => { onImport?.("append", "text"); setShowImportMenu(false); },
     },
   ];
-  const { docs, loading } = useDocuments();
+  const { docs, loading, loadFailed, retry } = useDocuments();
   const { user, favoritesMap } = useAuth();
   const { toggle: toggleFavorite, pendingFavorites } = useFavoriteToggle();
 
@@ -169,7 +172,7 @@ export default function DashboardView({
               <FileText size={18} />
             </span>
           </div>
-          <div className="stat-value">{loading ? <SkeletonLine width="40%" /> : totalDocs}</div>
+          <div className="stat-value">{loading ? <SkeletonLine width="40%" /> : loadFailed ? UNKNOWN_STAT : totalDocs}</div>
           <div className="stat-label">Total Documents</div>
         </div>
         <div className="stat-card">
@@ -178,7 +181,7 @@ export default function DashboardView({
               <Star size={18} />
             </span>
           </div>
-          <div className="stat-value">{loading ? <SkeletonLine width="40%" /> : favoriteCount}</div>
+          <div className="stat-value">{loading ? <SkeletonLine width="40%" /> : loadFailed ? UNKNOWN_STAT : favoriteCount}</div>
           <div className="stat-label">Favorites</div>
         </div>
         <div className="stat-card">
@@ -196,7 +199,7 @@ export default function DashboardView({
               <HardDrive size={18} />
             </span>
           </div>
-          <div className="stat-value">{loading ? <SkeletonLine width="60%" /> : storageLabel}</div>
+          <div className="stat-value">{loading ? <SkeletonLine width="60%" /> : loadFailed ? UNKNOWN_STAT : storageLabel}</div>
           <div className="stat-label">Content Size</div>
         </div>
       </div>
@@ -209,6 +212,8 @@ export default function DashboardView({
 
           {loading ? (
             <RecentDocsSkeleton />
+          ) : loadFailed ? (
+            <LoadError message="Could not load your documents." onRetry={retry} />
           ) : (
             <div className="recent-docs-list">
               {recent.length === 0 ? (

@@ -10,6 +10,7 @@ import {
 import { useStatus } from "../../../../../components/statusBar/useStatus";
 import useConfirm from "../../../../../hooks/useConfirm";
 import { Skeleton, SkeletonLine, SkeletonRegion } from "../../../../../components/skeleton/Skeleton";
+import { LoadError } from "../../../../../components/loadError/LoadError";
 
 const SKELETON_ROWS = 4;
 
@@ -59,14 +60,22 @@ export function UsersSection({ readOnly = false }: { readOnly?: boolean }) {
   // Set before the confirm dialog: a second click must not open another one.
   const deleteInFlightRef = useRef(new Set<number>());
 
-  const statusRef = useRef(status);
+  const [loadFailed, setLoadFailed] = useState(false);
+  // Each retry raises this, which runs the request again.
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     getUsers()
       .then(setUsers)
-      .catch((e) => statusRef.current.show({ kind: "error", title: "Error", message: e.message }))
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
-  }, []);
+  }, [loadAttempt]);
+
+  function retryLoad() {
+    setLoading(true);
+    setLoadFailed(false);
+    setLoadAttempt((n) => n + 1);
+  }
 
   function setUserPending(id: number, val: boolean) {
     setPending((prev) => {
@@ -147,7 +156,7 @@ export function UsersSection({ readOnly = false }: { readOnly?: boolean }) {
           {readOnly && <p className="settings-readonly-note">Admin only · Sample users shown in the demo, changes are disabled</p>}
         </div>
         <span className="settings-user-count">
-          {loading ? <SkeletonLine width={52} /> : `${users.length} users`}
+          {loading ? <SkeletonLine width={52} /> : loadFailed ? "—" : `${users.length} users`}
         </span>
       </div>
 
@@ -163,6 +172,8 @@ export function UsersSection({ readOnly = false }: { readOnly?: boolean }) {
 
       {loading ? (
         <UsersSkeleton />
+      ) : loadFailed ? (
+        <LoadError message="Could not load the users." onRetry={retryLoad} />
       ) : (
         <div className="settings-users-table">
           <UsersTableHead />
