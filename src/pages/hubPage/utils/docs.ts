@@ -1,5 +1,10 @@
 import type { DocumentItem } from "../../../api/documentsClient";
-import { getCategoryHue, CAT_HUES } from "./categoryColorStore";
+
+// 20 perceptually distinct hues
+const CAT_HUES = [
+  215, 15, 145, 275, 350, 185, 50, 305, 95, 250,
+  330, 170, 30, 260, 120, 340, 80, 230, 165, 295,
+];
 
 function normalizeCategoryKey(raw: string): string {
   return raw.trim().toLowerCase().replace(/\s+/g, " ");
@@ -49,10 +54,13 @@ const CATEGORY_PALETTE: Record<string, CategoryVisual> = {
   linux: catVars("linux"),
 };
 
+function categoryKey(category: string): string {
+  const key = normalizeCategoryKey(category);
+  return CATEGORY_ALIASES[key] ?? key;
+}
+
 function getCategoryVisual(category: string): CategoryVisual | null {
-  let key = normalizeCategoryKey(category);
-  key = CATEGORY_ALIASES[key] ?? key;
-  return CATEGORY_PALETTE[key] ?? null;
+  return CATEGORY_PALETTE[categoryKey(category)] ?? null;
 }
 
 function hueToVisual(hue: number): CategoryVisual {
@@ -66,9 +74,6 @@ function hueToVisual(hue: number): CategoryVisual {
 }
 
 function getFallbackCategoryVisual(category: string): CategoryVisual {
-  const storedHue = getCategoryHue(category);
-  if (storedHue !== null) return hueToVisual(storedHue);
-  // Ultimate fallback for categories not yet in the store (e.g. first render race)
   const key = normalizeCategoryKey(category);
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (Math.imul(31, h) + key.charCodeAt(i)) | 0;
@@ -104,5 +109,28 @@ export function getDocTags(doc: DocumentItem | null | undefined): string[] {
     .split(/[,;]/)
     .map((t) => t.trim())
     .filter(Boolean);
+}
+
+export type CategoryOption = { key: string; label: string };
+
+/**
+ * The categories used by these documents, for a filter. A document's list ("A, B") counts
+ * as each of its parts. Spellings of one category are merged and the first one is shown.
+ */
+export function getCategoryOptions(docs: DocumentItem[]): CategoryOption[] {
+  const labels = new Map<string, string>();
+  for (const doc of docs) {
+    for (const tag of getDocTags(doc)) {
+      const key = categoryKey(tag);
+      if (!labels.has(key)) labels.set(key, tag);
+    }
+  }
+  return [...labels]
+    .map(([key, label]) => ({ key, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export function docHasCategory(doc: DocumentItem, key: string): boolean {
+  return getDocTags(doc).some((tag) => categoryKey(tag) === key);
 }
 
