@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   exportDocuments,
@@ -16,8 +16,16 @@ export function useImportExport() {
     mode: "append" | "replace";
     docs: Partial<DocumentInput>[];
   } | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  // Set before the first await: two clicks can land before React renders the pending state.
+  const exportInFlightRef = useRef(false);
+  const importInFlightRef = useRef(false);
 
   async function handleExport() {
+    if (exportInFlightRef.current) return;
+    exportInFlightRef.current = true;
+    setIsExporting(true);
     try {
       const data = await exportDocuments();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -30,16 +38,41 @@ export function useImportExport() {
       status.show({ kind: "success", message: "Documents exported." });
     } catch (e) {
       status.show({ kind: "error", title: "Export failed", message: e instanceof Error ? e.message : "Error" });
+    } finally {
+      exportInFlightRef.current = false;
+      setIsExporting(false);
     }
   }
 
-  async function doImport(mode: "append" | "replace", documents: DocumentInput[]) {
+  function beginImport() {
+    if (importInFlightRef.current) return false;
+    importInFlightRef.current = true;
+    setIsImporting(true);
+    return true;
+  }
+
+  function endImport() {
+    importInFlightRef.current = false;
+    setIsImporting(false);
+  }
+
+  async function sendImport(mode: "append" | "replace", documents: DocumentInput[]) {
     const result = await importDocumentsBulk({ mode, documents });
     await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
     status.show({ kind: "success", message: `Imported ${result.inserted} documents.` });
   }
 
+  async function doImport(mode: "append" | "replace", documents: DocumentInput[]) {
+    if (!beginImport()) return;
+    try {
+      await sendImport(mode, documents);
+    } finally {
+      endImport();
+    }
+  }
+
   function handleImport(mode: "append" | "replace", fileType: "json" | "text") {
+    if (importInFlightRef.current) return;
     const input = document.createElement("input");
     input.type = "file";
     const acceptMap: Record<typeof fileType, string> = { json: ".json", text: ".txt,.md" };
@@ -47,7 +80,7 @@ export function useImportExport() {
     input.multiple = fileType !== "json";
     input.onchange = async (e) => {
       const files = Array.from((e.target as HTMLInputElement).files ?? []);
-      if (files.length === 0) return;
+      if (files.length === 0 || !beginImport()) return;
       try {
         const parsed = await parseImportFiles(files);
         const needsPreview = parsed.some(
@@ -56,14 +89,16 @@ export function useImportExport() {
         if (needsPreview) {
           setImportPreview({ mode, docs: parsed });
         } else {
-          await doImport(mode, parsed as DocumentInput[]);
+          await sendImport(mode, parsed as DocumentInput[]);
         }
       } catch (e) {
         status.show({ kind: "error", title: "Import failed", message: e instanceof Error ? e.message : "Error" });
+      } finally {
+        endImport();
       }
     };
     input.click();
   }
 
-  return { handleExport, handleImport, importPreview, setImportPreview, doImport };
+  return { handleExport, handleImport, importPreview, setImportPreview, doImport, isExporting, isImporting };
 }

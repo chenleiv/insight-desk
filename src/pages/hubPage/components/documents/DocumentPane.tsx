@@ -147,6 +147,8 @@ export default function DocumentPane({
 
   // Blocks a second submit before the pending state has rendered.
   const createInFlightRef = useRef(false);
+  const downloadInFlightRef = useRef(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const handleCreateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -307,7 +309,9 @@ export default function DocumentPane({
   });
 
   async function handleDownload(format: DownloadFormat) {
-    if (!doc) return;
+    if (!doc || downloadInFlightRef.current) return;
+    downloadInFlightRef.current = true;
+    setIsDownloading(true);
     try {
       const { blob, fileName } = await downloadDocument(doc.id, format);
       const url = URL.createObjectURL(blob);
@@ -318,6 +322,9 @@ export default function DocumentPane({
       URL.revokeObjectURL(url);
     } catch (e) {
       status.show({ kind: "error", title: "Download failed", message: e instanceof Error ? e.message : "Error" });
+    } finally {
+      downloadInFlightRef.current = false;
+      setIsDownloading(false);
     }
   }
 
@@ -383,7 +390,7 @@ export default function DocumentPane({
           },
         })}
         {...(isCreating && { onImportClick: () => importFileRef.current?.click(), importDisabled: isCreationPending })}
-        {...(!isCreating && doc && { onDownload: (format: DownloadFormat) => void handleDownload(format) })}
+        {...(!isCreating && doc && { onDownload: (format: DownloadFormat) => void handleDownload(format), isDownloading })}
         {...(onClose ? {
           // While editing, Close cancels the edit like Cancel and Escape instead of leaving the document.
           onClose: isEditing ? () => void handleCancel() : onClose,

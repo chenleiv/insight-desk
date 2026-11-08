@@ -69,7 +69,7 @@ export default function HubPage() {
     : "Admin only";
 
   const { orderedDocs, setOrder } = useDocumentOrdering(docs, orderKey);
-  const { handleExport, handleImport, importPreview, setImportPreview, doImport } = useImportExport();
+  const { handleExport, handleImport, importPreview, setImportPreview, doImport, isExporting, isImporting } = useImportExport();
 
   const PANEL_DEFAULT_WIDTH = 320;
   const PANEL_COLLAPSE_THRESHOLD = 130;
@@ -421,6 +421,8 @@ export default function HubPage() {
                 onOpenDocument={goToDocument}
                 onExport={handleExport}
                 onImport={handleImport}
+                isExporting={isExporting}
+                isImporting={isImporting}
                 canEdit={canEditDocs}
                 canCreate={canCreateDocs}
                 createDisabledLabel={createDisabledLabel}

@@ -16,6 +16,8 @@ type Props = {
   onOpenDocument?: (id: string) => void;
   onExport?: () => void;
   onImport?: (mode: "append" | "replace", fileType: "json" | "text") => void;
+  isExporting?: boolean;
+  isImporting?: boolean;
   canEdit?: boolean;
   canCreate?: boolean;
   createDisabledLabel?: string;
@@ -56,6 +58,8 @@ export default function DashboardView({
   onOpenDocument,
   onExport,
   onImport,
+  isExporting = false,
+  isImporting = false,
   canEdit,
   canCreate = canEdit,
   createDisabledLabel = "Admin only",
@@ -127,8 +131,9 @@ export default function DashboardView({
             + New Document
           </button>
           {onExport && (
-            <button type="button" className="action-btn secondary" onClick={onExport}>
-              <Download size={15} /> Export
+            <button type="button" className="action-btn secondary" onClick={onExport}
+              disabled={isExporting} aria-busy={isExporting}>
+              <Download size={15} /> {isExporting ? "Exporting…" : "Export"}
             </button>
           )}
           {canEdit && onImport && (
@@ -138,10 +143,11 @@ export default function DashboardView({
                 className="action-btn secondary"
                 ref={importBtnRef}
                 onClick={() => setShowImportMenu(true)}
-                disabled={!canImport}
+                disabled={!canImport || isImporting}
+                aria-busy={isImporting}
                 title={canImport ? undefined : "Not available in the demo"}
               >
-                <Upload size={15} /> Import
+                <Upload size={15} /> {isImporting ? "Importing…" : "Import"}
               </button>
               <Menu
                 open={showImportMenu}

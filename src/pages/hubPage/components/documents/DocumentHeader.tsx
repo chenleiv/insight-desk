@@ -19,8 +19,8 @@ import { UPLOAD_ACCEPT } from "../../../../../shared/uploadRules";
 
 const IMPORT_TOOLTIP = `Supported: .json ${UPLOAD_ACCEPT.split(",").join(" ")}`;
 
-// "unsaved": edits not saved yet. "deleting": the delete request is running.
-type HeaderSaveStatus = SaveStatus | "unsaved" | "deleting";
+// "unsaved": edits not saved yet. "deleting" and "downloading": that request is running.
+type HeaderSaveStatus = SaveStatus | "unsaved" | "deleting" | "downloading";
 
 // Gives the header actions one resting look; only hover, focus and disabled differ.
 const HEADER_BTN = "doc-pane-header-btn";
@@ -47,6 +47,7 @@ type Props = {
   onImportClick?: () => void;
   importDisabled?: boolean;
   onDownload?: (format: DownloadFormat) => void;
+  isDownloading?: boolean;
 };
 
 function MaximizeBtn({ isMaximized, onClick }: { isMaximized: boolean | undefined; onClick: () => void }) {
@@ -77,6 +78,7 @@ const SAVE_STATUS_LABELS: Record<HeaderSaveStatus, string> = {
   saved: "Saved",
   error: "Save failed",
   deleting: "Deleting…",
+  downloading: "Downloading…",
 };
 
 // Always rendered, so screen readers announce each change of the live region.
@@ -116,15 +118,19 @@ const DOWNLOAD_OPTIONS: { format: DownloadFormat; label: string }[] = [
   { format: "docx", label: "Word (.docx)" },
 ];
 
-function DownloadBtn({ onDownload, disabledHint }: { onDownload: (format: DownloadFormat) => void; disabledHint?: string | undefined }) {
+function DownloadBtn({ onDownload, disabledHint, isDownloading }: {
+  onDownload: (format: DownloadFormat) => void;
+  disabledHint?: string | undefined;
+  isDownloading: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   return (
     <>
       <button type="button" ref={btnRef} className={`icon-btn ${HEADER_BTN} doc-pane-header-tool-btn`}
-        onClick={() => setOpen(true)} disabled={!!disabledHint}
+        onClick={() => setOpen(true)} disabled={!!disabledHint || isDownloading} aria-busy={isDownloading}
         aria-haspopup="menu" aria-expanded={open}
-        data-tooltip={disabledHint ?? "Export as Markdown, PDF or Word"} data-tooltip-pos="bottom" aria-label="Export document">
+        data-tooltip={disabledHint ?? (isDownloading ? "Downloading…" : "Export as Markdown, PDF or Word")} data-tooltip-pos="bottom" aria-label="Export document">
         <Download size={16} />
       </button>
       <Menu
@@ -157,10 +163,11 @@ function BackBtn({ onClick, disabled }: { onClick: () => void; disabled: boolean
 // Wide enough for the longest label on one line.
 const MORE_MENU_WIDTH = 220;
 
-function MoreMenu({ onDownload, onDelete, isDeleting }: {
+function MoreMenu({ onDownload, onDelete, isDeleting, isDownloading }: {
   onDownload?: ((format: DownloadFormat) => void) | undefined;
   onDelete?: (() => void) | undefined;
   isDeleting: boolean;
+  isDownloading: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -170,6 +177,7 @@ function MoreMenu({ onDownload, onDelete, isDeleting }: {
   const items = [
     ...(onDownload ? DOWNLOAD_OPTIONS.map(({ format, label }) => ({
       label: `Export as ${label}`,
+      disabled: isDownloading,
       onClick: () => onDownload(format),
     })) : []),
     // Not returned to the menu, which would stay open behind the confirm dialog until it is answered.
@@ -207,8 +215,10 @@ export function DocumentHeader({
   onImportClick,
   importDisabled = false,
   onDownload,
+  isDownloading = false,
 }: Props) {
   const isPhone = useMobile();
+  const chipStatus = isDeleting ? "deleting" : isDownloading ? "downloading" : saveStatus;
   // Download would leave out unsaved text and delete would drop the edit, so both wait for Save or Cancel.
   const isEditing = !!editActions;
   const editingHint = "Save or cancel your changes first";
@@ -216,11 +226,11 @@ export function DocumentHeader({
   // ── Delete btn + window controls ──
   const defaultActions = (
     <>
-      <SaveStatusChip status={isDeleting ? "deleting" : saveStatus} />
+      <SaveStatusChip status={chipStatus} />
       {editActions && !isCreating && <SaveCancelBtns {...editActions} />}
       {onEdit && !isCreating && <EditBtn onClick={onEdit} disabled={isDeleting} />}
       {onDownload && !isCreating && (
-        <DownloadBtn onDownload={onDownload} disabledHint={isEditing ? editingHint : undefined} />
+        <DownloadBtn onDownload={onDownload} disabledHint={isEditing ? editingHint : undefined} isDownloading={isDownloading} />
       )}
       {onDelete && !isCreating && (
         <button type="button" className={`icon-btn ${HEADER_BTN} doc-pane-delete-btn`}
@@ -239,10 +249,10 @@ export function DocumentHeader({
   // Export and Delete into a menu. Like them, the menu waits for Save or Cancel.
   const phoneActions = (
     <>
-      <SaveStatusChip status={isDeleting ? "deleting" : saveStatus} />
+      <SaveStatusChip status={chipStatus} />
       {editActions && !isCreating && <SaveCancelBtns {...editActions} />}
       {onEdit && !isCreating && <EditBtn onClick={onEdit} disabled={isDeleting} />}
-      {!isEditing && !isCreating && <MoreMenu onDownload={onDownload} onDelete={onDelete} isDeleting={isDeleting} />}
+      {!isEditing && !isCreating && <MoreMenu onDownload={onDownload} onDelete={onDelete} isDeleting={isDeleting} isDownloading={isDownloading} />}
     </>
   );
 
