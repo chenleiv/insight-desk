@@ -103,7 +103,7 @@ Test layout:
 - *.integration.test.js files run against an in-memory MongoDB started through backend/__tests__/mongoMemory.js
 - backend tests set the `@vitest-environment node` pragma
 - test servers bind to loopback only: listen(0, "127.0.0.1")
-- Hebrew test data uses Unicode escapes (like ש)
+- Hebrew test data uses Unicode escapes (like \u05e9)
 
 ---
 

@@ -55,7 +55,7 @@ Check:
 - AI integration error handling
 - file upload edge cases
 - test servers bind to loopback only: listen(0, "127.0.0.1")
-- Hebrew test data uses Unicode escapes (like ש)
+- Hebrew test data uses Unicode escapes (like \u05e9)
 
 ---
 

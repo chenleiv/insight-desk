@@ -49,7 +49,7 @@ Never:
 ## Working rules
 
 - Never read `backend/.env` and never ask for its contents.
-- Write all code, comments, and repo content in English. No Hebrew in the repo; tests use Unicode escapes (like `ש`) for Hebrew test data.
+- Write all code, comments, and repo content in English. No Hebrew in the repo; tests use Unicode escapes (like `\u05e9`) for Hebrew test data.
 - Never add AI attribution lines (such as Co-Authored-By) to commits.
 - Never edit a test just to make it pass. If a test fails, alert me first, then propose a fix and wait for my approval before changing anything.
 - Run commands inside the sandbox. Before running any command outside the sandbox (for example with the sandbox disabled), tell me what the command is and why it is needed, and wait for my approval, even if it is read-only.
