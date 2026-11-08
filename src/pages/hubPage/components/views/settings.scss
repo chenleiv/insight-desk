@@ -536,6 +536,14 @@
         text-overflow: ellipsis;
     }
 
+    .settings-user-deleting {
+        flex-shrink: 0;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-muted);
+        white-space: nowrap;
+    }
+
     .settings-you-badge {
         flex-shrink: 0;
         font-size: 10px;

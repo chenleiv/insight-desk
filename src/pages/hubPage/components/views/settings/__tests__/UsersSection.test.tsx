@@ -8,13 +8,15 @@ import { ConfirmContext, type ConfirmFn } from "../../../../../../components/con
 import type { UserRecord } from "../../../../../../api/authClient";
 import { UsersSection } from "../UsersSection";
 
-const { getUsers } = vi.hoisted(() => ({
+const { getUsers, deleteUser } = vi.hoisted(() => ({
   getUsers: vi.fn<() => Promise<UserRecord[]>>(),
+  deleteUser: vi.fn<(id: number) => Promise<{ ok: true }>>(),
 }));
 
 vi.mock("../../../../../../api/authClient", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../../../../api/authClient")>()),
   getUsers,
+  deleteUser,
 }));
 
 const USERS: UserRecord[] = [
@@ -76,6 +78,78 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+});
+
+describe("UsersSection delete user", () => {
+  const deleteBtns = () => [...document.querySelectorAll<HTMLButtonElement>(".settings-delete-btn")];
+  const viewerRow = () => document.querySelectorAll(".settings-user-row")[1];
+
+  async function renderLoaded() {
+    getUsers.mockResolvedValue(USERS);
+    await act(async () => render());
+  }
+
+  beforeEach(() => {
+    deleteUser.mockReset();
+    confirm.mockReset();
+  });
+
+  it("marks the row as deleting, blocks it, and removes it when the server confirms", async () => {
+    const request = deferred<{ ok: true }>();
+    deleteUser.mockReturnValue(request.promise);
+    confirm.mockResolvedValue(true);
+    await renderLoaded();
+
+    await act(async () => deleteBtns()[1].click());
+
+    expect(viewerRow().textContent).toContain("Deleting…");
+    expect(deleteBtns()[1].disabled).toBe(true);
+    expect(deleteBtns()[1].getAttribute("aria-busy")).toBe("true");
+    expect(deleteBtns()[1].getAttribute("aria-label")).toBe("Deleting user…");
+    expect(viewerRow().querySelector<HTMLSelectElement>("select")!.disabled).toBe(true);
+
+    await act(async () => request.resolve({ ok: true }));
+
+    expect(emails()).toEqual(["admin@example.com"]);
+  });
+
+  it("opens one dialog and sends one request for a double click", async () => {
+    deleteUser.mockResolvedValue({ ok: true });
+    let answer!: (ok: boolean) => void;
+    confirm.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+    await renderLoaded();
+
+    const btn = deleteBtns()[1];
+    await act(async () => { btn.click(); btn.click(); });
+    expect(confirm).toHaveBeenCalledOnce();
+
+    await act(async () => answer(true));
+    expect(deleteUser).toHaveBeenCalledOnce();
+  });
+
+  it("restores the row and shows the error when the delete fails", async () => {
+    deleteUser.mockRejectedValue(new Error("Server down"));
+    confirm.mockResolvedValue(true);
+    await renderLoaded();
+
+    await act(async () => deleteBtns()[1].click());
+
+    expect(emails()).toEqual(["admin@example.com", "viewer@example.com"]);
+    expect(viewerRow().textContent).not.toContain("Deleting…");
+    expect(deleteBtns()[1].disabled).toBe(false);
+    expect(status.show).toHaveBeenCalledWith({ kind: "error", title: "Error", message: "Server down" });
+  });
+
+  it("can be asked again after the dialog is cancelled", async () => {
+    confirm.mockResolvedValue(false);
+    await renderLoaded();
+
+    await act(async () => deleteBtns()[1].click());
+    await act(async () => deleteBtns()[1].click());
+
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(deleteUser).not.toHaveBeenCalled();
+  });
 });
 
 describe("UsersSection loading state", () => {
