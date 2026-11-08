@@ -1,5 +1,5 @@
 /**
- * Central prompt configuration for InsightDesk AI.
+ * Central prompt configuration for Dex.
  * Edit this file to change how the AI assistant behaves.
  */
 

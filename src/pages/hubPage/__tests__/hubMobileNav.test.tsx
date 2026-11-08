@@ -247,7 +247,7 @@ describe("hub navigation on phones", () => {
     expect(search()).toBe("?view=dashboard");
   });
 
-  it("has no floating Ask InsightDesk button, since the tab replaces it", () => {
+  it("has no floating Ask Dex button, since the tab replaces it", () => {
     renderHub("/hub?doc=d1");
     expect(q(".insightdesk-fab")).toBeNull();
   });
