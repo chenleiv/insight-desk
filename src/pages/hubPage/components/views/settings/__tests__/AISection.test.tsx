@@ -146,6 +146,28 @@ describe("AISection reset to default", () => {
     expect(status.show).toHaveBeenCalledWith({ kind: "success", title: "Reset", message: "System prompt reset to the default" });
   });
 
+  it("labels only the reset button while resetting", async () => {
+    const reset = deferred<PromptConfig>();
+    confirm.mockResolvedValue(true);
+    resetSystemPrompt.mockReturnValue(reset.promise);
+    await renderLoaded();
+    const button = resetButton()!;
+    const saveButton = [...document.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === "Save prompt")!;
+
+    await act(async () => button.click());
+
+    expect(button.textContent).toBe("Resetting…");
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(saveButton.textContent).toBe("Save prompt");
+    expect(saveButton.disabled).toBe(true);
+
+    await act(async () => reset.resolve(DEFAULT));
+
+    expect(button.textContent).toBe("Reset to default");
+    expect(button.getAttribute("aria-busy")).toBe("false");
+  });
+
   it("does nothing when the admin cancels", async () => {
     confirm.mockResolvedValue(false);
     await renderLoaded();

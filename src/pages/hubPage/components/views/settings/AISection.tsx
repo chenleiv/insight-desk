@@ -21,7 +21,7 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
   const queryClient = useQueryClient();
 
   const [promptDraft, setPromptDraft] = useState("");
-  const [promptSaving, setPromptSaving] = useState(false);
+  const [promptAction, setPromptAction] = useState<"saving" | "resetting" | null>(null);
   const [promptLoaded, setPromptLoaded] = useState(false);
   const [promptFailed, setPromptFailed] = useState(false);
 
@@ -53,14 +53,14 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
   }, []);
 
   async function savePrompt() {
-    setPromptSaving(true);
+    setPromptAction("saving");
     try {
       await updateSystemPrompt(promptDraft);
       status.show({ kind: "success", title: "Saved", message: "System prompt updated" });
     } catch (e) {
       status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
     } finally {
-      setPromptSaving(false);
+      setPromptAction(null);
     }
   }
 
@@ -71,14 +71,14 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
       confirmLabel: "Reset",
     });
     if (!ok) return;
-    setPromptSaving(true);
+    setPromptAction("resetting");
     try {
       setPromptDraft((await resetSystemPrompt()).prompt);
       status.show({ kind: "success", title: "Reset", message: "System prompt reset to the default" });
     } catch (e) {
       status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
     } finally {
-      setPromptSaving(false);
+      setPromptAction(null);
     }
   }
 
@@ -121,7 +121,7 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
               value={promptDraft}
               onChange={(e) => setPromptDraft(e.target.value)}
               readOnly={readOnly}
-              disabled={!promptLoaded || promptSaving}
+              disabled={!promptLoaded || promptAction !== null}
               rows={12}
               placeholder={promptFailed ? "Could not load the system prompt." : undefined}
             />
@@ -130,19 +130,21 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
             <button
               type="button"
               className="settings-save-btn"
-              disabled={readOnly || !promptLoaded || promptSaving}
+              disabled={readOnly || !promptLoaded || promptAction !== null}
+              aria-busy={promptAction === "saving"}
               onClick={savePrompt}
             >
-              {promptSaving ? "Saving…" : "Save prompt"}
+              {promptAction === "saving" ? "Saving…" : "Save prompt"}
             </button>
             {!readOnly && (
               <button
                 type="button"
                 className="settings-cancel-btn"
-                disabled={!promptLoaded || promptSaving}
+                disabled={!promptLoaded || promptAction !== null}
+                aria-busy={promptAction === "resetting"}
                 onClick={resetPrompt}
               >
-                Reset to default
+                {promptAction === "resetting" ? "Resetting…" : "Reset to default"}
               </button>
             )}
           </div>
