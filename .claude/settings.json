@@ -15,9 +15,9 @@
   },
   "permissions": {
     "allow": [
-      "Bash(git status)",
-      "Bash(git diff)",
-      "Bash(git diff --staged)",
+      "Bash(git status -- ':!*.env*')",
+      "Bash(git diff -- ':!*.env*')",
+      "Bash(git diff --staged -- ':!*.env*')",
       "Bash(git log --oneline*)",
       "Bash(git log -n *)",
       "Bash(git log --format*)",

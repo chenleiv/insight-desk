@@ -27,5 +27,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Personal Claude Code permissions
+.claude/settings.local.json
+
 # Local mongod binary for mongodb-memory-server
 tools/mongodb/

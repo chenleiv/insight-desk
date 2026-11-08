@@ -4,14 +4,15 @@ How I work with Claude Code on this repo: the agent builds, I approve and review
 
 ## Guardrails
 
-- **Rules file:** `.claude/CLAUDE.md` holds the working rules: plan first, wait for approval, never edit a test just to make it pass, all repo content in English, and the definition of done (`npm test`, `npm run lint`, `npm run build`, plus a summary of what changed, why, and the risks).
+- **Rules file:** `.claude/CLAUDE.md` holds the working rules: plan first, wait for approval, never edit a test just to make it pass, all repo content in English, and the definition of done (`npm run lint`, `npm test`, `npm run build`, plus a summary of what changed, why, and the risks). ESLint covers TS/TSX only.
 - **Secrets:** `.claude/settings.json` denies `Read(**/.env)` and `Read(**/.env.*)`, so the agent's `Read` tool cannot open `backend/.env` or any other env file. The earlier rule, `Read(.env)`, only covered the repo root.
-- **Allowlist:** read-only git commands plus test, lint, and build run without a prompt. Everything else asks first.
+- **Allowlist:** read-only git commands, `ls`, and `npm audit`, plus test, lint, and build, run without a prompt. Everything else asks first.
+- **Stop hook:** `.claude/hooks/build-check.sh` runs when the agent ends a turn with uncommitted changes: lint on TS/TSX changes, tests on TS/TSX/JS changes, and build on TS/TSX/SCSS or `shared/` changes. A failure sends the output back to the agent instead of ending the turn.
 
 ## Secrets and the agent
 
 - **What can go wrong:** a secret from an env file ends up in the chat, which means it reaches the model provider and the local transcript, or it ends up in a log or a commit. The agent can cause this by reading the file, and a person can cause it by pasting the file into the chat.
-- **What prevents it:** env files are in `.gitignore` and have never been committed; `settings.json` hard-denies the agent's `Read` tool on them; `CLAUDE.md` forbids reading them or asking for their contents.
+- **What prevents it:** as a rule, env files must never be read or committed; local env files are in `.gitignore`; `settings.json` hard-denies the agent's `Read` tool on them; `CLAUDE.md` forbids reading them or asking for their contents.
 - **What is still open:** the deny rules cover the `Read` and `Edit` tools. `Bash` reads of the env files (for example `cat backend/.env`) are now blocked by the sandbox, which I verified in practice. That protection depends on the sandbox being enabled; with it off, only the soft rule in `CLAUDE.md` stops them. To limit the damage of any leak, development and production use different secrets.
 
 ## Sandbox

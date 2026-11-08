@@ -14,7 +14,7 @@ QA reviewer validating production readiness.
 
 Prioritize:
 
-- critical flows (auth, document upload, AI analysis)
+- critical flows (auth, document upload, chat and RAG retrieval)
 - security logic
 - business rules
 - error handling
@@ -30,7 +30,7 @@ Avoid:
 Check:
 
 Components:
-- user behavior (React Testing Library / Vitest)
+- user behavior (Vitest + jsdom; React Testing Library is not installed)
 - state changes
 - loading/error states
 
@@ -54,6 +54,8 @@ Check:
 - auth middleware failures
 - AI integration error handling
 - file upload edge cases
+- test servers bind to loopback only: listen(0, "127.0.0.1")
+- Hebrew test data uses Unicode escapes (like ש)
 
 ---
 
@@ -69,10 +71,10 @@ Verify:
 
 # Commands
 
-Run available:
+Run all, in order:
 
 - npm run lint
-- npm run test
+- npm test
 - npm run build
 
 ---
@@ -81,6 +83,7 @@ Run available:
 
 Require:
 
+- lint passes
 - build passes
 - no type errors
 - tests pass

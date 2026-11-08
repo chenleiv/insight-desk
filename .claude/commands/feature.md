@@ -99,16 +99,15 @@ Rules:
 
 # After Implementation
 
-Run validation for changed areas.
+Run, in order:
 
-Frontend changes:
-
-Run:
+npm run lint
+npm test
 npm run build
 
-Fix build errors before marking COMPLETE.
+Never return COMPLETE with a failing check.
 
-Never return COMPLETE with failing build.
+For a failing test, follow the test rule in .claude/CLAUDE.md.
 
 # Finish
 

@@ -7,7 +7,7 @@ Compact project context loaded by all agents.
 ## Paths
 
 ```
-src/api/              API clients (TanStack Query hooks)
+src/api/              API clients (plain fetch; TanStack Query hooks live in page hooks and providers)
 src/auth/             Auth logic and protected routes
 src/components/       Shared UI components
 src/context/          React context providers
@@ -16,16 +16,28 @@ src/pages/            Page components (hubPage, loginPage)
 src/styles/           SCSS styles
 src/utils/            Utilities
 src/App.tsx           Root component + routing
+backend/index.js      Server entry point
+backend/app.js        Express app: middleware and route mounting
 backend/routes/       Express route handlers
 backend/middleware/   Express middleware
 backend/models.js     Mongoose/DB models
 backend/schemas.js    Zod validation schemas
-backend/ai.js         Groq AI integration
-backend/auth.js       Auth logic
-backend/prompts.js    AI prompt templates
+backend/access.js     Who may see and change which documents; demo limits
+backend/ai.js         Chat router and Groq integration
+backend/auth.js       Auth router and logic
+backend/prompts.js    DEFAULT_PROMPT and the answer rules
 backend/rag/          Search layer: chunking, embeddings, retrieval
 backend/demo.js       Demo workspace lifecycle
+backend/demoQuota.js  Demo limit counters
+backend/usageBudget.js Daily limits on the chat's model use
 backend/textExtract.js Document text extraction
+backend/extractWorker.js Child process that parses one uploaded file
+backend/fileSignature.js Checks a file's first bytes match its type
+backend/zipGuard.js   Checks a ZIP's real size before parsing
+backend/scripts/      Maintenance scripts (reindex, embedDemo, evalProd, normalizeEmails)
+shared/               Upload rules used by frontend and backend
+eval/                 Retrieval and answer evaluation
+docs/                 EVAL.md and AGENT_WORKFLOW.md
 .claude/memory/       Project context
 .claude/skills/       Review skills
 ```
@@ -46,7 +58,7 @@ Core domains:
 - Search layer (backend/rag/: chunks each document and attachment, embeds chunks with a local model, scores them by cosine similarity in memory, scoped to documents the user may read)
 - Chat (backend/ai.js: search results below a minimum score are dropped; with none left, a fixed "not found" answer skips the model; otherwise Groq answers from the chunks and citations are checked against them)
 - Quality (retrieval logs and answer ratings, shown to admins and demo users)
-- Auth (JWT HttpOnly cookie sessions; roles admin, viewer, demo; registration is closed)
+- Auth (JWT HttpOnly cookie sessions; password or Google login; roles admin, viewer, demo; registration is closed, accounts come from the seed or an existing Google login)
 - Demo (temporary private workspace with sample documents and daily limits)
 - Hub (main workspace view)
 
@@ -57,6 +69,7 @@ Core domains:
 Frontend:
 
 React 19
+React Compiler (handles memoization)
 TypeScript
 Vite
 SCSS
@@ -77,10 +90,20 @@ Mongoose (MongoDB)
 Zod (validation)
 multer (file uploads)
 mammoth, pdf-parse, xlsx (document parsing)
+docx, pdfkit (document export)
 
 Testing:
 
-Vitest + jsdom
+Vitest + jsdom (default environment)
+mongodb-memory-server (integration tests)
+
+Test layout:
+
+- tests live in __tests__ folders next to the code
+- *.integration.test.js files run against an in-memory MongoDB started through backend/__tests__/mongoMemory.js
+- backend tests set the `@vitest-environment node` pragma
+- test servers bind to loopback only: listen(0, "127.0.0.1")
+- Hebrew test data uses Unicode escapes (like ש)
 
 ---
 
@@ -97,7 +120,7 @@ Use:
 Avoid:
 
 - large components
-- API calls inside components (use hooks)
+- API calls inside components (use hooks; known exceptions are listed in .claude/CLAUDE.md)
 - duplicated state (server state in context)
 - prop drilling beyond 2 levels (use context)
 
@@ -105,21 +128,17 @@ Avoid:
 
 ## Backend Rules
 
-Use:
+Request flow:
 
-route handler
-↓
 middleware
 ↓
-service/model
+route handler (backend/routes/, or the routers in ai.js and auth.js)
+↓
+logic module/model
 
-Route handlers:
+ai.js and auth.js each export an Express router and hold its logic together.
 
-HTTP only, no business logic.
-
-Services (ai.js, auth.js, textExtract.js):
-
-Business logic only.
+Put new non-HTTP logic in its own module with no req/res handling, like textExtract.js, demoQuota.js, usageBudget.js and backend/rag/.
 
 Avoid:
 
@@ -179,9 +198,7 @@ Avoid:
 
 ## TypeScript Rules
 
-Prefer union types over string:
-
-type DocumentStatus = 'uploading' | 'processing' | 'ready' | 'error'
+Prefer union types over string.
 
 Avoid: `any`, type assertions without reason, duplicated types.
 

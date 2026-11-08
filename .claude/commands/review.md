@@ -26,8 +26,8 @@ Optional.
 Run:
 
 ```bash
-git status
-git diff
+git status -- ':!*.env*'
+git diff -- ':!*.env*'
 ```
 
 Analyze:

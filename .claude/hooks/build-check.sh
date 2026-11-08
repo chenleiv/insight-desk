@@ -42,32 +42,37 @@ print(json.dumps({
   exit 0
 }
 
-CHANGED=$(git status --porcelain 2>/dev/null || echo "")
+# Runs one npm script and blocks the stop if it fails.
+run_check() {
+  local label="$1" message="$2" script="$3"
+  local log_file exit_code=0
+  # An explicit template: mktemp -t ignores TMPDIR on macOS and fails in the sandbox.
+  log_file=$(mktemp "${TMPDIR:-/tmp}/insight-$script.XXXXXX")
+  LOG_FILES+=("$log_file")
 
-# Frontend validation — runs on TS/TSX/SCSS changes
-if echo "$CHANGED" | grep -qE '\.(ts|tsx|scss)$'; then
-  BUILD_LOG=$(mktemp -t insight-build.XXXXXX)
-  LOG_FILES+=("$BUILD_LOG")
+  npm run "$script" > "$log_file" 2>&1 || exit_code=$?
 
-  BUILD_EXIT=0
-  npm run build > "$BUILD_LOG" 2>&1 || BUILD_EXIT=$?
-
-  if [ $BUILD_EXIT -ne 0 ]; then
-    block_with_log "BUILD" "FRONTEND BUILD FAILED. Fix these errors:" "$BUILD_LOG"
+  if [ "$exit_code" -ne 0 ]; then
+    block_with_log "$label" "$message" "$log_file"
   fi
+}
+
+# -uall lists files inside new folders; without it a new folder hides their extensions.
+CHANGED=$(git status --porcelain -uall -- ':!*.env*' 2>/dev/null || echo "")
+
+# Same order as CI. ESLint covers TS/TSX only (see eslint.config.js).
+if echo "$CHANGED" | grep -qE '\.(ts|tsx)"?$'; then
+  run_check "LINT" "LINT FAILED. Fix these errors:" lint
 fi
 
-# Test validation — runs on test file changes or src changes
-if echo "$CHANGED" | grep -qE '\.(ts|tsx)$'; then
-  TEST_LOG=$(mktemp -t insight-test.XXXXXX)
-  LOG_FILES+=("$TEST_LOG")
+# The backend, shared and eval code is JavaScript.
+if echo "$CHANGED" | grep -qE '\.(ts|tsx|js)"?$'; then
+  run_check "TEST" "TESTS FAILED. Fix these errors:" test
+fi
 
-  TEST_EXIT=0
-  npm run test > "$TEST_LOG" 2>&1 || TEST_EXIT=$?
-
-  if [ $TEST_EXIT -ne 0 ]; then
-    block_with_log "TEST" "TESTS FAILED. Fix these errors:" "$TEST_LOG"
-  fi
+# shared/ is imported by the frontend, so it counts as a frontend change.
+if echo "$CHANGED" | grep -qE '\.(ts|tsx|scss)"?$|[ "]shared/'; then
+  run_check "BUILD" "FRONTEND BUILD FAILED. Fix these errors:" build
 fi
 
 exit 0

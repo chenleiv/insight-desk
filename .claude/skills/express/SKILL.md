@@ -22,9 +22,11 @@ Route handlers:
 - validate with Zod before processing
 - delegate to service functions
 
-Services (ai.js, auth.js, textExtract.js):
+Logic modules (textExtract.js, demoQuota.js, usageBudget.js, backend/rag/):
 - business logic only
 - no direct HTTP response handling
+
+ai.js and auth.js export routers and hold their logic together. New non-HTTP logic goes in its own module.
 
 Avoid:
 - logic in route handlers
@@ -63,13 +65,14 @@ Reject:
 
 ---
 
-# File Uploads (multer)
+# File Uploads (multer, memory storage)
 
 Check:
-- file type validation
+- file type checked by content (fileSignature.js, shared/uploadRules.js)
 - file size limits
 - safe filename handling
-- temp file cleanup
+- ZIP files checked before parsing (zipGuard.js)
+- parsing stays in the child process with its limits (extractWorker.js)
 
 ---
 

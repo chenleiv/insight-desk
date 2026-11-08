@@ -27,12 +27,12 @@ Load:
 
 Run:
 
-git status
-git diff --staged
+git status -- ':!*.env*'
+git diff --staged -- ':!*.env*'
 
 If empty:
 
-git diff
+git diff -- ':!*.env*'
 
 ---
 
@@ -44,7 +44,7 @@ React, components, hooks, context, TanStack Query, SCSS, UI pages
 
 Backend:
 
-Express routes, middleware, auth, AI integration, file processing
+Express routes, middleware, auth, AI integration, search layer (backend/rag/), file processing
 
 Database:
 
@@ -57,7 +57,7 @@ auth, JWT cookies, file uploads, AI response handling, secrets
 Performance:
 
 - document lists
-- AI response streaming
+- chat retrieval and Groq calls
 - file upload handling
 - expensive parsing
 

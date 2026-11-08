@@ -26,7 +26,7 @@ Load:
 
 Review performance sensitive changes:
 
-- document lists and pagination
+- document lists
 - AI response handling
 - file upload and parsing
 - API response times
@@ -38,8 +38,7 @@ Review performance sensitive changes:
 
 Check:
 
-- unnecessary re-renders (missing memo/useCallback)
-- expensive calculations without useMemo
+- unnecessary re-renders (React Compiler handles memoization; do not ask for manual useMemo/useCallback)
 - large DOM updates
 - missing key props in lists
 - memory leaks (missing useEffect cleanup)
@@ -53,7 +52,8 @@ Check:
 
 - blocking operations in route handlers
 - repeated processing (no caching)
-- large file parsing in request cycle
+- file parsing stays in the child process (extractWorker.js)
+- retrieval cost (embeddings and in-memory scoring in backend/rag/)
 - Groq API call efficiency
 
 ---
