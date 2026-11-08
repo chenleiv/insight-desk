@@ -55,7 +55,7 @@ export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, on
                 onClick={onOpenAI}
               >
                 <BrainCircuit size={14} />
-                <span>Ask InsightDesk</span>
+                <span>Ask Dex</span>
               </button>
             )}
             <div className="topbar-nav">

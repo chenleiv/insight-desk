@@ -164,13 +164,13 @@ afterEach(() => {
 });
 
 describe("hub navigation on phones", () => {
-  it("has the bottom nav and no menu, documents or Ask InsightDesk buttons in the top bar", () => {
+  it("has the bottom nav and no menu, documents or Ask Dex buttons in the top bar", () => {
     renderHub();
     expect(q(".bottom-nav")).not.toBeNull();
-    expect(activeTab()).toBe("Assistant");
+    expect(activeTab()).toBe("Dex");
     expect(q("[aria-label='Menu']")).toBeNull();
     expect(q("[aria-label='Open documents']")).toBeNull();
-    expect(q("[aria-label='Ask InsightDesk']")).toBeNull();
+    expect(q("[aria-label='Ask Dex']")).toBeNull();
   });
 
   it("hides the bottom nav while the keyboard is open", () => {
@@ -188,7 +188,7 @@ describe("hub navigation on phones", () => {
     await back();
     expect(activeTab()).toBe("Dashboard");
     await back();
-    expect(activeTab()).toBe("Assistant");
+    expect(activeTab()).toBe("Dex");
   });
 
   it("does nothing when the active tab is tapped", async () => {
@@ -328,7 +328,7 @@ describe("guides on phones", () => {
   it("spotlights a real bottom nav element on every step, and finishing leaves the other guides", async () => {
     renderFirstVisit();
     await tap(".welcome-cta");
-    for (const title of ["Document list", "InsightDesk AI", "Navigation"]) {
+    for (const title of ["Document list", "Dex", "Navigation"]) {
       expect(q(".tour-callout-title")!.textContent).toContain(title);
       expect(q(".tour-spotlight")).not.toBeNull();
       await tap(".tour-btn--primary");
@@ -504,7 +504,7 @@ describe("direct links on phones", () => {
   it("falls back to the chat for a document that does not exist", async () => {
     await act(async () => renderHub("/hub?doc=gone"));
     expect(search()).toBe("");
-    expect(activeTab()).toBe("Assistant");
+    expect(activeTab()).toBe("Dex");
   });
 });
 
@@ -519,7 +519,7 @@ describe("roles on phones", () => {
     auth.user = { email: "viewer@example.com", role: "viewer" };
     renderHub("/hub?view=quality");
     expect(q(".fake-quality")).toBeNull();
-    expect(activeTab()).toBe("Assistant");
+    expect(activeTab()).toBe("Dex");
   });
 
   it("gives the demo the one-line banner", () => {
