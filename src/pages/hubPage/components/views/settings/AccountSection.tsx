@@ -125,6 +125,7 @@ export function AccountSection({ onSignOut, isSigningOut = false }: { onSignOut?
             onChange={(e) => setProfileName(e.target.value)}
             placeholder="Your name"
             maxLength={80}
+            disabled={profileSaving}
           />
         </div>
         <div className="settings-info-row">
@@ -135,6 +136,7 @@ export function AccountSection({ onSignOut, isSigningOut = false }: { onSignOut?
             onChange={(e) => setProfileTitle(e.target.value)}
             placeholder="e.g. Developer"
             maxLength={80}
+            disabled={profileSaving}
           />
         </div>
         <div className="settings-info-row">
@@ -164,6 +166,7 @@ export function AccountSection({ onSignOut, isSigningOut = false }: { onSignOut?
               type="button"
               className="settings-save-btn"
               disabled={profileSaving}
+              aria-busy={profileSaving}
               onClick={saveProfile}
             >
               {profileSaving ? "Saving…" : "Save changes"}
@@ -171,6 +174,7 @@ export function AccountSection({ onSignOut, isSigningOut = false }: { onSignOut?
             <button
               type="button"
               className="settings-cancel-btn"
+              disabled={profileSaving}
               onClick={() => {
                 setProfileName(user?.displayName ?? "");
                 setProfileTitle(user?.jobTitle ?? "");

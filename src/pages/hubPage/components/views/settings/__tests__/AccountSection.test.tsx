@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { StatusContext, type StatusApi } from "../../../../../../components/statusBar/statusContext";
 import { AccountSection } from "../AccountSection";
-import { changePassword } from "../../../../../../api/authClient";
+import { changePassword, updateProfile } from "../../../../../../api/authClient";
 
 const { auth } = vi.hoisted(() => ({
   auth: {
@@ -105,6 +105,39 @@ describe("AccountSection sign out button", () => {
     ));
     expect(signOutBtn().disabled).toBe(false);
     expect(signOutBtn().textContent).toBe("Sign out");
+  });
+});
+
+describe("AccountSection profile fields", () => {
+  const fields = () => [...container.querySelectorAll<HTMLInputElement>(".settings-inline-input")];
+  const saveBtn = () => [...container.querySelectorAll<HTMLButtonElement>(".settings-profile-save-row button")][0];
+  const cancelBtn = () => [...container.querySelectorAll<HTMLButtonElement>(".settings-profile-save-row button")][1];
+
+  function typeName(value: string) {
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    act(() => {
+      setValue.call(fields()[0], value);
+      fields()[0].dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
+  it("cannot be edited while saving, and can be again once the save ends", async () => {
+    let finish!: (value: { email: string; role: string; displayName: string; jobTitle: string }) => void;
+    vi.mocked(updateProfile).mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    renderSection();
+    typeName("Visitor");
+    expect(fields().map((f) => f.disabled)).toEqual([false, false]);
+
+    await act(async () => saveBtn().click());
+
+    expect(fields().map((f) => f.disabled)).toEqual([true, true]);
+    expect(saveBtn().getAttribute("aria-busy")).toBe("true");
+    expect(saveBtn().textContent).toBe("Saving…");
+    expect(cancelBtn().disabled).toBe(true);
+
+    await act(async () => finish({ email: "visitor@example.com", role: "admin", displayName: "Visitor", jobTitle: "" }));
+
+    expect(fields().map((f) => f.disabled)).toEqual([false, false]);
   });
 });
 
