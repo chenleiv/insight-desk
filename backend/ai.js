@@ -112,10 +112,19 @@ export function userContent(chunks, message) {
     return `${buildContext(chunks)}\n\nQuestion: ${neutralizeTags(message)}`;
 }
 
+// Zero-width space, non-joiner, joiner and word joiner. JavaScript's \s does not match them.
+const ZERO_WIDTH = /[\u200B-\u200D\u2060]/g;
+// A bracket holding only what a citation can hold: one character class, so it cannot
+// backtrack. It starts at the bracket: a leading \s* would rescan each run of blanks
+// from every position in it (quadratic on long whitespace).
+const CITATION_CANDIDATE = /[[【]([\sc\d,\u200B-\u200D\u2060]+)[\]】]/g;
+const CITATION_IDS = /^\s*(c\d+(?:\s*,\s*c\d+)*)\s*$/;
+
 /**
  * Keep only citations of chunks that were actually retrieved. Ids the model
  * invented are removed from the answer and returned in `unknown`. The model
- * sometimes writes fullwidth brackets, 【c1】; those are rewritten as [c1].
+ * sometimes writes fullwidth brackets, 【c1】, or zero-width characters inside
+ * the brackets, [\u200Bc1]; both are rewritten as [c1].
  */
 export function verifyCitations(answer, chunks) {
     const byId = new Map(chunks.map((c, i) => [`c${i + 1}`, c]));
@@ -123,10 +132,11 @@ export function verifyCitations(answer, chunks) {
     const unknown = [];
     let text = '';
     let copyFrom = 0;
-    // The pattern starts at the bracket: a leading \s* would rescan each run of
-    // blanks from every position in it (quadratic on long whitespace).
-    for (const match of answer.matchAll(/[[【]\s*(c\d+(?:\s*,\s*c\d+)*)\s*[\]】]/g)) {
-        const ids = match[1].split(/\s*,\s*/);
+    for (const match of answer.matchAll(CITATION_CANDIDATE)) {
+        // Zero-width characters are removed inside the brackets only; the rest of the answer keeps them.
+        const inner = CITATION_IDS.exec(match[1].replace(ZERO_WIDTH, ''));
+        if (!inner) continue;
+        const ids = inner[1].split(/\s*,\s*/);
         const valid = ids.filter((id) => byId.has(id));
         unknown.push(...ids.filter((id) => !byId.has(id)));
         for (const id of valid) {

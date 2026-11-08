@@ -158,7 +158,7 @@ Related set only (24 questions), 5 runs per question and wording, model `openai/
 - The refusals in both wordings were q08 (see [Known retrieval limitation: q08](#known-retrieval-limitation-q08)).
 - **Both:** 0 invented citation ids, 0 format violations.
 
-The forced and Hebrew sets were not run, and correctness was not graded.
+The forced and Hebrew sets were not run, and correctness was not graded. These numbers were measured before `verifyCitations` (`backend/ai.js`) learned to accept zero-width characters inside citation brackets, which the model sometimes writes, for example `[​c2]`; the fix is expected to raise the valid-citation counts.
 
 **Decision (2026-11-08):** the stored prompt on the live site (the experiment wording) is replaced by the code default, `DEFAULT_PROMPT`, with the "Reset to default" button in Settings → AI. In the same run, the default gave 113 of 120 valid citations against 108 of 120, with the same refusals and no invented ids. This reverses the decision after the first full run, which compared the experiment wording with `old.txt`, not with `DEFAULT_PROMPT`. From now on the prompt the app uses lives in the code; a stored prompt applies only while an admin keeps one saved.
 
