@@ -1,12 +1,15 @@
 import { SlidersHorizontal, X } from "lucide-react";
+import { LoadError } from "../../../../../components/loadError/LoadError";
 
 type Props = {
   isOpen: boolean;
   promptText: string | null;
+  loadFailed: boolean;
+  onRetry: () => void;
   onClose: () => void;
 };
 
-export function SystemPromptModal({ isOpen, promptText, onClose }: Props) {
+export function SystemPromptModal({ isOpen, promptText, loadFailed, onRetry, onClose }: Props) {
   if (!isOpen) return null;
 
   return (
@@ -26,9 +29,13 @@ export function SystemPromptModal({ isOpen, promptText, onClose }: Props) {
             <X size={18} />
           </button>
         </div>
-        <pre className="prompt-modal-body">
-          {promptText ?? "Loading…"}
-        </pre>
+        {loadFailed ? (
+          <LoadError message="Could not load the system prompt." onRetry={onRetry} />
+        ) : (
+          <pre className="prompt-modal-body">
+            {promptText ?? "Loading…"}
+          </pre>
+        )}
       </div>
     </div>
   );

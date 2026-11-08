@@ -72,15 +72,16 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [promptModalOpen, setPromptModalOpen] = useState(false);
   const [promptText, setPromptText] = useState<string | null>(null);
+  const [promptLoadFailed, setPromptLoadFailed] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const inputSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!promptModalOpen || promptText !== null) return;
+    if (!promptModalOpen || promptText !== null || promptLoadFailed) return;
     getSystemPrompt()
       .then((r) => setPromptText(r.prompt))
-      .catch(() => setPromptText("Failed to load prompt."));
-  }, [promptModalOpen, promptText]);
+      .catch(() => setPromptLoadFailed(true));
+  }, [promptModalOpen, promptText, promptLoadFailed]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   // Set before the first await: two taps can land before React renders isSending.
   const sendPendingRef = useRef(false);
@@ -515,6 +516,8 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
       <SystemPromptModal
         isOpen={promptModalOpen}
         promptText={promptText}
+        loadFailed={promptLoadFailed}
+        onRetry={() => setPromptLoadFailed(false)}
         onClose={() => setPromptModalOpen(false)}
       />
     </div>
