@@ -46,6 +46,7 @@ type Props = {
   editActions?: EditActions;
   onImportClick?: () => void;
   importDisabled?: boolean;
+  isImportingText?: boolean;
   onDownload?: (format: DownloadFormat) => void;
   isDownloading?: boolean;
 };
@@ -214,6 +215,7 @@ export function DocumentHeader({
   editActions,
   onImportClick,
   importDisabled = false,
+  isImportingText = false,
   onDownload,
   isDownloading = false,
 }: Props) {
@@ -270,11 +272,12 @@ export function DocumentHeader({
               className="doc-pane-import-btn"
               onClick={onImportClick}
               disabled={importDisabled}
+              aria-busy={isImportingText}
               data-tooltip={IMPORT_TOOLTIP}
               data-tooltip-pos="bottom"
             >
               <FileUp size={13} aria-hidden />
-              Import text from file
+              {isImportingText ? "Importing text…" : "Import text from file"}
             </button>
           )}
         </div>

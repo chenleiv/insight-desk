@@ -149,6 +149,8 @@ export default function DocumentPane({
   const createInFlightRef = useRef(false);
   const downloadInFlightRef = useRef(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const importTextInFlightRef = useRef(false);
+  const [isImportingText, setIsImportingText] = useState(false);
 
   const handleCreateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -216,11 +218,15 @@ export default function DocumentPane({
   }
 
   const isCreationPending = saveStatus === "saving" && isCreating;
+  // The imported text replaces the form's content, so the form waits for it like for a create.
+  const isFormBusy = isCreationPending || isImportingText;
 
   const handleImportContent = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
+    if (!file || importTextInFlightRef.current) return;
+    importTextInFlightRef.current = true;
+    setIsImportingText(true);
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
     try {
       if (CLIENT_SIDE_EXTS.has(ext)) {
@@ -234,7 +240,6 @@ export default function DocumentPane({
           ...(first.category ? { category: first.category } : {}),
         }));
       } else {
-        status.show({ kind: "info", message: "Extracting text…" });
         const { text, fileName } = await extractTextFromFile(file);
         if (!text) {
           status.show({ kind: "error", title: "No text found", message: "Could not extract text from this file." });
@@ -250,6 +255,9 @@ export default function DocumentPane({
       }
     } catch (err) {
       status.show({ kind: "error", title: "Import failed", message: err instanceof Error ? err.message : "Import failed." });
+    } finally {
+      importTextInFlightRef.current = false;
+      setIsImportingText(false);
     }
   };
 
@@ -299,8 +307,8 @@ export default function DocumentPane({
         if (!isEditing) return;
         e.stopImmediatePropagation();
         if (saveStatus === "saving") return;
-      } else if (isCreationPending) {
-        // The document may already exist on the server; let the request finish.
+      } else if (isFormBusy) {
+        // The document may already exist on the server, or text is on its way; let the request finish.
         e.stopImmediatePropagation();
         return;
       }
@@ -389,7 +397,7 @@ export default function DocumentPane({
             isSaving,
           },
         })}
-        {...(isCreating && { onImportClick: () => importFileRef.current?.click(), importDisabled: isCreationPending })}
+        {...(isCreating && { onImportClick: () => importFileRef.current?.click(), importDisabled: isFormBusy, isImportingText })}
         {...(!isCreating && doc && { onDownload: (format: DownloadFormat) => void handleDownload(format), isDownloading })}
         {...(onClose ? {
           // While editing, Close cancels the edit like Cancel and Escape instead of leaving the document.
@@ -434,8 +442,8 @@ export default function DocumentPane({
         updatedAt={doc?.updatedAt}
         doc={effectiveDoc ?? undefined}
         canEdit={canEdit}
-        readOnly={(!isCreating && !isEditing) || isCreationPending}
-        attachmentsDisabled={isCreationPending}
+        readOnly={(!isCreating && !isEditing) || isFormBusy}
+        attachmentsDisabled={isFormBusy}
         maxContentLength={maxContentLength}
         maxAttachments={maxAttachments}
         isUploading={isUploading}
@@ -451,13 +459,13 @@ export default function DocumentPane({
 
       {canEdit && isCreating && (
         <div className={`doc-pane-save-bar${isDirty || isCreating ? " doc-pane-save-bar--visible" : ""}`}>
-          <button type="button" className="doc-pane-cancel-btn" onClick={handleCancel} disabled={isCreationPending}>
+          <button type="button" className="doc-pane-cancel-btn" onClick={handleCancel} disabled={isFormBusy}>
             Discard
           </button>
           <button
             type="submit"
             className="primary-btn doc-pane-create-btn"
-            disabled={!isDirty || !isValid || isCreationPending}
+            disabled={!isDirty || !isValid || isFormBusy}
             aria-busy={isCreationPending}
           >
             {isCreationPending ? "Creating document…" : "Create"}
