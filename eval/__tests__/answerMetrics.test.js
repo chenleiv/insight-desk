@@ -36,7 +36,7 @@ describe("hasTitleInBrackets", () => {
 
 describe("hasHebrew", () => {
   it("tells Hebrew from English", () => {
-    expect(hasHebrew("שלום [c1]")).toBe(true);
+    expect(hasHebrew("\u05e9\u05dc\u05d5\u05dd [c1]")).toBe(true);
     expect(hasHebrew("Hello [c1]")).toBe(false);
   });
 });

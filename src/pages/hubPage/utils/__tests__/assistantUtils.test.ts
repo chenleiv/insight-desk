@@ -61,7 +61,7 @@ describe("removeCitations", () => {
   });
 
   it("removes citations in a right-to-left answer and keeps its words apart", () => {
-    const word = "ימים";
+    const word = "\u05d9\u05de\u05d9\u05dd";
     expect(removeCitations(`${word} [c1].\n[c2]`)).toBe(`${word}.`);
     expect(removeCitations(`${word}[c1]${word}.`)).toBe(`${word} ${word}.`);
   });

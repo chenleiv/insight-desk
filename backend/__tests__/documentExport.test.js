@@ -49,7 +49,7 @@ describe("safeFileName", () => {
   });
 
   it("keeps Hebrew and caps the length without splitting a character", () => {
-    expect(safeFileName("מדריך עובדים", "docx")).toBe("מדריך עובדים.docx");
+    expect(safeFileName("\u05de\u05d3\u05e8\u05d9\u05da \u05e2\u05d5\u05d1\u05d3\u05d9\u05dd", "docx")).toBe("\u05de\u05d3\u05e8\u05d9\u05da \u05e2\u05d5\u05d1\u05d3\u05d9\u05dd.docx");
     const name = safeFileName("😀".repeat(150), "md");
     expect(Array.from(name.replace(/\.md$/, ""))).toHaveLength(100);
     expect(name).not.toMatch(/[\ud800-\udbff](?![\udc00-\udfff])/);
@@ -64,9 +64,9 @@ describe("buildMarkdown", () => {
   });
 
   it("keeps Hebrew text", () => {
-    const md = buildMarkdown({ title: "מדריך", category: "משאבי אנוש", content: "שלום עולם" });
-    expect(md).toContain("# מדריך");
-    expect(md).toContain("שלום עולם");
+    const md = buildMarkdown({ title: "\u05de\u05d3\u05e8\u05d9\u05da", category: "\u05de\u05e9\u05d0\u05d1\u05d9 \u05d0\u05e0\u05d5\u05e9", content: "\u05e9\u05dc\u05d5\u05dd \u05e2\u05d5\u05dc\u05dd" });
+    expect(md).toContain("# \u05de\u05d3\u05e8\u05d9\u05da");
+    expect(md).toContain("\u05e9\u05dc\u05d5\u05dd \u05e2\u05d5\u05dc\u05dd");
   });
 });
 
@@ -82,22 +82,22 @@ describe("buildPdf", () => {
   });
 
   it("rejects characters the PDF font cannot draw, with a message pointing to the other formats", async () => {
-    const err = await buildPdf({ title: "Handbook", category: "HR", content: "Hello שלום" }).catch((e) => e);
+    const err = await buildPdf({ title: "Handbook", category: "HR", content: "Hello \u05e9\u05dc\u05d5\u05dd" }).catch((e) => e);
     expect(err).toBeInstanceOf(ExportError);
     expect(err.status).toBe(422);
     expect(err.message).toMatch(/Windows-1252 character set only/);
     expect(err.message).toMatch(/Markdown or Word/);
-    expect(err.message).toContain('"ש"');
+    expect(err.message).toContain('"\u05e9"');
   });
 
   it("checks the title and category too", async () => {
-    await expect(buildPdf({ title: "מדריך", category: "HR", content: "x" })).rejects.toBeInstanceOf(ExportError);
+    await expect(buildPdf({ title: "\u05de\u05d3\u05e8\u05d9\u05da", category: "HR", content: "x" })).rejects.toBeInstanceOf(ExportError);
     await expect(buildPdf({ title: "x", category: "日本", content: "x" })).rejects.toBeInstanceOf(ExportError);
   });
 
   it("accepts Latin-1 and Windows-1252 punctuation, and turns tabs into spaces", () => {
     expect(findUndrawableChars("naïve café — “quotes” • €5 ™\n")).toEqual([]);
-    expect(findUndrawableChars("emoji 😀, Hebrew א, Arabic ب")).toEqual(["😀", "א", "ب"]);
+    expect(findUndrawableChars("emoji 😀, Hebrew \u05d0, Arabic ب")).toEqual(["😀", "\u05d0", "ب"]);
   });
 });
 
@@ -119,17 +119,17 @@ describe("buildDocx", () => {
   });
 
   it("keeps Hebrew text and marks Hebrew paragraphs right to left", async () => {
-    const buffer = await buildDocx({ title: "מדריך עובדים", category: "HR", content: "שלום עולם\nEnglish line" });
+    const buffer = await buildDocx({ title: "\u05de\u05d3\u05e8\u05d9\u05da \u05e2\u05d5\u05d1\u05d3\u05d9\u05dd", category: "HR", content: "\u05e9\u05dc\u05d5\u05dd \u05e2\u05d5\u05dc\u05dd\nEnglish line" });
     const xml = docxXml(buffer);
     const paragraphs = xml.match(/<w:p>.*?<\/w:p>|<w:p .*?<\/w:p>/gs);
-    const hebrew = paragraphs.find((p) => p.includes("שלום עולם"));
+    const hebrew = paragraphs.find((p) => p.includes("\u05e9\u05dc\u05d5\u05dd \u05e2\u05d5\u05dc\u05dd"));
     const english = paragraphs.find((p) => p.includes("English line"));
     expect(hebrew).toContain("<w:bidi/>");
     expect(hebrew).toContain("<w:rtl/>");
     expect(english).not.toContain("<w:bidi/>");
     const text = await extractTextFromBuffer(buffer, DOCX_MIME);
-    expect(text).toContain("מדריך עובדים");
-    expect(text).toContain("שלום עולם");
+    expect(text).toContain("\u05de\u05d3\u05e8\u05d9\u05da \u05e2\u05d5\u05d1\u05d3\u05d9\u05dd");
+    expect(text).toContain("\u05e9\u05dc\u05d5\u05dd \u05e2\u05d5\u05dc\u05dd");
   });
 });
 
