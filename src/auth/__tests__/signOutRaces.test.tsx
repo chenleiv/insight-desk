@@ -184,7 +184,7 @@ describe("signing in while the logout is still running", () => {
 
     sent("/api/auth/logout")[0].respond(500, { detail: "down" });
     await act(async () => {
-      await signOut;
+      await signOut.catch(() => {});
     });
     await flush();
     expect(sent("/api/auth/login")).toHaveLength(1);

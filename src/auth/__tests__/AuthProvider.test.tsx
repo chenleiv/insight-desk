@@ -112,17 +112,65 @@ describe("AuthProvider session reset", () => {
     expectSessionDataCleared();
   });
 
-  it("still clears session data when the logout request fails", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("keeps the user signed in and their data when the logout request fails", async () => {
     logoutMock.mockRejectedValue(new Error("network down"));
     seedSessionData();
 
     await act(async () => {
-      await auth.logout();
+      await expect(auth.logout()).rejects.toThrow("network down");
     });
 
+    expect(auth.user?.email).toBe(alice.email);
+    expect(auth.signedOut).toBeFalsy();
+    expect(JSON.parse(localStorage.getItem(AUTH_USER_KEY) ?? "null")?.email).toBe(alice.email);
+    expect(localStorage.getItem(CHAT_KEY)).not.toBeNull();
+    expect(queryClient.getQueryData(DOCUMENTS_QUERY_KEY)).toEqual([{ id: "doc-1", title: "Alice's notes" }]);
+  });
+
+  it("keeps the user signed in until the server confirms the logout", async () => {
+    let confirm!: (value: { ok: true }) => void;
+    logoutMock.mockReturnValue(new Promise((resolve) => { confirm = resolve; }));
+
+    let signOut!: Promise<void>;
+    act(() => { signOut = auth.logout(); });
+    expect(auth.user?.email).toBe(alice.email);
+
+    await act(async () => {
+      confirm({ ok: true });
+      await signOut;
+    });
     expect(auth.user).toBeNull();
-    expectSessionDataCleared();
+    expect(auth.signedOut).toBe(true);
+  });
+
+  it("sends one logout request when asked twice, and both callers get its result", async () => {
+    let fail!: (reason: Error) => void;
+    logoutMock.mockReturnValue(new Promise((_, reject) => { fail = reject; }));
+
+    const results: Promise<void>[] = [];
+    act(() => { results.push(auth.logout(), auth.logout()); });
+    expect(logoutMock).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      fail(new Error("down"));
+      await Promise.allSettled(results);
+    });
+    await expect(results[0]).rejects.toThrow("down");
+    await expect(results[1]).rejects.toThrow("down");
+  });
+
+  it("can log out again after a failed attempt", async () => {
+    logoutMock.mockRejectedValueOnce(new Error("down"));
+    await act(async () => {
+      await auth.logout().catch(() => {});
+    });
+    expect(auth.user?.email).toBe(alice.email);
+
+    await act(async () => {
+      await auth.logout();
+    });
+    expect(logoutMock).toHaveBeenCalledTimes(2);
+    expect(auth.user).toBeNull();
   });
 
   it("clears the previous session's data when another user signs in", async () => {
@@ -156,6 +204,23 @@ describe("AuthProvider session expiry", () => {
     expect(localStorage.getItem(AUTH_USER_KEY)).toBeNull();
     expectSessionDataCleared();
     expect(logoutMock).not.toHaveBeenCalled();
+  });
+
+  it("does not call a 401 that arrives during logout an expired session", async () => {
+    let confirm!: (value: { ok: true }) => void;
+    logoutMock.mockReturnValue(new Promise((resolve) => { confirm = resolve; }));
+    let signOut!: Promise<void>;
+    act(() => { signOut = auth.logout(); });
+
+    await requestWithExpiredSession();
+    expect(auth.sessionExpired).toBe(false);
+
+    await act(async () => {
+      confirm({ ok: true });
+      await signOut;
+    });
+    expect(auth.user).toBeNull();
+    expect(auth.sessionExpired).toBe(false);
   });
 
   it("handles several parallel 401 responses once", async () => {

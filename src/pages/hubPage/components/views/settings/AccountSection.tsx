@@ -45,7 +45,7 @@ function PasswordField({
   );
 }
 
-export function AccountSection({ onSignOut }: { onSignOut?: () => void }) {
+export function AccountSection({ onSignOut, isSigningOut = false }: { onSignOut?: () => void; isSigningOut?: boolean }) {
   const { user, updateUser: updateAuthUser } = useAuth();
   const status = useStatus();
   const [pwOpen, setPwOpen] = useState(false);
@@ -214,9 +214,10 @@ export function AccountSection({ onSignOut }: { onSignOut?: () => void }) {
 
       {onSignOut && (
         <div className="settings-signout">
-          <button type="button" className="settings-signout-btn" onClick={onSignOut}>
+          <button type="button" className="settings-signout-btn" onClick={onSignOut}
+            disabled={isSigningOut} aria-busy={isSigningOut}>
             <LogOut size={15} aria-hidden />
-            Sign out
+            {isSigningOut ? "Signing out…" : "Sign out"}
           </button>
         </div>
       )}

@@ -13,6 +13,7 @@ import DocPanel from "./components/documents/DocPanel";
 
 import { useDocuments, useSetDocs } from "../../context/DocumentsContext";
 import { useAuth } from "../../auth/useAuth";
+import { useSignOut } from "../../auth/useSignOut";
 import { DEMO_LIMITS } from "../../auth/demoLimits";
 import { useStatus } from "../../components/statusBar/useStatus";
 import useConfirm from "../../hooks/useConfirm";
@@ -42,7 +43,7 @@ import { HUB_TOUR_STEPS, MOBILE_HUB_TOUR_STEPS } from "./components/dialogs/tour
 import { markGuideDone, skipAllGuides, useGuideDone } from "./utils/guides";
 
 export default function HubPage() {
-  const { user, logout, toggleFavorite, favoritesMap: favorites } = useAuth();
+  const { user, toggleFavorite, favoritesMap: favorites } = useAuth();
   const status = useStatus();
   const confirm = useConfirm();
   const isMobile = useMobile(767);
@@ -81,6 +82,9 @@ export default function HubPage() {
     clearDirty,
     guardDirty,
   } = useUnsavedChangesGuard();
+  // The hub unmounts when the session ends, before any navigation blocker runs,
+  // so unsaved changes are confirmed first.
+  const { signOut: runSignOut, isSigningOut } = useSignOut({ confirmLeave: guardDirty });
   // The documents panel opens on every page load; collapsing it lasts until the next load.
   const [isDocPanelCollapsed, setIsDocPanelCollapsed] = useState(false);
   const [isDraggingPanel, setIsDraggingPanel] = useState(false);
@@ -233,10 +237,8 @@ export default function HubPage() {
     setActiveView({ kind: "doc", id });
   }
 
-  // Logout ends the session and the hub unmounts before any navigation blocker runs,
-  // so unsaved changes are confirmed here first.
   function signOut() {
-    void guardDirty().then((ok) => { if (ok) void logout(); });
+    void runSignOut();
   }
 
   // Leaves this entry the way Back would. A direct link has nothing behind it, so the list
@@ -431,7 +433,7 @@ export default function HubPage() {
               <SettingsView
                 showAdminTabs={isAdmin || isDemo}
                 adminReadOnly={isDemo}
-                {...(isMobile ? { onSignOut: signOut } : {})}
+                {...(isMobile ? { onSignOut: signOut, isSigningOut } : {})}
               />
             </div>
           )}
