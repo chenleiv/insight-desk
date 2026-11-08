@@ -79,9 +79,10 @@ Reject:
 # File Uploads
 
 Check:
-- MIME type validation
+- file type checked by content, not the client's MIME type (fileSignature.js, shared/uploadRules.js)
 - file size limits
-- safe temp file handling
+- ZIP files checked before parsing (zipGuard.js)
+- parsing stays in the child process with its limits (extractWorker.js)
 - no path traversal in filenames
 
 ---

@@ -13,6 +13,7 @@ Insight Desk frontend.
 
 Stack:
 - React 19
+- React Compiler (handles memoization)
 - TypeScript
 - Vite
 - TanStack Query v5
@@ -58,7 +59,7 @@ Client State (React Context):
 Hooks:
 - custom hooks for data + logic reuse
 - useEffect cleanup for subscriptions/timers
-- useMemo/useCallback only when measurable benefit
+- no manual useMemo/useCallback without a measured need (React Compiler is on)
 - avoid hooks inside conditions
 
 ---
@@ -66,7 +67,6 @@ Hooks:
 Performance:
 Check:
 - unnecessary re-renders
-- expensive calculations without useMemo
 - missing key props in lists
 - large component trees without code-splitting
 
