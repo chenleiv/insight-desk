@@ -92,6 +92,55 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("LoginPage slow sign-in", () => {
+  const HINT = "Still working…";
+  let answerLogin: (response: Response) => void;
+
+  beforeEach(async () => {
+    await renderApp("/login");
+    const answered = new Promise<Response>((resolve) => { answerLogin = resolve; });
+    const server = vi.mocked(fetch).getMockImplementation()!;
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => (url === "/api/auth/login" ? answered : server(url, init))));
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  async function wait(ms: number) {
+    await act(async () => { vi.advanceTimersByTime(ms); });
+  }
+
+  // Not a real Response: reading one finishes a macrotask later, after act has returned.
+  async function failLogin() {
+    const body = JSON.stringify({ detail: "Invalid credentials" });
+    await act(async () => answerLogin({ ok: false, status: 401, text: async () => body } as Response));
+  }
+
+  it("shows a hint only after a few seconds", async () => {
+    await signIn("alice@example.com", "right");
+    await wait(4999);
+    expect(text()).not.toContain(HINT);
+
+    await wait(1);
+    expect(container.querySelector(".login-wait")?.textContent).toBe(HINT);
+    expect(container.querySelector(".login-wait")?.getAttribute("role")).toBe("status");
+
+    await failLogin();
+  });
+
+  it("clears the hint when the request ends", async () => {
+    await signIn("alice@example.com", "wrong");
+    await wait(5000);
+
+    expect(text()).toContain(HINT);
+
+    await failLogin();
+
+    expect(text()).not.toContain(HINT);
+    expect(container.querySelector(".login-error")?.textContent).toBe("Invalid credentials");
+  });
+});
+
 describe("LoginPage", () => {
   it("offers sign-in and the demo, and no way to register", async () => {
     await renderApp("/login");

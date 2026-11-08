@@ -21,7 +21,7 @@ export default function LoginPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [demoPending, setDemoPending] = useState(false);
-  const [demoSlow, setDemoSlow] = useState(false);
+  const [slow, setSlow] = useState(false);
 
   const redirectTo = safeReturnPath((location.state as LoginLocationState | null)?.from);
 
@@ -48,15 +48,17 @@ export default function LoginPage() {
     if (isAuthed) nav(redirectTo, { replace: true });
   }, [isAuthed, nav, redirectTo]);
 
+  const waiting = isPending || demoPending;
+
   // A sleeping server can take up to a minute to wake, so explain longer waits.
   useEffect(() => {
-    if (!demoPending) return;
-    const timer = setTimeout(() => setDemoSlow(true), 5000);
+    if (!waiting) return;
+    const timer = setTimeout(() => setSlow(true), 5000);
     return () => {
       clearTimeout(timer);
-      setDemoSlow(false);
+      setSlow(false);
     };
-  }, [demoPending]);
+  }, [waiting]);
 
   const startDemoSession = async () => {
     setDemoPending(true);
@@ -133,6 +135,11 @@ export default function LoginPage() {
         >
           {isPending ? "Signing in..." : "Sign In"}
         </button>
+        {slow && isPending && (
+          <p className="login-wait" role="status">
+            Still working…
+          </p>
+        )}
 
       </form>
 
@@ -156,8 +163,8 @@ export default function LoginPage() {
             "Try Demo"
           )}
         </button>
-        {demoSlow && (
-          <p className="login-demo-wait" role="status">
+        {slow && demoPending && (
+          <p className="login-wait" role="status">
             The server may be waking up. This can take up to a minute.
           </p>
         )}
