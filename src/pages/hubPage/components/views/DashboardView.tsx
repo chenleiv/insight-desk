@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import { FileText, Star, Sparkles, HardDrive, Download, Upload } from "lucide-react";
 import { useDocuments } from "../../../../context/DocumentsContext";
 import { useAuth } from "../../../../auth/useAuth";
+import { useFavoriteToggle } from "../../../../auth/useFavoriteToggle";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
 import type { DocumentItem } from "../../../../api/documentsClient";
 import { getDocTags, getCategoryIconStyle, getCategoryChipStyle } from "../../utils/docs";
@@ -79,7 +80,8 @@ export default function DashboardView({
     },
   ];
   const { docs, loading } = useDocuments();
-  const { user, favoritesMap, toggleFavorite } = useAuth();
+  const { user, favoritesMap } = useAuth();
+  const { toggle: toggleFavorite, pendingFavorites } = useFavoriteToggle();
 
   const displayName = (() => {
     if (user?.displayName) return user.displayName.split(" ")[0];
@@ -248,6 +250,9 @@ export default function DashboardView({
                         type="button"
                         className="recent-doc-star"
                         onClick={() => void toggleFavorite(doc.id)}
+                        // Not disabled, which would drop keyboard focus for a short request.
+                        aria-disabled={!!pendingFavorites[doc.id]}
+                        aria-busy={!!pendingFavorites[doc.id]}
                         aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
                         aria-pressed={isFav}
                       >

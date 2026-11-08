@@ -13,6 +13,7 @@ type Props = {
   canCreate: boolean;
   createDisabledLabel?: string;
   onToggleFavorite: (id: string) => void;
+  pendingFavorites?: Record<string, boolean>;
   isCollapsed?: boolean;
   onToggleCollapsed?: () => void;
   loading?: boolean;
@@ -27,6 +28,7 @@ export default function DocPanel({
   canCreate,
   createDisabledLabel = "Admin only",
   onToggleFavorite,
+  pendingFavorites,
   isCollapsed,
   onToggleCollapsed,
   loading,
@@ -157,6 +159,7 @@ export default function DocPanel({
         {!loading && filteredDocs.map((doc) => {
           const isActive = doc.id === activeDocId;
           const isFav = !!favorites[doc.id];
+          const isFavPending = !!pendingFavorites?.[doc.id];
           return (
             <li
               key={doc.id}
@@ -189,6 +192,9 @@ export default function DocPanel({
                   type="button"
                   className={`doc-panel-row-star-btn${isFav ? " active" : ""}`}
                   onClick={(e) => { e.stopPropagation(); void onToggleFavorite(doc.id); }}
+                  // Not disabled: that would drop keyboard focus, and a tap could reach the row and open it.
+                  aria-disabled={isFavPending}
+                  aria-busy={isFavPending}
                   aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
                   data-tooltip={isFav ? "Remove from favorites" : "Add to favorites"}
                   data-tooltip-pos="left"

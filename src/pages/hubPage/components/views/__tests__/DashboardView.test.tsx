@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider, notifyManager } from "@tanstack/react-query";
 import { AuthContext } from "../../../../../auth/authContext";
+import { StatusContext } from "../../../../../components/statusBar/statusContext";
 import type { AuthContextValue } from "../../../../../auth/authTypes";
 import type { DocumentItem } from "../../../../../api/documentsClient";
 import { DOCUMENTS_QUERY_KEY } from "../../../../../context/DocumentsContext";
@@ -71,7 +72,9 @@ function render() {
   act(() => root.render(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={auth}>
-        <DashboardView canEdit canCreate />
+        <StatusContext.Provider value={{ show: () => {}, clear: () => {} }}>
+          <DashboardView canEdit canCreate />
+        </StatusContext.Provider>
       </AuthContext.Provider>
     </QueryClientProvider>
   ));

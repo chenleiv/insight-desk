@@ -10,6 +10,7 @@ import { DOCUMENTS_QUERY_KEY } from "../../context/DocumentsContext";
 import { apiFetch, ApiError } from "../../api/base";
 import { scopedKey } from "../../utils/storage";
 import { SESSION_CHECK_MIN_GAP_MS } from "../useSessionCheck";
+import { toggleFavorite as apiToggleFavorite } from "../../api/documentsClient";
 
 const { meMock, logoutMock } = vi.hoisted(() => ({
   meMock: vi.fn(),
@@ -283,6 +284,84 @@ describe("AuthProvider session expiry", () => {
     await requestWithExpiredSession();
     expect(auth.user).toBeNull();
     expect(auth.sessionExpired).toBe(true);
+  });
+});
+
+describe("AuthProvider favorites", () => {
+  type FavoritesResponse = { favorites: string[] };
+
+  function pendingToggle() {
+    let finish!: (value: FavoritesResponse) => void;
+    let fail!: (reason: Error) => void;
+    vi.mocked(apiToggleFavorite).mockReturnValueOnce(
+      new Promise<FavoritesResponse>((resolve, reject) => { finish = resolve; fail = reject; }),
+    );
+    return { finish: (v: FavoritesResponse) => finish(v), fail: (e: Error) => fail(e) };
+  }
+
+  beforeEach(() => vi.mocked(apiToggleFavorite).mockReset());
+
+  it("shows the change at once, blocks that document, and sends one request for a double click", async () => {
+    const request = pendingToggle();
+    let first!: Promise<void>;
+    await act(async () => { first = auth.toggleFavorite("doc-1"); void auth.toggleFavorite("doc-1"); });
+
+    expect(apiToggleFavorite).toHaveBeenCalledOnce();
+    expect(auth.favoritesMap["doc-1"]).toBe(true);
+    expect(auth.pendingFavorites).toEqual({ "doc-1": true });
+
+    await act(async () => { request.finish({ favorites: ["doc-1"] }); await first; });
+
+    expect(auth.favoritesMap["doc-1"]).toBe(true);
+    expect(auth.pendingFavorites).toEqual({});
+  });
+
+  it("undoes the change, frees the document and rejects when the server refuses", async () => {
+    const request = pendingToggle();
+    let toggle!: Promise<void>;
+    await act(async () => { toggle = auth.toggleFavorite("doc-1"); });
+
+    await act(async () => {
+      request.fail(new Error("down"));
+      await expect(toggle).rejects.toThrow("down");
+    });
+
+    expect(auth.favoritesMap["doc-1"]).toBeUndefined();
+    expect(auth.pendingFavorites).toEqual({});
+    expect(JSON.parse(localStorage.getItem(AUTH_USER_KEY) ?? "null")?.favorites).toEqual([]);
+  });
+
+  it("keeps another document's change when one fails", async () => {
+    const a = pendingToggle();
+    const b = pendingToggle();
+    let toggleA!: Promise<void>;
+    let toggleB!: Promise<void>;
+    await act(async () => {
+      toggleA = auth.toggleFavorite("doc-a");
+      toggleB = auth.toggleFavorite("doc-b");
+    });
+
+    await act(async () => { a.fail(new Error("down")); await toggleA.catch(() => {}); });
+    expect(auth.favoritesMap["doc-a"]).toBeUndefined();
+    expect(auth.favoritesMap["doc-b"]).toBe(true);
+
+    await act(async () => { b.finish({ favorites: ["doc-b"] }); await toggleB; });
+    expect(auth.favoritesMap["doc-b"]).toBe(true);
+  });
+
+  it("does not sign the user back in when the failure was an expired session", async () => {
+    const request = pendingToggle();
+    let toggle!: Promise<void>;
+    await act(async () => { toggle = auth.toggleFavorite("doc-1"); });
+
+    await requestWithExpiredSession();
+    await act(async () => {
+      request.fail(new ApiError("Invalid token", 401));
+      await toggle.catch(() => {});
+    });
+
+    expect(auth.user).toBeNull();
+    expect(localStorage.getItem(AUTH_USER_KEY)).toBeNull();
   });
 });
 

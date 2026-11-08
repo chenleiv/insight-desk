@@ -34,6 +34,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const sessionEstablishedByLogin = useRef(false);
   /** The running logout, shared by every caller so a second click cannot send another. */
   const logoutInFlight = useRef<Promise<void> | null>(null);
+  /** Set before the first await: two clicks can land before React renders pendingFavorites. */
+  const favoritesInFlight = useRef(new Set<string>());
+  const [pendingFavorites, setPendingFavorites] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -118,28 +121,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetSessionState();
   }
 
+  /** Changes one document only, for this user only: a late answer must not undo other changes or a sign-out. */
+  function setFavorite(email: string, id: string, isFavorite: boolean) {
+    setUser((prev) => {
+      if (prev?.email !== email) return prev;
+      const others = prev.favorites.filter((f) => f !== id);
+      const next = { ...prev, favorites: isFavorite ? [...others, id] : others };
+      saveUserToStorage(next);
+      return next;
+    });
+  }
+
+  /** Shows the change at once and undoes it if the server refuses. Rejects so the caller can say so. */
   async function toggleFavorite(id: string | number) {
     if (!user) return;
 
     const idStr = id.toString();
-    const isFav = user.favorites.includes(idStr);
+    if (favoritesInFlight.current.has(idStr)) return;
+    favoritesInFlight.current.add(idStr);
+    setPendingFavorites((prev) => ({ ...prev, [idStr]: true }));
 
-    const nextFavorites = isFav
-      ? user.favorites.filter((f) => f !== idStr)
-      : [...user.favorites, idStr];
-
-    setUser({ ...user, favorites: nextFavorites });
+    const { email } = user;
+    const wasFavorite = user.favorites.includes(idStr);
+    setFavorite(email, idStr, !wasFavorite);
 
     try {
       const resp = await apiToggleFavorite(idStr);
-      const nextUser = { ...user, favorites: resp.favorites };
-      setUser(nextUser);
-      saveUserToStorage(nextUser);
+      setFavorite(email, idStr, resp.favorites.includes(idStr));
     } catch (err) {
-      console.error("toggle favorite failed", err);
-      setUser(user);
-      saveUserToStorage(user);
+      setFavorite(email, idStr, wasFavorite);
       throw err;
+    } finally {
+      favoritesInFlight.current.delete(idStr);
+      setPendingFavorites((prev) => {
+        const next = { ...prev };
+        delete next[idStr];
+        return next;
+      });
     }
   }
 
@@ -158,6 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sessionExpired,
         signedOut,
         favoritesMap,
+        pendingFavorites,
         loginSuccess: (u) => {
           startSessionGeneration();
           sessionEstablishedByLogin.current = true;

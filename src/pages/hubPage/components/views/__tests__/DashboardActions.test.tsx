@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { StatusContext } from "../../../../../components/statusBar/statusContext";
 import DashboardView from "../DashboardView";
 
 vi.mock("../../../../../auth/useAuth", () => ({
@@ -21,7 +22,11 @@ const actionBtn = (text: string) =>
   [...document.querySelectorAll<HTMLButtonElement>(".action-btn")].find((b) => b.textContent?.includes(text))!;
 
 function render(props: { isExporting?: boolean; isImporting?: boolean }) {
-  act(() => root.render(<DashboardView canEdit onExport={() => {}} onImport={() => {}} {...props} />));
+  act(() => root.render(
+    <StatusContext.Provider value={{ show: () => {}, clear: () => {} }}>
+      <DashboardView canEdit onExport={() => {}} onImport={() => {}} {...props} />
+    </StatusContext.Provider>,
+  ));
 }
 
 beforeEach(() => {

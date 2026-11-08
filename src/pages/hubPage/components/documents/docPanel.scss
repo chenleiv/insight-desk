@@ -440,6 +440,11 @@
   color: var(--gold);
 }
 
+.doc-panel-row-star-btn[aria-busy="true"] {
+  opacity: 0.5;
+  cursor: progress;
+}
+
 .doc-panel-empty {
   padding: 24px 14px;
   font-size: 12px;

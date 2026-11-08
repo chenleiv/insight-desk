@@ -14,6 +14,7 @@ import DocPanel from "./components/documents/DocPanel";
 import { useDocuments, useSetDocs } from "../../context/DocumentsContext";
 import { useAuth } from "../../auth/useAuth";
 import { useSignOut } from "../../auth/useSignOut";
+import { useFavoriteToggle } from "../../auth/useFavoriteToggle";
 import { DEMO_LIMITS } from "../../auth/demoLimits";
 import { useStatus } from "../../components/statusBar/useStatus";
 import useConfirm from "../../hooks/useConfirm";
@@ -43,7 +44,8 @@ import { HUB_TOUR_STEPS, MOBILE_HUB_TOUR_STEPS } from "./components/dialogs/tour
 import { markGuideDone, skipAllGuides, useGuideDone } from "./utils/guides";
 
 export default function HubPage() {
-  const { user, toggleFavorite, favoritesMap: favorites } = useAuth();
+  const { user, favoritesMap: favorites } = useAuth();
+  const { toggle: toggleFavorite, pendingFavorites } = useFavoriteToggle();
   const status = useStatus();
   const confirm = useConfirm();
   const isMobile = useMobile(767);
@@ -346,6 +348,7 @@ export default function HubPage() {
     canCreate: canCreateDocs,
     createDisabledLabel,
     onToggleFavorite: toggleFavorite,
+    pendingFavorites,
     loading: docsLoading,
   };
 
