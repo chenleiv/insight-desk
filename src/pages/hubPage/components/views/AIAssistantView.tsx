@@ -313,8 +313,7 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
               </div>
               <h1 className="ai-hero-title">Dex</h1>
               <p className="ai-hero-subtitle">
-                I'm here to help you find answers in your documents, and I'll always
-                show where they came from.
+                I'm here to help you find answers in your documents. Every answer comes with its sources.
               </p>
               {libraryEmpty && <p className="ai-hero-hint">There are no documents to ask about yet.</p>}
             </div>
