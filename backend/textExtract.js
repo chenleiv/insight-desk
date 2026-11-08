@@ -12,6 +12,9 @@ export const EXTRACTION_LIMITS = {
     heapMB: 160,
     totalMB: 256,
 };
+// V8's young generation. Its default size lets the worker's peak memory reach totalMB on
+// an ordinary large document, so a valid file was refused at random.
+const SEMI_SPACE_MB = 8;
 // Files waiting behind the one being parsed. Each waits up to timeMs per file ahead of
 // it, so the wait stays under the proxy's 100-second timeout.
 export const MAX_WAITING_EXTRACTIONS = 3;
@@ -37,6 +40,7 @@ function runWorker(buffer, mimeType, limits) {
     return new Promise((resolve, reject) => {
         const child = spawn(process.execPath, [
             `--max-old-space-size=${limits.heapMB}`,
+            `--max-semi-space-size=${SEMI_SPACE_MB}`,
             WORKER_PATH,
             mimeType,
             String(limits.totalMB * 1024 * 1024),
