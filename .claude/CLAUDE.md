@@ -49,18 +49,28 @@ Never:
 ## Working rules
 
 - Never read `backend/.env` and never ask for its contents.
-- Write all code, comments, and repo content in English.
+- Write all code, comments, and repo content in English. No Hebrew in the repo; tests use Unicode escapes (like `ש`) for Hebrew test data.
+- Never add AI attribution lines (such as Co-Authored-By) to commits.
 - Never edit a test just to make it pass. If a test fails, alert me first, then propose a fix and wait for my approval before changing anything.
 - Run commands inside the sandbox. Before running any command outside the sandbox (for example with the sandbox disabled), tell me what the command is and why it is needed, and wait for my approval, even if it is read-only.
 - Do not raise a test timeout to make a flaky test pass; find the cause first. If the cause cannot be found, report it instead of guessing.
+- Test servers bind to loopback only: `listen(0, "127.0.0.1")`.
+
+---
+
+## Product rules
+
+- `DEFAULT_PROMPT` in `backend/prompts.js` is the only prompt defined in code. A prompt an admin saves in Settings overrides it until reset. Do not copy its wording elsewhere in the app.
+- The product name in the UI and prompts is InsightDesk. The assistant is Dex.
+- New code reaches the API through hooks. Known exceptions that call API clients directly: `AIAssistantView`, `AccountSection`, `LoginPage`.
 
 ---
 
 ## Done
 
-A task is done only when all of these are true:
+A task is done only when all of these are true, checked in this order (the same order as CI):
 
+- `npm run lint` reports no errors (ESLint covers TS/TSX only)
 - `npm test` passes
-- `npm run lint` reports no errors
 - `npm run build` succeeds
 - You summarized what changed, why, and the risks
