@@ -381,6 +381,104 @@ async function remount(startup: () => Promise<AuthUser>) {
   });
 }
 
+describe("AuthProvider startup check failure", () => {
+  const UNREACHABLE: [string, Error][] = [
+    ["a network error", new TypeError("Failed to fetch")],
+    ["a server error", new ApiError("Internal server error", 500)],
+    ["a bad gateway", new ApiError("Request failed: 502", 502)],
+    ["a rate limit", new ApiError("Too many requests", 429)],
+  ];
+
+  function seedCachedUser() {
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(alice));
+    localStorage.setItem(CHAT_KEY, JSON.stringify([{ id: "m1", role: "user", text: "kept" }]));
+  }
+
+  it.each(UNREACHABLE)("keeps the cached user and their data on %s", async (_name, error) => {
+    seedCachedUser();
+
+    await remount(async () => { throw error; });
+
+    expect(auth.sessionCheckFailed).toBe(true);
+    expect(auth.isReady).toBe(false);
+    expect(auth.user?.email).toBe(alice.email);
+    expect(auth.sessionExpired).toBe(false);
+    expect(JSON.parse(localStorage.getItem(AUTH_USER_KEY) ?? "null")?.email).toBe(alice.email);
+    expect(localStorage.getItem(CHAT_KEY)).not.toBeNull();
+  });
+
+  it("signs the user in when Retry reaches the server", async () => {
+    seedCachedUser();
+    await remount(async () => { throw new TypeError("Failed to fetch"); });
+    meMock.mockReset().mockResolvedValue(bob);
+
+    await act(async () => auth.retrySessionCheck?.());
+
+    expect(meMock).toHaveBeenCalledOnce();
+    expect(auth.sessionCheckFailed).toBe(false);
+    expect(auth.isReady).toBe(true);
+    expect(auth.user?.email).toBe(bob.email);
+  });
+
+  it("is back to checking while Retry runs", async () => {
+    await remount(async () => { throw new TypeError("Failed to fetch"); });
+    meMock.mockReset().mockReturnValue(new Promise(() => {}));
+
+    await act(async () => auth.retrySessionCheck?.());
+
+    expect(auth.sessionCheckFailed).toBe(false);
+    expect(auth.isReady).toBe(false);
+  });
+
+  it("stays failed when Retry fails too", async () => {
+    seedCachedUser();
+    await remount(async () => { throw new TypeError("Failed to fetch"); });
+
+    await act(async () => auth.retrySessionCheck?.());
+
+    expect(meMock).toHaveBeenCalledTimes(2);
+    expect(auth.sessionCheckFailed).toBe(true);
+    expect(auth.user?.email).toBe(alice.email);
+  });
+
+  it("signs out when Retry gets a real 401", async () => {
+    seedCachedUser();
+    await remount(async () => { throw new TypeError("Failed to fetch"); });
+    meMock.mockReset().mockRejectedValue(new ApiError("Invalid token", 401));
+
+    await act(async () => auth.retrySessionCheck?.());
+
+    expect(auth.sessionCheckFailed).toBe(false);
+    expect(auth.isReady).toBe(true);
+    expect(auth.user).toBeNull();
+    expect(localStorage.getItem(AUTH_USER_KEY)).toBeNull();
+    expect(localStorage.getItem(CHAT_KEY)).toBeNull();
+  });
+
+  it("clears the failure when the user signs in", async () => {
+    await remount(async () => { throw new TypeError("Failed to fetch"); });
+
+    act(() => auth.loginSuccess(bob));
+
+    expect(auth.sessionCheckFailed).toBe(false);
+    expect(auth.isReady).toBe(true);
+    expect(auth.user?.email).toBe(bob.email);
+  });
+
+  it("does not run the periodic check while the failure is showing", async () => {
+    seedCachedUser();
+    await remount(async () => { throw new TypeError("Failed to fetch"); });
+    meMock.mockClear();
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now + SESSION_CHECK_MIN_GAP_MS);
+
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+
+    expect(meMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("AuthProvider storage cleanup", () => {
   const DEVICE_KEYS = ["theme", "docPanelCollapsed", "docPanelWidth", "insight-desk:welcomed"];
 

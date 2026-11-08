@@ -7,6 +7,7 @@ import { DOCUMENTS_QUERY_KEY } from "../../../context/DocumentsContext";
 import { useStatus } from "../../../components/statusBar/useStatus";
 import useConfirm from "../../../hooks/useConfirm";
 import { uploadError } from "../../../../shared/uploadRules";
+import { friendlyError } from "../../../utils/errorMessage";
 
 // The latest upload, kept after it ends so its outcome can be announced.
 export type UploadStatus = { fileName: string; state: "uploading" | "done" | "failed" };
@@ -71,7 +72,7 @@ export function useDocumentAttachments({ doc, canEdit, onSaved, maxUploadBytes }
       status.show({ kind: "success", message: "File attached." });
     } catch (e) {
       setUploadStatus({ fileName: file.name, state: "failed" });
-      status.show({ kind: "error", title: "Upload failed", message: e instanceof Error ? e.message : "Upload failed." });
+      status.show({ kind: "error", title: "Upload failed", message: friendlyError(e, "Could not upload the file. Check your connection and try again.") });
     } finally {
       setIsUploading(false);
     }
@@ -101,7 +102,7 @@ export function useDocumentAttachments({ doc, canEdit, onSaved, maxUploadBytes }
       if (e instanceof ApiError && e.status === 404) {
         await queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
       }
-      status.show({ kind: "error", title: "Delete failed", message: e instanceof Error ? e.message : "Delete failed." });
+      status.show({ kind: "error", title: "Delete failed", message: friendlyError(e, "Could not remove the attachment. Check your connection and try again.") });
     } finally {
       setDeletingAttachmentId(null);
     }

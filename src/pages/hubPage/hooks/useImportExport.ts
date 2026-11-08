@@ -8,6 +8,7 @@ import {
 import { DOCUMENTS_QUERY_KEY } from "../../../context/DocumentsContext";
 import { useStatus } from "../../../components/statusBar/useStatus";
 import { parseImportFiles } from "../utils/parseImportFile";
+import { friendlyError } from "../../../utils/errorMessage";
 
 export function useImportExport() {
   const status = useStatus();
@@ -37,7 +38,7 @@ export function useImportExport() {
       URL.revokeObjectURL(url);
       status.show({ kind: "success", message: "Documents exported." });
     } catch (e) {
-      status.show({ kind: "error", title: "Export failed", message: e instanceof Error ? e.message : "Error" });
+      status.show({ kind: "error", title: "Export failed", message: friendlyError(e, "Could not export the documents. Check your connection and try again.") });
     } finally {
       exportInFlightRef.current = false;
       setIsExporting(false);
@@ -92,7 +93,7 @@ export function useImportExport() {
           await sendImport(mode, parsed as DocumentInput[]);
         }
       } catch (e) {
-        status.show({ kind: "error", title: "Import failed", message: e instanceof Error ? e.message : "Error" });
+        status.show({ kind: "error", title: "Import failed", message: friendlyError(e, "Could not import the documents. Check your connection and try again.") });
       } finally {
         endImport();
       }

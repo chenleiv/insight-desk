@@ -106,8 +106,8 @@ function SaveCancelBtns({ onSave, onCancel, canSave, isSaving }: EditActions) {
         Cancel
       </button>
       <button type="button" className="doc-pane-mode-btn doc-pane-mode-btn--primary doc-pane-save-edit-btn"
-        onClick={onSave} disabled={!canSave || isSaving}>
-        Save
+        onClick={onSave} disabled={!canSave || isSaving} aria-busy={isSaving}>
+        {isSaving ? "Saving…" : "Save"}
       </button>
     </>
   );

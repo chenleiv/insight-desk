@@ -55,6 +55,8 @@ const questionsSkeleton = () => document.querySelector(".settings-ai-questions-s
 const statusTexts = () => [...document.querySelectorAll("[role='status']")].map((el) => el.textContent);
 const textarea = () => document.querySelector<HTMLTextAreaElement>(".settings-ai-textarea:not(.settings-ai-prompt-skeleton)");
 const inputs = () => [...document.querySelectorAll<HTMLInputElement>("input.settings-input")];
+const loadErrors = () => [...document.querySelectorAll(".load-error-message")].map((el) => el.textContent);
+const retryButtons = () => [...document.querySelectorAll<HTMLButtonElement>(".load-error-retry")];
 
 let prompt: ReturnType<typeof deferred<PromptConfig>>;
 let suggestions: ReturnType<typeof deferred<Suggestions>>;
@@ -103,7 +105,7 @@ describe("AISection loading state", () => {
     expect(inputs().map((i) => i.value)).toEqual(["What is in the handbook?", "", "", ""]);
   });
 
-  it("shows the existing error toast and a disabled form, not a stuck loading state, on failure", async () => {
+  it("shows a lasting error with Retry, not a stuck loading state or an empty form, on failure", async () => {
     render();
 
     await act(async () => {
@@ -113,11 +115,67 @@ describe("AISection loading state", () => {
 
     expect(promptSkeleton()).toBeNull();
     expect(questionsSkeleton()).toBeNull();
-    expect(status.show).toHaveBeenCalledWith({ kind: "error", title: "Error", message: "Prompt failed" });
-    expect(status.show).toHaveBeenCalledWith({ kind: "error", title: "Error", message: "Suggestions failed" });
-    expect(textarea()?.disabled).toBe(true);
-    expect(textarea()?.placeholder).toBe("Could not load the system prompt.");
-    expect(inputs().every((i) => i.disabled && i.placeholder === "Could not load")).toBe(true);
+    expect(loadErrors()).toEqual(["Could not load the system prompt.", "Could not load the example questions."]);
+    expect(status.show).not.toHaveBeenCalled();
+    expect(textarea()).toBeNull();
+    expect(inputs()).toHaveLength(0);
+  });
+
+  it("loads the prompt again on Retry, and leaves the questions alone", async () => {
+    render();
+    await act(async () => {
+      prompt.reject(new Error("Prompt failed"));
+      suggestions.reject(new Error("Suggestions failed"));
+    });
+    const retry = deferred<PromptConfig>();
+    getSystemPrompt.mockReturnValue(retry.promise);
+
+    act(() => retryButtons()[0].click());
+
+    expect(promptSkeleton()).not.toBeNull();
+    expect(loadErrors()).toEqual(["Could not load the example questions."]);
+    expect(getSystemPrompt).toHaveBeenCalledTimes(2);
+    expect(getSuggestions).toHaveBeenCalledOnce();
+
+    await act(async () => retry.resolve(PROMPT));
+
+    expect(textarea()?.value).toBe("Be helpful.");
+    expect(textarea()?.disabled).toBe(false);
+  });
+
+  it("loads the example questions again on Retry", async () => {
+    render();
+    await act(async () => {
+      prompt.resolve(PROMPT);
+      suggestions.reject(new Error("Suggestions failed"));
+    });
+    expect(loadErrors()).toEqual(["Could not load the example questions."]);
+    const retry = deferred<Suggestions>();
+    getSuggestions.mockReturnValue(retry.promise);
+
+    act(() => retryButtons()[0].click());
+
+    expect(questionsSkeleton()).not.toBeNull();
+
+    await act(async () => retry.resolve({ questions: ["Who wrote this?"] }));
+
+    expect(loadErrors()).toEqual([]);
+    expect(inputs().map((i) => i.value)).toEqual(["Who wrote this?", "", "", ""]);
+    expect(inputs().every((i) => !i.disabled)).toBe(true);
+  });
+
+  it("shows the same error again when Retry fails too", async () => {
+    render();
+    await act(async () => {
+      prompt.reject(new Error("Prompt failed"));
+      suggestions.resolve({ questions: [] });
+    });
+    getSystemPrompt.mockRejectedValue(new Error("Still down"));
+
+    await act(async () => retryButtons()[0].click());
+
+    expect(loadErrors()).toEqual(["Could not load the system prompt."]);
+    expect(textarea()).toBeNull();
   });
 });
 
@@ -144,6 +202,28 @@ describe("AISection reset to default", () => {
     expect(resetSystemPrompt).toHaveBeenCalledOnce();
     expect(textarea()?.value).toBe("Default prompt.");
     expect(status.show).toHaveBeenCalledWith({ kind: "success", title: "Reset", message: "System prompt reset to the default" });
+  });
+
+  it("labels only the reset button while resetting", async () => {
+    const reset = deferred<PromptConfig>();
+    confirm.mockResolvedValue(true);
+    resetSystemPrompt.mockReturnValue(reset.promise);
+    await renderLoaded();
+    const button = resetButton()!;
+    const saveButton = [...document.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === "Save prompt")!;
+
+    await act(async () => button.click());
+
+    expect(button.textContent).toBe("Resetting…");
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(saveButton.textContent).toBe("Save prompt");
+    expect(saveButton.disabled).toBe(true);
+
+    await act(async () => reset.resolve(DEFAULT));
+
+    expect(button.textContent).toBe("Reset to default");
+    expect(button.getAttribute("aria-busy")).toBe("false");
   });
 
   it("does nothing when the admin cancels", async () => {

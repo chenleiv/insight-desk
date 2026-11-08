@@ -9,8 +9,9 @@ import { dailyLimitMessage, type ChatResponse } from "../../../../../api/aiClien
 import type { ChatMessage } from "../assistantTypes";
 import AIAssistantView from "../AIAssistantView";
 
-const { chatWithAI, sendFeedback, documents } = vi.hoisted(() => ({
+const { chatWithAI, getSystemPrompt, sendFeedback, documents } = vi.hoisted(() => ({
   chatWithAI: vi.fn<(message: string) => Promise<ChatResponse>>(),
+  getSystemPrompt: vi.fn<() => Promise<{ prompt: string }>>(),
   sendFeedback: vi.fn<(answerId: string, rating: "up" | "down") => Promise<unknown>>(),
   documents: {
     current: { docs: [{ id: "d1" }], loading: false, error: null } as {
@@ -24,6 +25,7 @@ const { chatWithAI, sendFeedback, documents } = vi.hoisted(() => ({
 vi.mock("../../../../../api/aiClient", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../../../api/aiClient")>()),
   chatWithAI,
+  getSystemPrompt,
   sendFeedback,
   getSuggestions: () => Promise.resolve({ questions: [] }),
 }));
@@ -118,6 +120,47 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+});
+
+describe("system prompt modal", () => {
+  const loadError = () => container.querySelector(".prompt-modal .load-error-message")?.textContent;
+  const retry = () => container.querySelector<HTMLButtonElement>(".prompt-modal .load-error-retry")!;
+  const body = () => container.querySelector(".prompt-modal-body")?.textContent;
+
+  async function openModal() {
+    renderChat();
+    await act(async () => container.querySelector<HTMLButtonElement>(".ai-prompt-config-btn")!.click());
+  }
+
+  beforeEach(() => { getSystemPrompt.mockReset(); });
+
+  it("shows the prompt once it loads", async () => {
+    getSystemPrompt.mockResolvedValue({ prompt: "Be helpful." });
+    await openModal();
+
+    expect(body()).toBe("Be helpful.");
+    expect(loadError()).toBeUndefined();
+  });
+
+  it("says the load failed and offers Retry, and does not show it as the prompt", async () => {
+    getSystemPrompt.mockRejectedValue(new TypeError("Failed to fetch"));
+    await openModal();
+
+    expect(loadError()).toBe("Could not load the system prompt.");
+    expect(body()).toBeUndefined();
+    expect(getSystemPrompt).toHaveBeenCalledOnce();
+  });
+
+  it("loads the prompt on Retry", async () => {
+    getSystemPrompt.mockRejectedValueOnce(new TypeError("Failed to fetch")).mockResolvedValue({ prompt: "Be helpful." });
+    await openModal();
+
+    await act(async () => retry().click());
+
+    expect(getSystemPrompt).toHaveBeenCalledTimes(2);
+    expect(loadError()).toBeUndefined();
+    expect(body()).toBe("Be helpful.");
+  });
 });
 
 describe("answer feedback", () => {

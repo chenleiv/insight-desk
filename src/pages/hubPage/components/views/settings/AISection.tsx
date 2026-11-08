@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getSystemPrompt,
@@ -9,8 +9,10 @@ import {
 } from "../../../../../api/aiClient";
 import { useStatus } from "../../../../../components/statusBar/useStatus";
 import { SkeletonLine, SkeletonRegion } from "../../../../../components/skeleton/Skeleton";
+import { LoadError } from "../../../../../components/loadError/LoadError";
 import { SUGGESTIONS_QUERY_KEY } from "../../../hooks/useSuggestions";
 import useConfirm from "../../../../../hooks/useConfirm";
+import { friendlyError } from "../../../../../utils/errorMessage";
 
 // Matches the four question fields the loaded form always shows.
 const QUESTION_COUNT = 4;
@@ -21,24 +23,24 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
   const queryClient = useQueryClient();
 
   const [promptDraft, setPromptDraft] = useState("");
-  const [promptSaving, setPromptSaving] = useState(false);
+  const [promptAction, setPromptAction] = useState<"saving" | "resetting" | null>(null);
   const [promptLoaded, setPromptLoaded] = useState(false);
   const [promptFailed, setPromptFailed] = useState(false);
+  const [promptAttempt, setPromptAttempt] = useState(0);
 
   const [questions, setQuestions] = useState<string[]>(["", "", "", ""]);
   const [questionsSaving, setQuestionsSaving] = useState(false);
   const [questionsLoaded, setQuestionsLoaded] = useState(false);
   const [questionsFailed, setQuestionsFailed] = useState(false);
-
-  const statusRef = useRef(status);
+  const [questionsAttempt, setQuestionsAttempt] = useState(0);
 
   useEffect(() => {
     getSystemPrompt()
       .then((r) => { setPromptDraft(r.prompt); setPromptLoaded(true); })
-      .catch((e) => {
-        setPromptFailed(true);
-        statusRef.current.show({ kind: "error", title: "Error", message: e.message });
-      });
+      .catch(() => setPromptFailed(true));
+  }, [promptAttempt]);
+
+  useEffect(() => {
     getSuggestions()
       .then((r) => {
         const padded = [...r.questions];
@@ -46,21 +48,28 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
         setQuestions(padded.slice(0, 4));
         setQuestionsLoaded(true);
       })
-      .catch((e) => {
-        setQuestionsFailed(true);
-        statusRef.current.show({ kind: "error", title: "Error", message: e.message });
-      });
-  }, []);
+      .catch(() => setQuestionsFailed(true));
+  }, [questionsAttempt]);
+
+  function retryPrompt() {
+    setPromptFailed(false);
+    setPromptAttempt((n) => n + 1);
+  }
+
+  function retryQuestions() {
+    setQuestionsFailed(false);
+    setQuestionsAttempt((n) => n + 1);
+  }
 
   async function savePrompt() {
-    setPromptSaving(true);
+    setPromptAction("saving");
     try {
       await updateSystemPrompt(promptDraft);
       status.show({ kind: "success", title: "Saved", message: "System prompt updated" });
     } catch (e) {
-      status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
+      status.show({ kind: "error", title: "Error", message: friendlyError(e, "Could not save the system prompt. Check your connection and try again.") });
     } finally {
-      setPromptSaving(false);
+      setPromptAction(null);
     }
   }
 
@@ -71,14 +80,14 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
       confirmLabel: "Reset",
     });
     if (!ok) return;
-    setPromptSaving(true);
+    setPromptAction("resetting");
     try {
       setPromptDraft((await resetSystemPrompt()).prompt);
       status.show({ kind: "success", title: "Reset", message: "System prompt reset to the default" });
     } catch (e) {
-      status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
+      status.show({ kind: "error", title: "Error", message: friendlyError(e, "Could not reset the system prompt. Check your connection and try again.") });
     } finally {
-      setPromptSaving(false);
+      setPromptAction(null);
     }
   }
 
@@ -90,7 +99,7 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
       queryClient.setQueryData(SUGGESTIONS_QUERY_KEY, await updateSuggestions(filtered));
       status.show({ kind: "success", title: "Saved", message: "Example questions updated" });
     } catch (e) {
-      status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
+      status.show({ kind: "error", title: "Error", message: friendlyError(e, "Could not save the example questions. Check your connection and try again.") });
     } finally {
       setQuestionsSaving(false);
     }
@@ -107,7 +116,9 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
           </div>
         </div>
         <div className="settings-form">
-          {!promptLoaded && !promptFailed ? (
+          {promptFailed ? (
+            <LoadError message="Could not load the system prompt." onRetry={retryPrompt} />
+          ) : !promptLoaded ? (
             <SkeletonRegion label="Loading system prompt…" className="settings-ai-textarea settings-ai-prompt-skeleton">
               <SkeletonLine width="90%" />
               <SkeletonLine width="100%" />
@@ -121,28 +132,29 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
               value={promptDraft}
               onChange={(e) => setPromptDraft(e.target.value)}
               readOnly={readOnly}
-              disabled={!promptLoaded || promptSaving}
+              disabled={promptAction !== null}
               rows={12}
-              placeholder={promptFailed ? "Could not load the system prompt." : undefined}
             />
           )}
           <div className="settings-ai-prompt-actions">
             <button
               type="button"
               className="settings-save-btn"
-              disabled={readOnly || !promptLoaded || promptSaving}
+              disabled={readOnly || !promptLoaded || promptAction !== null}
+              aria-busy={promptAction === "saving"}
               onClick={savePrompt}
             >
-              {promptSaving ? "Saving…" : "Save prompt"}
+              {promptAction === "saving" ? "Saving…" : "Save prompt"}
             </button>
             {!readOnly && (
               <button
                 type="button"
                 className="settings-cancel-btn"
-                disabled={!promptLoaded || promptSaving}
+                disabled={!promptLoaded || promptAction !== null}
+                aria-busy={promptAction === "resetting"}
                 onClick={resetPrompt}
               >
-                Reset to default
+                {promptAction === "resetting" ? "Resetting…" : "Reset to default"}
               </button>
             )}
           </div>
@@ -157,7 +169,9 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
           </div>
         </div>
         <div className="settings-form">
-          {!questionsLoaded && !questionsFailed ? (
+          {questionsFailed ? (
+            <LoadError message="Could not load the example questions." onRetry={retryQuestions} />
+          ) : !questionsLoaded ? (
             <SkeletonRegion label="Loading example questions…" className="settings-ai-questions-skeleton">
               {Array.from({ length: QUESTION_COUNT }, (_, i) => (
                 <div key={i} className="settings-field">
@@ -175,8 +189,8 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
                   value={q}
                   onChange={(e) => setQuestions((prev) => prev.map((v, idx) => idx === i ? e.target.value : v))}
                   readOnly={readOnly}
-                  disabled={!questionsLoaded || questionsSaving}
-                  placeholder={questionsFailed ? "Could not load" : `Example question ${i + 1}`}
+                  disabled={questionsSaving}
+                  placeholder={`Example question ${i + 1}`}
                 />
               </label>
             ))
@@ -185,6 +199,7 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
             type="button"
             className="settings-save-btn"
             disabled={readOnly || !questionsLoaded || questionsSaving}
+            aria-busy={questionsSaving}
             onClick={saveQuestions}
           >
             {questionsSaving ? "Saving…" : "Save questions"}

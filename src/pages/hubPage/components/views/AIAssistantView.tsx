@@ -17,6 +17,7 @@ import { documentQuestions } from "../../utils/suggestedQuestions";
 import { SystemPromptModal } from "./ai/SystemPromptModal";
 import { SourceChip } from "./ai/SourceChip";
 import { ChatActionsMenu } from "./ai/ChatActionsMenu";
+import { friendlyError } from "../../../../utils/errorMessage";
 
 export const AI_QUERY_COUNT_BASE_KEY = "aiQueryCount";
 
@@ -72,15 +73,16 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [promptModalOpen, setPromptModalOpen] = useState(false);
   const [promptText, setPromptText] = useState<string | null>(null);
+  const [promptLoadFailed, setPromptLoadFailed] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const inputSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!promptModalOpen || promptText !== null) return;
+    if (!promptModalOpen || promptText !== null || promptLoadFailed) return;
     getSystemPrompt()
       .then((r) => setPromptText(r.prompt))
-      .catch(() => setPromptText("Failed to load prompt."));
-  }, [promptModalOpen, promptText]);
+      .catch(() => setPromptLoadFailed(true));
+  }, [promptModalOpen, promptText, promptLoadFailed]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   // Set before the first await: two taps can land before React renders isSending.
   const sendPendingRef = useRef(false);
@@ -129,7 +131,8 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
     } catch (e) {
       // Asking again cannot help before a daily limit resets, so it gets no Retry button.
       const limitMsg = dailyLimitMessage(e);
-      const errMsg = limitMsg ?? (e instanceof Error ? e.message : "Sorry, I encountered an error.");
+      // The chat route writes its 5xx details for users, such as "the AI service is busy".
+      const errMsg = limitMsg ?? friendlyError(e, "Could not get an answer. Check your connection and try again.", { keepServerErrors: true });
       if (!limitMsg) setLastError(errMsg);
       setMessages((prev) => [
         ...prev,
@@ -163,7 +166,7 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
       status.show({
         kind: "error",
         title: "Feedback not saved",
-        message: e instanceof Error ? e.message : "Please try again.",
+        message: friendlyError(e, "Check your connection and try again."),
       });
     } finally {
       ratingInFlightRef.current.delete(m.id);
@@ -515,6 +518,8 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
       <SystemPromptModal
         isOpen={promptModalOpen}
         promptText={promptText}
+        loadFailed={promptLoadFailed}
+        onRetry={() => setPromptLoadFailed(false)}
         onClose={() => setPromptModalOpen(false)}
       />
     </div>

@@ -34,6 +34,7 @@ import { Maximize2 } from "lucide-react";
 import { useDocumentSave } from "../../hooks/useDocumentSave";
 import { useDocumentAttachments } from "../../hooks/useDocumentAttachments";
 import { DISCARD_MESSAGE } from "../../hooks/useUnsavedChangesGuard";
+import { friendlyError } from "../../../../utils/errorMessage";
 
 type Props = {
   doc: DocumentItem | null;
@@ -187,7 +188,7 @@ export default function DocumentPane({
       setSaveStatus("idle");
     } catch (e) {
       setSaveStatus("error");
-      const msg = e instanceof Error ? e.message : "Creation failed.";
+      const msg = friendlyError(e, "Could not create the document. Check your connection and try again.");
       status.show({ kind: "error", title: "Creation failed", message: msg });
     } finally {
       createInFlightRef.current = false;
@@ -198,7 +199,7 @@ export default function DocumentPane({
   // does not make a second one; the form keeps its fields and files for that retry.
   // If the delete fails too, the document is kept and opened with the files that made it.
   async function undoPartialCreate(created: DocumentItem, uploaded: Attachment[], file: File, uploadErr: unknown) {
-    const reason = uploadErr instanceof Error ? uploadErr.message : "Upload failed.";
+    const reason = friendlyError(uploadErr, "Check your connection and try again.");
     try {
       await deleteDocument(created.id);
     } catch {
@@ -259,7 +260,7 @@ export default function DocumentPane({
         status.show({ kind: "success", message: "Text imported." });
       }
     } catch (err) {
-      status.show({ kind: "error", title: "Import failed", message: err instanceof Error ? err.message : "Import failed." });
+      status.show({ kind: "error", title: "Import failed", message: friendlyError(err, "Could not import the text. Check your connection and try again.") });
     } finally {
       importTextInFlightRef.current = false;
       setIsImportingText(false);
@@ -334,7 +335,7 @@ export default function DocumentPane({
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      status.show({ kind: "error", title: "Download failed", message: e instanceof Error ? e.message : "Error" });
+      status.show({ kind: "error", title: "Download failed", message: friendlyError(e, "Could not download the document. Check your connection and try again.") });
     } finally {
       downloadInFlightRef.current = false;
       setIsDownloading(false);

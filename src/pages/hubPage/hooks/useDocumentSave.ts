@@ -3,6 +3,7 @@ import type { DocumentInput, DocumentItem } from "../../../api/documentsClient";
 import { updateDocument } from "../../../api/documentsClient";
 import { toInput, isSameInput, isInputValid } from "../utils/documentForm";
 import { useStatus } from "../../../components/statusBar/useStatus";
+import { friendlyError } from "../../../utils/errorMessage";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -46,7 +47,7 @@ export function useDocumentSave({ doc, form, onSaved, onFormSync }: Options) {
         return true;
       } catch (e) {
         setSaveStatus("error");
-        const msg = e instanceof Error ? e.message : "Save failed.";
+        const msg = friendlyError(e, "Could not save the document. Check your connection and try again.");
         latestRef.current.status.show({ kind: "error", title: "Save failed", message: msg });
         return false;
       } finally {

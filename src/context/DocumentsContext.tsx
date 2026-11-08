@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listDocuments, type DocumentItem } from "../api/documentsClient";
+import { friendlyError } from "../utils/errorMessage";
 
 export const DOCUMENTS_QUERY_KEY = ["documents"] as const;
 
@@ -14,7 +15,7 @@ export function useDocuments() {
   return {
     docs: data ?? [],
     loading,
-    error: error instanceof Error ? error.message : null,
+    error: error ? friendlyError(error, "Could not refresh your documents. Check your connection and try again.") : null,
     // Nothing to show at all, unlike a failed refresh of a list already on screen.
     loadFailed: !!error && data === undefined,
     // Back to loading while it runs. Joins a request already running instead of restarting it.

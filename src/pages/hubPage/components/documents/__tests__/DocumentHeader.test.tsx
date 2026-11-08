@@ -100,3 +100,21 @@ describe("DocumentHeader action buttons", () => {
     expect(chip.textContent).toBe("Deleting…");
   });
 });
+
+describe("DocumentHeader save button", () => {
+  const save = () => document.querySelector<HTMLButtonElement>(".doc-pane-save-edit-btn")!;
+
+  it("is disabled, busy and labelled while saving", () => {
+    render({ editActions: { ...editActions, canSave: true, isSaving: true } });
+    expect(save().disabled).toBe(true);
+    expect(save().getAttribute("aria-busy")).toBe("true");
+    expect(save().textContent).toBe("Saving…");
+  });
+
+  it("is ready when nothing is being saved", () => {
+    render({ editActions: { ...editActions, canSave: true } });
+    expect(save().disabled).toBe(false);
+    expect(save().getAttribute("aria-busy")).toBe("false");
+    expect(save().textContent).toBe("Save");
+  });
+});
