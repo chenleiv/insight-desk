@@ -117,7 +117,7 @@ A "did you mean" answer was considered for questions whose best chunk is just un
 
 Correctness is graded by hand from the file. The script only counts what it can check: refusals, empty answers, citations, forbidden Markdown, document titles in brackets, and the answer language for the Hebrew set.
 
-The three runs below compared two files: "old" was `eval/prompts/old.txt` and "new" was `eval/prompts/new.txt`. On 2026-11-07 `old.txt` was removed (it is in git history at commit d73c2b2) and `new.txt` was renamed to `experiment.txt`, with only the product name changed. `old.txt` was not the same as `DEFAULT_PROMPT`: it had no opening sentence, and its rule 2 asked for an earlier "not found" sentence.
+The first three runs below compared two files: "old" was `eval/prompts/old.txt` and "new" was `eval/prompts/new.txt`. On 2026-11-07 `old.txt` was removed (it is in git history at commit d73c2b2) and `new.txt` was renamed to `experiment.txt`, with only the product name changed. `old.txt` was not the same as `DEFAULT_PROMPT`: it had no opening sentence, and its rule 2 asked for an earlier "not found" sentence.
 
 ### First full run
 
@@ -146,6 +146,21 @@ The first and second runs used the previous demo library.
 - **Everywhere:** 0 invented citation ids, 0 format violations, 0 document titles in brackets.
 
 Correctness was not graded for this run.
+
+### Default against experiment (2026-11-08)
+
+The first run that measures the app's own prompt: `default` is `DEFAULT_PROMPT` (version 1.1), read from the code, and `experiment` is `eval/prompts/experiment.txt`, the wording that was stored on the live site. Both wordings were measured in the same run.
+
+Related set only (24 questions), 5 runs per question and wording, model `openai/gpt-oss-20b`, the 15 Insight Security documents. 120 calls per wording, 0 API errors.
+
+- **Default:** 5 of 120 refusals, 113 of 120 with a valid citation.
+- **Experiment:** 5 of 120 refusals, 108 of 120 with a valid citation.
+- The refusals in both wordings were q08 (see [Known retrieval limitation: q08](#known-retrieval-limitation-q08)).
+- **Both:** 0 invented citation ids, 0 format violations.
+
+The forced and Hebrew sets were not run, and correctness was not graded.
+
+**Decision (2026-11-08):** the stored prompt on the live site (the experiment wording) is replaced by the code default, `DEFAULT_PROMPT`, with the "Reset to default" button in Settings → AI. In the same run, the default gave 113 of 120 valid citations against 108 of 120, with the same refusals and no invented ids. This reverses the decision after the first full run, which compared the experiment wording with `old.txt`, not with `DEFAULT_PROMPT`. From now on the prompt the app uses lives in the code; a stored prompt applies only while an admin keeps one saved.
 
 ## Measuring in production
 
