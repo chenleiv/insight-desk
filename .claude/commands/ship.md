@@ -26,12 +26,12 @@ Optional.
 
 Run:
 
-git status
-git diff --staged
+git status -- ':!*.env*'
+git diff --staged -- ':!*.env*'
 
 If no staged changes:
 
-git diff
+git diff -- ':!*.env*'
 
 ---
 
@@ -90,6 +90,7 @@ Validate only.
 
 BLOCK when:
 
+- lint fails
 - build fails
 - tests fail
 - type errors exist

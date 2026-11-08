@@ -24,8 +24,8 @@ Optional.
 Run:
 
 ```bash
-git status
-git diff
+git status -- ':!*.env*'
+git diff -- ':!*.env*'
 ```
 
 Use changed files as cleanup scope.

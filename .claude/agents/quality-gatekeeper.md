@@ -40,15 +40,12 @@ Do not approve based on code inspection.
 Run in order:
 
 ```bash
+npm run lint
+npm test
 npm run build
 ```
 
-Required — build failure blocks release.
-
-Also run if available:
-
-- npm run lint
-- npm run test
+All three are required. Any failure blocks release.
 
 ---
 
