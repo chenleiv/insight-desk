@@ -3,6 +3,7 @@ import { Search, X, Paperclip, Star, Plus, ChevronRight } from "lucide-react";
 import type { DocumentItem } from "../../../../api/documentsClient";
 import { docHasCategory, getCategoryChipStyle, getCategoryOptions } from "../../utils/docs";
 import { Skeleton, SkeletonLine } from "../../../../components/skeleton/Skeleton";
+import { LoadError } from "../../../../components/loadError/LoadError";
 
 type Props = {
   docs: DocumentItem[];
@@ -13,9 +14,12 @@ type Props = {
   canCreate: boolean;
   createDisabledLabel?: string;
   onToggleFavorite: (id: string) => void;
+  pendingFavorites?: Record<string, boolean>;
   isCollapsed?: boolean;
   onToggleCollapsed?: () => void;
   loading?: boolean;
+  loadFailed?: boolean;
+  onRetry?: () => void;
 };
 
 export default function DocPanel({
@@ -27,9 +31,12 @@ export default function DocPanel({
   canCreate,
   createDisabledLabel = "Admin only",
   onToggleFavorite,
+  pendingFavorites,
   isCollapsed,
   onToggleCollapsed,
   loading,
+  loadFailed = false,
+  onRetry,
 }: Props) {
   const [panelSearch, setPanelSearch] = useState("");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -157,6 +164,7 @@ export default function DocPanel({
         {!loading && filteredDocs.map((doc) => {
           const isActive = doc.id === activeDocId;
           const isFav = !!favorites[doc.id];
+          const isFavPending = !!pendingFavorites?.[doc.id];
           return (
             <li
               key={doc.id}
@@ -189,6 +197,9 @@ export default function DocPanel({
                   type="button"
                   className={`doc-panel-row-star-btn${isFav ? " active" : ""}`}
                   onClick={(e) => { e.stopPropagation(); void onToggleFavorite(doc.id); }}
+                  // Not disabled: that would drop keyboard focus, and a tap could reach the row and open it.
+                  aria-disabled={isFavPending}
+                  aria-busy={isFavPending}
                   aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
                   data-tooltip={isFav ? "Remove from favorites" : "Add to favorites"}
                   data-tooltip-pos="left"
@@ -199,7 +210,12 @@ export default function DocPanel({
             </li>
           );
         })}
-        {!loading && filteredDocs.length === 0 && (
+        {loadFailed && onRetry && (
+          <li>
+            <LoadError message="Could not load your documents." onRetry={onRetry} />
+          </li>
+        )}
+        {!loading && !loadFailed && filteredDocs.length === 0 && (
           <div className="doc-panel-empty">{emptyMessage}</div>
         )}
       </ul>

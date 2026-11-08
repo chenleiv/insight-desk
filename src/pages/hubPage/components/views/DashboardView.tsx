@@ -3,11 +3,13 @@ import { useMemo, useRef, useState } from "react";
 import { FileText, Star, Sparkles, HardDrive, Download, Upload } from "lucide-react";
 import { useDocuments } from "../../../../context/DocumentsContext";
 import { useAuth } from "../../../../auth/useAuth";
+import { useFavoriteToggle } from "../../../../auth/useFavoriteToggle";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
 import type { DocumentItem } from "../../../../api/documentsClient";
 import { getDocTags, getCategoryIconStyle, getCategoryChipStyle } from "../../utils/docs";
 import Menu from "../../../../components/menu/Menu";
 import { Skeleton, SkeletonLine, SkeletonRegion } from "../../../../components/skeleton/Skeleton";
+import { LoadError } from "../../../../components/loadError/LoadError";
 import { loadJson, scopedKey } from "../../../../utils/storage";
 import { AI_QUERY_COUNT_BASE_KEY } from "./AIAssistantView";
 
@@ -16,6 +18,8 @@ type Props = {
   onOpenDocument?: (id: string) => void;
   onExport?: () => void;
   onImport?: (mode: "append" | "replace", fileType: "json" | "text") => void;
+  isExporting?: boolean;
+  isImporting?: boolean;
   canEdit?: boolean;
   canCreate?: boolean;
   createDisabledLabel?: string;
@@ -23,6 +27,8 @@ type Props = {
 };
 
 const RECENT_LIMIT = 5;
+// A zero would claim the library is empty when it failed to load.
+const UNKNOWN_STAT = "—";
 
 // Same classes as a recent document row, without the button behavior.
 function RecentDocsSkeleton() {
@@ -56,6 +62,8 @@ export default function DashboardView({
   onOpenDocument,
   onExport,
   onImport,
+  isExporting = false,
+  isImporting = false,
   canEdit,
   canCreate = canEdit,
   createDisabledLabel = "Admin only",
@@ -74,8 +82,9 @@ export default function DashboardView({
       onClick: () => { onImport?.("append", "text"); setShowImportMenu(false); },
     },
   ];
-  const { docs, loading } = useDocuments();
-  const { user, favoritesMap, toggleFavorite } = useAuth();
+  const { docs, loading, loadFailed, retry } = useDocuments();
+  const { user, favoritesMap } = useAuth();
+  const { toggle: toggleFavorite, pendingFavorites } = useFavoriteToggle();
 
   const displayName = (() => {
     if (user?.displayName) return user.displayName.split(" ")[0];
@@ -127,8 +136,9 @@ export default function DashboardView({
             + New Document
           </button>
           {onExport && (
-            <button type="button" className="action-btn secondary" onClick={onExport}>
-              <Download size={15} /> Export
+            <button type="button" className="action-btn secondary" onClick={onExport}
+              disabled={isExporting} aria-busy={isExporting}>
+              <Download size={15} /> {isExporting ? "Exporting…" : "Export"}
             </button>
           )}
           {canEdit && onImport && (
@@ -138,10 +148,11 @@ export default function DashboardView({
                 className="action-btn secondary"
                 ref={importBtnRef}
                 onClick={() => setShowImportMenu(true)}
-                disabled={!canImport}
+                disabled={!canImport || isImporting}
+                aria-busy={isImporting}
                 title={canImport ? undefined : "Not available in the demo"}
               >
-                <Upload size={15} /> Import
+                <Upload size={15} /> {isImporting ? "Importing…" : "Import"}
               </button>
               <Menu
                 open={showImportMenu}
@@ -161,7 +172,7 @@ export default function DashboardView({
               <FileText size={18} />
             </span>
           </div>
-          <div className="stat-value">{loading ? <SkeletonLine width="40%" /> : totalDocs}</div>
+          <div className="stat-value">{loading ? <SkeletonLine width="40%" /> : loadFailed ? UNKNOWN_STAT : totalDocs}</div>
           <div className="stat-label">Total Documents</div>
         </div>
         <div className="stat-card">
@@ -170,7 +181,7 @@ export default function DashboardView({
               <Star size={18} />
             </span>
           </div>
-          <div className="stat-value">{loading ? <SkeletonLine width="40%" /> : favoriteCount}</div>
+          <div className="stat-value">{loading ? <SkeletonLine width="40%" /> : loadFailed ? UNKNOWN_STAT : favoriteCount}</div>
           <div className="stat-label">Favorites</div>
         </div>
         <div className="stat-card">
@@ -188,7 +199,7 @@ export default function DashboardView({
               <HardDrive size={18} />
             </span>
           </div>
-          <div className="stat-value">{loading ? <SkeletonLine width="60%" /> : storageLabel}</div>
+          <div className="stat-value">{loading ? <SkeletonLine width="60%" /> : loadFailed ? UNKNOWN_STAT : storageLabel}</div>
           <div className="stat-label">Content Size</div>
         </div>
       </div>
@@ -201,6 +212,8 @@ export default function DashboardView({
 
           {loading ? (
             <RecentDocsSkeleton />
+          ) : loadFailed ? (
+            <LoadError message="Could not load your documents." onRetry={retry} />
           ) : (
             <div className="recent-docs-list">
               {recent.length === 0 ? (
@@ -242,6 +255,9 @@ export default function DashboardView({
                         type="button"
                         className="recent-doc-star"
                         onClick={() => void toggleFavorite(doc.id)}
+                        // Not disabled, which would drop keyboard focus for a short request.
+                        aria-disabled={!!pendingFavorites[doc.id]}
+                        aria-busy={!!pendingFavorites[doc.id]}
                         aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
                         aria-pressed={isFav}
                       >

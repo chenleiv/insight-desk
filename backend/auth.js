@@ -424,15 +424,20 @@ async function endSessionsOnLogout(token) {
     }
 }
 
-// Always succeeds and clears the cookie. If the step fails, a demo workspace is removed
-// at expiry by the scheduled cleanup, and a regular token stays valid until it expires.
+// Clears the cookie only once the sessions behind it have ended. If that step fails the token
+// is still valid, so the response says so, the cookie stays, and the client keeps the user
+// signed in and offers a retry. Repeating it is safe: finished work is not done twice. A demo
+// account is deleted last, so a failed removal leaves it signed in with its workspace possibly
+// part gone; a retry finishes the removal, and without one the scheduled cleanup does at expiry.
 router.post('/logout', async (req, res) => {
     const token = req.cookies[COOKIE_NAME];
     if (token) {
         try {
             await endSessionsOnLogout(token);
         } catch (err) {
-            logger.error('Ending sessions on logout failed', { message: err.message });
+            // The name only: a database message can quote query values such as an email address.
+            logger.error('Ending sessions on logout failed', { error: err.name });
+            return res.status(500).json({ detail: 'Could not sign out. Please try again.' });
         }
     }
     res.clearCookie(COOKIE_NAME, sessionCookieOptions());

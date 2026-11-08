@@ -258,6 +258,11 @@
     cursor: pointer;
     @include mixins.touch-target;
 
+    &[aria-busy="true"] {
+      opacity: 0.5;
+      cursor: progress;
+    }
+
     &:hover {
       color: var(--text);
       border-color: var(--border);

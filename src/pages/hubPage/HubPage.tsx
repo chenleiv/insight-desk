@@ -13,6 +13,8 @@ import DocPanel from "./components/documents/DocPanel";
 
 import { useDocuments, useSetDocs } from "../../context/DocumentsContext";
 import { useAuth } from "../../auth/useAuth";
+import { useSignOut } from "../../auth/useSignOut";
+import { useFavoriteToggle } from "../../auth/useFavoriteToggle";
 import { DEMO_LIMITS } from "../../auth/demoLimits";
 import { useStatus } from "../../components/statusBar/useStatus";
 import useConfirm from "../../hooks/useConfirm";
@@ -42,7 +44,8 @@ import { HUB_TOUR_STEPS, MOBILE_HUB_TOUR_STEPS } from "./components/dialogs/tour
 import { markGuideDone, skipAllGuides, useGuideDone } from "./utils/guides";
 
 export default function HubPage() {
-  const { user, logout, toggleFavorite, favoritesMap: favorites } = useAuth();
+  const { user, favoritesMap: favorites } = useAuth();
+  const { toggle: toggleFavorite, pendingFavorites } = useFavoriteToggle();
   const status = useStatus();
   const confirm = useConfirm();
   const isMobile = useMobile(767);
@@ -58,7 +61,13 @@ export default function HubPage() {
   const canViewQuality = isAdmin || isDemo;
   const orderKey = scopedKey("documentsOrder", user?.email);
 
-  const { docs, loading: docsLoading, error: docsError } = useDocuments();
+  const {
+    docs,
+    loading: docsLoading,
+    error: docsError,
+    loadFailed: docsLoadFailed,
+    retry: retryDocs,
+  } = useDocuments();
   const setDocs = useSetDocs();
 
   const demoWorkspaceFull = isDemo && docs.length >= DEMO_LIMITS.documents;
@@ -68,7 +77,7 @@ export default function HubPage() {
     : "Admin only";
 
   const { orderedDocs, setOrder } = useDocumentOrdering(docs, orderKey);
-  const { handleExport, handleImport, importPreview, setImportPreview, doImport } = useImportExport();
+  const { handleExport, handleImport, importPreview, setImportPreview, doImport, isExporting, isImporting } = useImportExport();
 
   const PANEL_DEFAULT_WIDTH = 320;
   const PANEL_COLLAPSE_THRESHOLD = 130;
@@ -81,6 +90,9 @@ export default function HubPage() {
     clearDirty,
     guardDirty,
   } = useUnsavedChangesGuard();
+  // The hub unmounts when the session ends, before any navigation blocker runs,
+  // so unsaved changes are confirmed first.
+  const { signOut: runSignOut, isSigningOut } = useSignOut({ confirmLeave: guardDirty });
   // The documents panel opens on every page load; collapsing it lasts until the next load.
   const [isDocPanelCollapsed, setIsDocPanelCollapsed] = useState(false);
   const [isDraggingPanel, setIsDraggingPanel] = useState(false);
@@ -156,8 +168,9 @@ export default function HubPage() {
   );
 
   useEffect(() => {
-    if (docsError) status.show({ kind: "error", message: docsError });
-  }, [docsError, status]);
+    // With nothing on screen, the panel says it failed and offers a retry.
+    if (docsError && !docsLoadFailed) status.show({ kind: "error", message: docsError });
+  }, [docsError, docsLoadFailed, status]);
 
 
   const handleToggleDocPanel = useCallback(() => {
@@ -233,10 +246,8 @@ export default function HubPage() {
     setActiveView({ kind: "doc", id });
   }
 
-  // Logout ends the session and the hub unmounts before any navigation blocker runs,
-  // so unsaved changes are confirmed here first.
   function signOut() {
-    void guardDirty().then((ok) => { if (ok) void logout(); });
+    void runSignOut();
   }
 
   // Leaves this entry the way Back would. A direct link has nothing behind it, so the list
@@ -344,7 +355,10 @@ export default function HubPage() {
     canCreate: canCreateDocs,
     createDisabledLabel,
     onToggleFavorite: toggleFavorite,
+    pendingFavorites,
     loading: docsLoading,
+    loadFailed: docsLoadFailed,
+    onRetry: retryDocs,
   };
 
   return (
@@ -419,6 +433,8 @@ export default function HubPage() {
                 onOpenDocument={goToDocument}
                 onExport={handleExport}
                 onImport={handleImport}
+                isExporting={isExporting}
+                isImporting={isImporting}
                 canEdit={canEditDocs}
                 canCreate={canCreateDocs}
                 createDisabledLabel={createDisabledLabel}
@@ -431,7 +447,7 @@ export default function HubPage() {
               <SettingsView
                 showAdminTabs={isAdmin || isDemo}
                 adminReadOnly={isDemo}
-                {...(isMobile ? { onSignOut: signOut } : {})}
+                {...(isMobile ? { onSignOut: signOut, isSigningOut } : {})}
               />
             </div>
           )}
@@ -453,6 +469,8 @@ export default function HubPage() {
               onCreated={handleCreated}
               hasDocs={docs.length > 0}
               loading={docsLoading}
+              loadFailed={docsLoadFailed}
+              onRetry={retryDocs}
               onSaved={(updated) =>
                 setDocs((p) => p.map((d) => (d.id === updated.id ? updated : d)))
               }

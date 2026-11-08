@@ -44,6 +44,35 @@ afterEach(() => {
   container.remove();
 });
 
+describe("DocumentHeader while a download runs", () => {
+  const chip = () => document.querySelector(".doc-pane-save-status")?.textContent;
+
+  it("on a phone, shows it in the chip because the More menu has closed, and blocks the formats", () => {
+    render({ ...readMode, isDownloading: true });
+    expect(chip()).toBe("Downloading…");
+
+    act(() => more()!.click());
+    expect(menuItem("Export as PDF (.pdf)").disabled).toBe(true);
+    expect(menuItem("Export as Word (.docx)").disabled).toBe(true);
+    expect(menuItem("Delete").disabled).toBe(false);
+  });
+
+  it("on desktop, shows the chip and disables the export button", () => {
+    screen.isMobile = false;
+    render({ ...readMode, isDownloading: true });
+    expect(chip()).toBe("Downloading…");
+    expect(button("Export document")!.disabled).toBe(true);
+    expect(button("Export document")!.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("offers the formats again when it ends", () => {
+    render({ ...readMode, isDownloading: false });
+    expect(chip()).toBeUndefined();
+    act(() => more()!.click());
+    expect(menuItem("Export as PDF (.pdf)").disabled).toBe(false);
+  });
+});
+
 describe("DocumentHeader on phones", () => {
   it("has Back, Edit and a menu instead of Close, Export and Delete", () => {
     render(readMode);

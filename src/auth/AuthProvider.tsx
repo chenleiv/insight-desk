@@ -32,6 +32,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   /** True after loginSuccess() — avoids clearing session when the initial /me (sent before the cookie existed) returns 401 after sign-in. */
   const sessionEstablishedByLogin = useRef(false);
+  /** The running logout, shared by every caller so a second click cannot send another. */
+  const logoutInFlight = useRef<Promise<void> | null>(null);
+  /** Set before the first await: two clicks can land before React renders pendingFavorites. */
+  const favoritesInFlight = useRef(new Set<string>());
+  const [pendingFavorites, setPendingFavorites] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -68,7 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /** Ends a session the server no longer accepts. Later 401s find no user and do nothing. */
   function expireSession() {
-    if (!signedInRef.current) return;
+    // A 401 during logout is the logout itself taking effect, not an expired session.
+    if (!signedInRef.current || logoutInFlight.current) return;
     signedInRef.current = false;
     sessionEstablishedByLogin.current = false;
     setUser(null);
@@ -86,47 +92,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setUnauthorizedHandler(null);
   }, []);
 
-  async function doLogout() {
-    setSignedOut(true);
-    signedInRef.current = false;
-    sessionEstablishedByLogin.current = false;
-    setUser(null);
-    clearUserFromStorage();
+  /** Rejects if the server call fails: the cookie may still be valid, so the user stays signed in. */
+  function doLogout() {
+    logoutInFlight.current ??= endSessionOnServer().finally(() => {
+      logoutInFlight.current = null;
+    });
+    return logoutInFlight.current;
+  }
+
+  async function endSessionOnServer() {
     // Before the server call, so no request of this session comes back as a 401 after it.
     void queryClient.cancelQueries();
 
     try {
       await apiLogout();
     } catch (err) {
-      console.warn("logout failed", err);
-    } finally {
-      // After the server call, so no refetch with the old cookie can refill the cache.
-      resetSessionState();
+      // Still signed in, so the requests cancelled above are needed again.
+      void queryClient.invalidateQueries();
+      throw err;
     }
+
+    setSignedOut(true);
+    signedInRef.current = false;
+    sessionEstablishedByLogin.current = false;
+    setUser(null);
+    clearUserFromStorage();
+    // After the server call, so no refetch with the old cookie can refill the cache.
+    resetSessionState();
   }
 
+  /** Changes one document only, for this user only: a late answer must not undo other changes or a sign-out. */
+  function setFavorite(email: string, id: string, isFavorite: boolean) {
+    setUser((prev) => {
+      if (prev?.email !== email) return prev;
+      const others = prev.favorites.filter((f) => f !== id);
+      const next = { ...prev, favorites: isFavorite ? [...others, id] : others };
+      saveUserToStorage(next);
+      return next;
+    });
+  }
+
+  /** Shows the change at once and undoes it if the server refuses. Rejects so the caller can say so. */
   async function toggleFavorite(id: string | number) {
     if (!user) return;
 
     const idStr = id.toString();
-    const isFav = user.favorites.includes(idStr);
+    if (favoritesInFlight.current.has(idStr)) return;
+    favoritesInFlight.current.add(idStr);
+    setPendingFavorites((prev) => ({ ...prev, [idStr]: true }));
 
-    const nextFavorites = isFav
-      ? user.favorites.filter((f) => f !== idStr)
-      : [...user.favorites, idStr];
-
-    setUser({ ...user, favorites: nextFavorites });
+    const { email } = user;
+    const wasFavorite = user.favorites.includes(idStr);
+    setFavorite(email, idStr, !wasFavorite);
 
     try {
       const resp = await apiToggleFavorite(idStr);
-      const nextUser = { ...user, favorites: resp.favorites };
-      setUser(nextUser);
-      saveUserToStorage(nextUser);
+      setFavorite(email, idStr, resp.favorites.includes(idStr));
     } catch (err) {
-      console.error("toggle favorite failed", err);
-      setUser(user);
-      saveUserToStorage(user);
+      setFavorite(email, idStr, wasFavorite);
       throw err;
+    } finally {
+      favoritesInFlight.current.delete(idStr);
+      setPendingFavorites((prev) => {
+        const next = { ...prev };
+        delete next[idStr];
+        return next;
+      });
     }
   }
 
@@ -145,6 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sessionExpired,
         signedOut,
         favoritesMap,
+        pendingFavorites,
         loginSuccess: (u) => {
           startSessionGeneration();
           sessionEstablishedByLogin.current = true;

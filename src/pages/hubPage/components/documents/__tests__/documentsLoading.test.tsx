@@ -57,7 +57,8 @@ async function settle(action: () => void) {
 
 // Wires the list and the open document to the documents query the way the hub does.
 function Hub({ activeDocId }: { activeDocId: string }) {
-  const { docs, loading } = useDocuments();
+  const { docs, loading, loadFailed, retry } = useDocuments();
+  const loadProps = { loading, loadFailed, onRetry: retry };
   return (
     <>
       <DocPanel
@@ -68,7 +69,7 @@ function Hub({ activeDocId }: { activeDocId: string }) {
         onNew={() => {}}
         canCreate
         onToggleFavorite={() => {}}
-        loading={loading}
+        {...loadProps}
       />
       <DocumentPane
         doc={docs.find((d) => d.id === activeDocId) ?? null}
@@ -78,7 +79,7 @@ function Hub({ activeDocId }: { activeDocId: string }) {
         onCreated={() => {}}
         onSaved={() => {}}
         hasDocs={docs.length > 0}
-        loading={loading}
+        {...loadProps}
       />
     </>
   );
@@ -150,7 +151,10 @@ describe("document list and document view loading state", () => {
     expect(titleInput()?.value).toBe("Handbook");
   });
 
-  it("drops the skeletons and shows the existing empty states when the request fails", async () => {
+  const loadErrors = () => [...document.querySelectorAll(".load-error-message")].map((el) => el.textContent);
+  const retryBtn = () => document.querySelector<HTMLButtonElement>(".doc-panel-list .load-error-retry")!;
+
+  it("says the load failed with a retry, never an empty state, when the request fails", async () => {
     const request = deferred<DocumentItem[]>();
     listDocuments.mockReturnValue(request.promise);
     render();
@@ -160,8 +164,47 @@ describe("document list and document view loading state", () => {
 
     expect(listSkeleton()).toBeNull();
     expect(docSkeleton()).toBeNull();
+    expect(loadErrors()).toEqual(["Could not load your documents.", "Could not load this document."]);
+    expect(document.querySelector(".doc-panel-empty")).toBeNull();
+    expect(document.querySelector(".doc-pane-empty-title")).toBeNull();
+  });
+
+  it("goes back to the skeletons on Retry with one request for a double click, then the documents", async () => {
+    listDocuments.mockRejectedValueOnce(new Error("Network error"));
+    await settle(() => render());
+    const retry = deferred<DocumentItem[]>();
+    listDocuments.mockReturnValue(retry.promise);
+
+    const btn = retryBtn();
+    await settle(() => { btn.click(); btn.click(); });
+
+    expect(listDocuments).toHaveBeenCalledTimes(2);
+    expect(listSkeleton()).not.toBeNull();
+    expect(loadErrors()).toEqual([]);
+
+    await settle(() => retry.resolve(DOCS));
+
+    expect(loadErrors()).toEqual([]);
+    expect(rowTitles()).toEqual(["Handbook", "Notes"]);
+  });
+
+  it("keeps the failure on screen with Retry available when the retry fails too", async () => {
+    listDocuments.mockRejectedValue(new Error("Network error"));
+    await settle(() => render());
+
+    await settle(() => retryBtn().click());
+
+    expect(listDocuments).toHaveBeenCalledTimes(2);
+    expect(loadErrors()).toHaveLength(2);
+    expect(retryBtn().textContent).toBe("Retry");
+  });
+
+  it("keeps a real empty library as an empty state", async () => {
+    listDocuments.mockResolvedValue([]);
+    await settle(() => render());
+
+    expect(loadErrors()).toEqual([]);
     expect(document.querySelector(".doc-panel-empty")?.textContent).toBe("No documents yet");
-    expect(document.querySelector(".doc-pane-empty-title")?.textContent).toBe("No documents yet");
   });
 
   it("keeps the cached documents on screen during a background refetch", async () => {

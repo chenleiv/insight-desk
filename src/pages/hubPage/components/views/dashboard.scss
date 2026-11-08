@@ -280,6 +280,11 @@
                         margin-block: -4px;
                     }
 
+                    &[aria-busy="true"] {
+                        opacity: 0.5;
+                        cursor: progress;
+                    }
+
                     .star-icon {
                         color: var(--muted);
 

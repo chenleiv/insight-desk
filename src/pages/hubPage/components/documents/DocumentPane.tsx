@@ -29,6 +29,7 @@ import useConfirm from "../../../../hooks/useConfirm";
 import { toInput, emptyInput, isSameInput, isInputValid } from "../../utils/documentForm";
 import { DocumentDetailSkeleton } from "../../../../components/skeleton/Skeleton";
 import { Loader } from "../../../../components/loader/Loader";
+import { LoadError } from "../../../../components/loadError/LoadError";
 import { Maximize2 } from "lucide-react";
 import { useDocumentSave } from "../../hooks/useDocumentSave";
 import { useDocumentAttachments } from "../../hooks/useDocumentAttachments";
@@ -51,6 +52,8 @@ type Props = {
   hasDocs: boolean;
   onDirtyChange?: (isDirty: boolean) => void;
   loading?: boolean;
+  loadFailed?: boolean;
+  onRetry?: () => void;
   isMaximized?: boolean;
   onToggleMaximize?: () => void;
   onMinimize?: () => void;
@@ -74,6 +77,8 @@ export default function DocumentPane({
   hasDocs,
   onDirtyChange,
   loading,
+  loadFailed = false,
+  onRetry,
   isMaximized,
   onToggleMaximize,
   onMinimize,
@@ -147,6 +152,10 @@ export default function DocumentPane({
 
   // Blocks a second submit before the pending state has rendered.
   const createInFlightRef = useRef(false);
+  const downloadInFlightRef = useRef(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const importTextInFlightRef = useRef(false);
+  const [isImportingText, setIsImportingText] = useState(false);
 
   const handleCreateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -214,11 +223,15 @@ export default function DocumentPane({
   }
 
   const isCreationPending = saveStatus === "saving" && isCreating;
+  // The imported text replaces the form's content, so the form waits for it like for a create.
+  const isFormBusy = isCreationPending || isImportingText;
 
   const handleImportContent = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
+    if (!file || importTextInFlightRef.current) return;
+    importTextInFlightRef.current = true;
+    setIsImportingText(true);
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
     try {
       if (CLIENT_SIDE_EXTS.has(ext)) {
@@ -232,7 +245,6 @@ export default function DocumentPane({
           ...(first.category ? { category: first.category } : {}),
         }));
       } else {
-        status.show({ kind: "info", message: "Extracting text…" });
         const { text, fileName } = await extractTextFromFile(file);
         if (!text) {
           status.show({ kind: "error", title: "No text found", message: "Could not extract text from this file." });
@@ -248,6 +260,9 @@ export default function DocumentPane({
       }
     } catch (err) {
       status.show({ kind: "error", title: "Import failed", message: err instanceof Error ? err.message : "Import failed." });
+    } finally {
+      importTextInFlightRef.current = false;
+      setIsImportingText(false);
     }
   };
 
@@ -297,8 +312,8 @@ export default function DocumentPane({
         if (!isEditing) return;
         e.stopImmediatePropagation();
         if (saveStatus === "saving") return;
-      } else if (isCreationPending) {
-        // The document may already exist on the server; let the request finish.
+      } else if (isFormBusy) {
+        // The document may already exist on the server, or text is on its way; let the request finish.
         e.stopImmediatePropagation();
         return;
       }
@@ -307,7 +322,9 @@ export default function DocumentPane({
   });
 
   async function handleDownload(format: DownloadFormat) {
-    if (!doc) return;
+    if (!doc || downloadInFlightRef.current) return;
+    downloadInFlightRef.current = true;
+    setIsDownloading(true);
     try {
       const { blob, fileName } = await downloadDocument(doc.id, format);
       const url = URL.createObjectURL(blob);
@@ -318,6 +335,9 @@ export default function DocumentPane({
       URL.revokeObjectURL(url);
     } catch (e) {
       status.show({ kind: "error", title: "Download failed", message: e instanceof Error ? e.message : "Error" });
+    } finally {
+      downloadInFlightRef.current = false;
+      setIsDownloading(false);
     }
   }
 
@@ -354,6 +374,15 @@ export default function DocumentPane({
   }
 
   if (!isCreating && !doc) {
+    if (loadFailed && onRetry) {
+      return (
+        <div className="doc-pane">
+          <div className="doc-pane-empty">
+            <LoadError message="Could not load this document." onRetry={onRetry} />
+          </div>
+        </div>
+      );
+    }
     return <EmptyPane hasDocs={hasDocs} />;
   }
 
@@ -382,8 +411,8 @@ export default function DocumentPane({
             isSaving,
           },
         })}
-        {...(isCreating && { onImportClick: () => importFileRef.current?.click(), importDisabled: isCreationPending })}
-        {...(!isCreating && doc && { onDownload: (format: DownloadFormat) => void handleDownload(format) })}
+        {...(isCreating && { onImportClick: () => importFileRef.current?.click(), importDisabled: isFormBusy, isImportingText })}
+        {...(!isCreating && doc && { onDownload: (format: DownloadFormat) => void handleDownload(format), isDownloading })}
         {...(onClose ? {
           // While editing, Close cancels the edit like Cancel and Escape instead of leaving the document.
           onClose: isEditing ? () => void handleCancel() : onClose,
@@ -427,8 +456,8 @@ export default function DocumentPane({
         updatedAt={doc?.updatedAt}
         doc={effectiveDoc ?? undefined}
         canEdit={canEdit}
-        readOnly={(!isCreating && !isEditing) || isCreationPending}
-        attachmentsDisabled={isCreationPending}
+        readOnly={(!isCreating && !isEditing) || isFormBusy}
+        attachmentsDisabled={isFormBusy}
         maxContentLength={maxContentLength}
         maxAttachments={maxAttachments}
         isUploading={isUploading}
@@ -444,13 +473,13 @@ export default function DocumentPane({
 
       {canEdit && isCreating && (
         <div className={`doc-pane-save-bar${isDirty || isCreating ? " doc-pane-save-bar--visible" : ""}`}>
-          <button type="button" className="doc-pane-cancel-btn" onClick={handleCancel} disabled={isCreationPending}>
+          <button type="button" className="doc-pane-cancel-btn" onClick={handleCancel} disabled={isFormBusy}>
             Discard
           </button>
           <button
             type="submit"
             className="primary-btn doc-pane-create-btn"
-            disabled={!isDirty || !isValid || isCreationPending}
+            disabled={!isDirty || !isValid || isFormBusy}
             aria-busy={isCreationPending}
           >
             {isCreationPending ? "Creating document…" : "Create"}

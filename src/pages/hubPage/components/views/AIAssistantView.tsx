@@ -84,6 +84,9 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   // Set before the first await: two taps can land before React renders isSending.
   const sendPendingRef = useRef(false);
+  // Set before the first await, per answer: another answer can still be rated.
+  const ratingInFlightRef = useRef(new Set<string>());
+  const [ratingIds, setRatingIds] = useState<ReadonlySet<string>>(new Set());
   const followingRef = useRef(true);
   const lastScrollTopRef = useRef(0);
 
@@ -145,7 +148,9 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
   }
 
   async function rateAnswer(m: ChatMessage, rating: FeedbackRating) {
-    if (!m.answerId || m.feedback === rating) return;
+    if (!m.answerId || m.feedback === rating || ratingInFlightRef.current.has(m.id)) return;
+    ratingInFlightRef.current.add(m.id);
+    setRatingIds(new Set(ratingInFlightRef.current));
     const setFeedback = (feedback?: FeedbackRating) =>
       setMessages((prev) => prev.map((msg) => (msg.id === m.id ? { ...msg, feedback } : msg)));
 
@@ -153,8 +158,16 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
     setFeedback(rating);
     try {
       await sendFeedback(m.answerId, rating);
-    } catch {
+    } catch (e) {
       setFeedback(m.feedback);
+      status.show({
+        kind: "error",
+        title: "Feedback not saved",
+        message: e instanceof Error ? e.message : "Please try again.",
+      });
+    } finally {
+      ratingInFlightRef.current.delete(m.id);
+      setRatingIds(new Set(ratingInFlightRef.current));
     }
   }
 
@@ -388,6 +401,8 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
                         <button
                           type="button"
                           aria-label="Helpful answer"
+                          aria-disabled={ratingIds.has(m.id)}
+                          aria-busy={ratingIds.has(m.id)}
                           aria-pressed={m.feedback === "up"}
                           onClick={() => rateAnswer(m, "up")}
                         >
@@ -396,6 +411,8 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
                         <button
                           type="button"
                           aria-label="Unhelpful answer"
+                          aria-disabled={ratingIds.has(m.id)}
+                          aria-busy={ratingIds.has(m.id)}
                           aria-pressed={m.feedback === "down"}
                           onClick={() => rateAnswer(m, "down")}
                         >

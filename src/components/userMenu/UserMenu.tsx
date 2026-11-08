@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
+import { useSignOut } from "../../auth/useSignOut";
 import Menu from "../menu/Menu";
 import { useMobile } from "../../hooks/useMobile";
 import { getInitials } from "../../utils/initials";
@@ -16,12 +17,14 @@ type MenuItem =
     };
 
 export default function UserMenu() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const nav = useNavigate();
   const isMobile = useMobile();
 
   const [open, setOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { signOut, isSigningOut: isLoggingOut } = useSignOut({
+    onSignedOut: () => nav("/login", { replace: true }),
+  });
 
   const btnRef = useRef<HTMLButtonElement | null>(null);
 
@@ -35,14 +38,8 @@ export default function UserMenu() {
       danger: true,
       show: true,
       onClick: async () => {
-        setIsLoggingOut(true);
-        try {
-          await logout();
-          setOpen(false);
-          nav("/login", { replace: true });
-        } finally {
-          setIsLoggingOut(false);
-        }
+        await signOut();
+        setOpen(false);
       },
     },
   ];
@@ -118,6 +115,7 @@ export default function UserMenu() {
                   role="menuitem"
                   type="button"
                   disabled={disabled}
+                  aria-busy={disabled}
                   onClick={it.onClick}
                 >
                   {it.label}

@@ -20,6 +20,8 @@ export type AuthContextValue = {
   /** True after the user chose to sign out, until the next sign-in. */
   signedOut?: boolean;
   favoritesMap: Record<string | number, boolean>;
+  /** Documents whose favorite request is running; each is blocked until it answers. */
+  pendingFavorites?: Record<string, boolean>;
   loginSuccess: (user: AuthUser) => void;
   updateUser: (patch: Partial<AuthUser>) => void;
   logout: () => Promise<void>;

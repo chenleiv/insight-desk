@@ -9,8 +9,9 @@ import { dailyLimitMessage, type ChatResponse } from "../../../../../api/aiClien
 import type { ChatMessage } from "../assistantTypes";
 import AIAssistantView from "../AIAssistantView";
 
-const { chatWithAI, documents } = vi.hoisted(() => ({
+const { chatWithAI, sendFeedback, documents } = vi.hoisted(() => ({
   chatWithAI: vi.fn<(message: string) => Promise<ChatResponse>>(),
+  sendFeedback: vi.fn<(answerId: string, rating: "up" | "down") => Promise<unknown>>(),
   documents: {
     current: { docs: [{ id: "d1" }], loading: false, error: null } as {
       docs: { id: string }[];
@@ -23,6 +24,7 @@ const { chatWithAI, documents } = vi.hoisted(() => ({
 vi.mock("../../../../../api/aiClient", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../../../api/aiClient")>()),
   chatWithAI,
+  sendFeedback,
   getSuggestions: () => Promise.resolve({ questions: [] }),
 }));
 vi.mock("../../../../../auth/useAuth", () => ({
@@ -116,6 +118,59 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+});
+
+describe("answer feedback", () => {
+  const RATED: ChatMessage = { id: "r1", role: "assistant", text: "One.", answerId: "ans-1", isTyped: true };
+  const OTHER: ChatMessage = { id: "r2", role: "assistant", text: "Two.", answerId: "ans-2", isTyped: true };
+  const buttons = (label: string) => [...container.querySelectorAll<HTMLButtonElement>(`[aria-label="${label}"]`)];
+
+  beforeEach(() => sendFeedback.mockReset());
+
+  function pendingRequest() {
+    let fail!: (reason: Error) => void;
+    let finish!: () => void;
+    sendFeedback.mockReturnValueOnce(new Promise((resolve, reject) => { finish = () => resolve({}); fail = reject; }));
+    return { fail: (reason: Error) => fail(reason), finish: () => finish() };
+  }
+
+  it("blocks both buttons of that answer until the request ends, with one request for a double click", async () => {
+    const request = pendingRequest();
+    renderChat([USER, RATED, OTHER]);
+    const [up, otherUp] = buttons("Helpful answer");
+    const [down] = buttons("Unhelpful answer");
+
+    await act(async () => { up.click(); up.click(); down.click(); });
+
+    expect(sendFeedback).toHaveBeenCalledOnce();
+    expect(sendFeedback).toHaveBeenCalledWith("ans-1", "up");
+    expect(up.getAttribute("aria-pressed")).toBe("true");
+    expect(up.getAttribute("aria-busy")).toBe("true");
+    expect(down.getAttribute("aria-disabled")).toBe("true");
+    expect(otherUp.getAttribute("aria-busy")).toBe("false");
+
+    await act(async () => request.finish());
+
+    expect(up.getAttribute("aria-busy")).toBe("false");
+    expect(up.getAttribute("aria-pressed")).toBe("true");
+    expect(status.show).not.toHaveBeenCalled();
+  });
+
+  it("undoes the choice and says so when the server did not save it", async () => {
+    const request = pendingRequest();
+    renderChat([USER, { ...RATED, feedback: "down" }]);
+    const [up] = buttons("Helpful answer");
+    const [down] = buttons("Unhelpful answer");
+
+    await act(async () => up.click());
+    expect(up.getAttribute("aria-pressed")).toBe("true");
+    await act(async () => request.fail(new Error("Server down")));
+
+    expect(up.getAttribute("aria-pressed")).toBe("false");
+    expect(down.getAttribute("aria-pressed")).toBe("true");
+    expect(up.getAttribute("aria-busy")).toBe("false");
+    expect(status.show).toHaveBeenCalledWith({ kind: "error", title: "Feedback not saved", message: "Server down" });
+  });
 });
 
 describe("saved answers", () => {

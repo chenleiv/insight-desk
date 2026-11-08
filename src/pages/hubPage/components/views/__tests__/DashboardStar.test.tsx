@@ -1,12 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { StatusContext, type StatusApi } from "../../../../../components/statusBar/statusContext";
 import DashboardView from "../DashboardView";
+
+const status: StatusApi = { show: vi.fn(), clear: vi.fn() };
 
 const { auth, documents } = vi.hoisted(() => ({
   auth: {
     user: { email: "visitor@example.com", role: "admin" },
     favoritesMap: { "doc-2": true } as Record<string, boolean>,
+    pendingFavorites: {} as Record<string, boolean>,
     toggleFavorite: vi.fn(async () => {}),
   },
   documents: {
@@ -36,8 +40,16 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
-  act(() => root.render(<DashboardView onOpenDocument={onOpenDocument} />));
+  render();
 });
+
+function render() {
+  act(() => root.render(
+    <StatusContext.Provider value={status}>
+      <DashboardView onOpenDocument={onOpenDocument} />
+    </StatusContext.Provider>,
+  ));
+}
 
 afterEach(() => {
   act(() => root.unmount());
@@ -56,6 +68,20 @@ describe("recent documents favorite star", () => {
     act(() => stars()[0].click());
     expect(auth.toggleFavorite).toHaveBeenCalledWith("doc-1");
     expect(onOpenDocument).not.toHaveBeenCalled();
+  });
+
+  it("marks only the star whose request is running as busy", () => {
+    auth.pendingFavorites = { "doc-1": true };
+    render();
+    expect(stars().map((b) => b.getAttribute("aria-busy"))).toEqual(["true", "false"]);
+    expect(stars().map((b) => b.getAttribute("aria-disabled"))).toEqual(["true", "false"]);
+    auth.pendingFavorites = {};
+  });
+
+  it("says so when the favorite could not be saved, without an unhandled rejection", async () => {
+    auth.toggleFavorite.mockRejectedValueOnce(new Error("Server down"));
+    await act(async () => stars()[0].click());
+    expect(status.show).toHaveBeenCalledWith({ kind: "error", title: "Favorite not updated", message: "Server down" });
   });
 
   it("leaves opening the document to the row", () => {

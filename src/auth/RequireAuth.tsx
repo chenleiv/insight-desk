@@ -1,11 +1,18 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "./useAuth";
+import { Loader } from "../components/loader/Loader";
 
 export default function RequireAuth() {
   const { isReady, isAuthed, signedOut } = useAuth();
   const location = useLocation();
 
-  if (!isReady) return null;
+  if (!isReady) {
+    return (
+      <div className="suspense-loader" role="status" aria-label="Checking your session…">
+        <Loader size={32} />
+      </div>
+    );
+  }
 
   if (!isAuthed) {
     // Signing out ends the visit: the next sign-in starts fresh instead of returning to this page.

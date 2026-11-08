@@ -83,6 +83,31 @@ describe("AccountSection guides control", () => {
   });
 });
 
+describe("AccountSection sign out button", () => {
+  const signOutBtn = () => document.querySelector<HTMLButtonElement>(".settings-signout-btn")!;
+
+  it("is disabled, busy and labelled while signing out", () => {
+    act(() => root.render(
+      <StatusContext.Provider value={status}>
+        <AccountSection onSignOut={() => {}} isSigningOut />
+      </StatusContext.Provider>
+    ));
+    expect(signOutBtn().disabled).toBe(true);
+    expect(signOutBtn().getAttribute("aria-busy")).toBe("true");
+    expect(signOutBtn().textContent).toBe("Signing out…");
+  });
+
+  it("is ready again when signing out failed", () => {
+    act(() => root.render(
+      <StatusContext.Provider value={status}>
+        <AccountSection onSignOut={() => {}} isSigningOut={false} />
+      </StatusContext.Provider>
+    ));
+    expect(signOutBtn().disabled).toBe(false);
+    expect(signOutBtn().textContent).toBe("Sign out");
+  });
+});
+
 describe("AccountSection password form", () => {
   async function submitNewPassword(next: string) {
     renderSection();
