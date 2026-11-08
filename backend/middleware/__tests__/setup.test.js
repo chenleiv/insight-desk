@@ -23,7 +23,7 @@ async function startApp(trustProxyHops) {
   applyMiddleware(app);
   app.get("/api/ip", (req, res) => res.json({ ip: req.ip }));
   await new Promise((resolve) => {
-    server = app.listen(0, resolve);
+    server = app.listen(0, "127.0.0.1", resolve);
   });
   return `http://127.0.0.1:${server.address().port}`;
 }
@@ -188,7 +188,7 @@ describe("apiNotFound", () => {
     app.use("/api", apiNotFound);
     app.get("*", (req, res) => res.type("html").send("<!doctype html>"));
     await new Promise((resolve) => {
-      server = app.listen(0, resolve);
+      server = app.listen(0, "127.0.0.1", resolve);
     });
     return `http://127.0.0.1:${server.address().port}`;
   }
@@ -219,7 +219,7 @@ describe("spaFallbackLimiter", () => {
     applyMiddleware(app);
     app.get("*", spaFallbackLimiter(), (req, res) => res.type("html").send("<!doctype html>"));
     await new Promise((resolve) => {
-      server = app.listen(0, resolve);
+      server = app.listen(0, "127.0.0.1", resolve);
     });
     return `http://127.0.0.1:${server.address().port}`;
   }
@@ -249,7 +249,7 @@ describe("jsonBody", () => {
     app.post("/api/echo", (req, res) => res.json({ size: JSON.stringify(req.body).length }));
     app.use(errorHandler);
     await new Promise((resolve) => {
-      server = app.listen(0, resolve);
+      server = app.listen(0, "127.0.0.1", resolve);
     });
     return `http://127.0.0.1:${server.address().port}`;
   }

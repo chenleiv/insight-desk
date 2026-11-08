@@ -64,7 +64,7 @@ describe("a limiter behind a proxy", () => {
     app.use(express.json());
     app.use("/api/auth", authRouter);
     await new Promise((resolve) => {
-      server = app.listen(0, resolve);
+      server = app.listen(0, "127.0.0.1", resolve);
     });
     baseUrl = `http://127.0.0.1:${server.address().port}`;
   });

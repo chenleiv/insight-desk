@@ -37,7 +37,7 @@ beforeAll(async () => {
   distPath = mkdtempSync(path.join(tmpdir(), "insight-desk-dist-"));
   writeFileSync(path.join(distPath, "index.html"), "<!doctype html>");
   await new Promise((resolve) => {
-    server = createApp({ distPath }).listen(0, resolve);
+    server = createApp({ distPath }).listen(0, "127.0.0.1", resolve);
   });
   base = `http://127.0.0.1:${server.address().port}`;
 }, 120_000);

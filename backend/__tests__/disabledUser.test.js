@@ -25,7 +25,7 @@ beforeAll(async () => {
   app.use("/api/auth", authRouter);
   app.use("/api/users", usersRouter);
   await new Promise((resolve) => {
-    server = app.listen(0, resolve);
+    server = app.listen(0, "127.0.0.1", resolve);
   });
   base = `http://127.0.0.1:${server.address().port}`;
 });
