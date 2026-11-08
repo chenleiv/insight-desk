@@ -1,5 +1,10 @@
 import type { DocumentItem } from "../../../api/documentsClient";
-import { getCategoryHue, CAT_HUES } from "./categoryColorStore";
+
+// 20 perceptually distinct hues
+const CAT_HUES = [
+  215, 15, 145, 275, 350, 185, 50, 305, 95, 250,
+  330, 170, 30, 260, 120, 340, 80, 230, 165, 295,
+];
 
 function normalizeCategoryKey(raw: string): string {
   return raw.trim().toLowerCase().replace(/\s+/g, " ");
@@ -69,9 +74,6 @@ function hueToVisual(hue: number): CategoryVisual {
 }
 
 function getFallbackCategoryVisual(category: string): CategoryVisual {
-  const storedHue = getCategoryHue(category);
-  if (storedHue !== null) return hueToVisual(storedHue);
-  // Ultimate fallback for categories not yet in the store (e.g. first render race)
   const key = normalizeCategoryKey(category);
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (Math.imul(31, h) + key.charCodeAt(i)) | 0;
