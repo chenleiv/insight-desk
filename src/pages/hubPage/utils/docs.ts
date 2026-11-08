@@ -49,10 +49,13 @@ const CATEGORY_PALETTE: Record<string, CategoryVisual> = {
   linux: catVars("linux"),
 };
 
+function categoryKey(category: string): string {
+  const key = normalizeCategoryKey(category);
+  return CATEGORY_ALIASES[key] ?? key;
+}
+
 function getCategoryVisual(category: string): CategoryVisual | null {
-  let key = normalizeCategoryKey(category);
-  key = CATEGORY_ALIASES[key] ?? key;
-  return CATEGORY_PALETTE[key] ?? null;
+  return CATEGORY_PALETTE[categoryKey(category)] ?? null;
 }
 
 function hueToVisual(hue: number): CategoryVisual {
@@ -104,5 +107,28 @@ export function getDocTags(doc: DocumentItem | null | undefined): string[] {
     .split(/[,;]/)
     .map((t) => t.trim())
     .filter(Boolean);
+}
+
+export type CategoryOption = { key: string; label: string };
+
+/**
+ * The categories used by these documents, for a filter. A document's list ("A, B") counts
+ * as each of its parts. Spellings of one category are merged and the first one is shown.
+ */
+export function getCategoryOptions(docs: DocumentItem[]): CategoryOption[] {
+  const labels = new Map<string, string>();
+  for (const doc of docs) {
+    for (const tag of getDocTags(doc)) {
+      const key = categoryKey(tag);
+      if (!labels.has(key)) labels.set(key, tag);
+    }
+  }
+  return [...labels]
+    .map(([key, label]) => ({ key, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export function docHasCategory(doc: DocumentItem, key: string): boolean {
+  return getDocTags(doc).some((tag) => categoryKey(tag) === key);
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Search, X, Paperclip, Star, Plus, ChevronRight } from "lucide-react";
 import type { DocumentItem } from "../../../../api/documentsClient";
-import { getCategoryChipStyle } from "../../utils/docs";
+import { docHasCategory, getCategoryChipStyle, getCategoryOptions } from "../../utils/docs";
 import { Skeleton, SkeletonLine } from "../../../../components/skeleton/Skeleton";
 
 type Props = {
@@ -33,18 +33,29 @@ export default function DocPanel({
 }: Props) {
   const [panelSearch, setPanelSearch] = useState("");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState("");
+
+  const categoryOptions = useMemo(() => getCategoryOptions(docs), [docs]);
+  // A category whose last document was deleted or renamed stops filtering.
+  const activeCategory = categoryOptions.some((c) => c.key === categoryFilter) ? categoryFilter : "";
 
   const filteredDocs = useMemo(() => {
     const q = panelSearch.toLowerCase();
     return docs.filter((d) => {
       if (showFavoritesOnly && !favorites[d.id]) return false;
+      if (activeCategory && !docHasCategory(d, activeCategory)) return false;
       if (!q) return true;
       return (
         d.title.toLowerCase().includes(q) ||
         (d.category ?? "").toLowerCase().includes(q)
       );
     });
-  }, [docs, favorites, panelSearch, showFavoritesOnly]);
+  }, [docs, favorites, panelSearch, showFavoritesOnly, activeCategory]);
+
+  // A category listed in the select always has a document, so another filter emptied the list.
+  const emptyMessage = activeCategory
+    ? (panelSearch ? "No documents in this category match your filter" : "No favorites in this category")
+    : showFavoritesOnly ? "No favorites yet" : panelSearch ? "No documents match" : "No documents yet";
 
   return (
     <div
@@ -113,6 +124,21 @@ export default function DocPanel({
         )}
       </div>
 
+      <div className="doc-panel-search">
+        <select
+          className="doc-panel-category-select"
+          aria-label="Filter by category"
+          value={activeCategory}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          disabled={categoryOptions.length === 0}
+        >
+          <option value="">All categories</option>
+          {categoryOptions.map((c) => (
+            <option key={c.key} value={c.key}>{c.label}</option>
+          ))}
+        </select>
+      </div>
+
       {loading && <span className="visually-hidden" role="status">Loading documents…</span>}
       <ul className="doc-panel-list" aria-busy={loading || undefined}>
         {loading && Array.from({ length: 6 }).map((_, i) => (
@@ -174,9 +200,7 @@ export default function DocPanel({
           );
         })}
         {!loading && filteredDocs.length === 0 && (
-          <div className="doc-panel-empty">
-            {showFavoritesOnly ? "No favorites yet" : panelSearch ? "No documents match" : "No documents yet"}
-          </div>
+          <div className="doc-panel-empty">{emptyMessage}</div>
         )}
       </ul>
       </div>
