@@ -169,12 +169,12 @@ describe("POST /api/ai/chat", () => {
   it("searches with English keywords for a question in another script, but sends the model the original question", async () => {
     groqCreate.mockResolvedValueOnce({ choices: [{ message: { content: "vacation requests" } }] });
 
-    const res = await chatAs(demoOne, { message: "לאן שולחים בקשות חופשה?" });
+    const res = await chatAs(demoOne, { message: "\u05dc\u05d0\u05df \u05e9\u05d5\u05dc\u05d7\u05d9\u05dd \u05d1\u05e7\u05e9\u05d5\u05ea \u05d7\u05d5\u05e4\u05e9\u05d4?" });
 
     expect(res.status).toBe(200);
     expect(embed).toHaveBeenLastCalledWith("vacation requests");
     expect(promptSent()).toContain("DEMO ONE");
-    expect(promptSent()).toContain("לאן שולחים בקשות חופשה?");
+    expect(promptSent()).toContain("\u05dc\u05d0\u05df \u05e9\u05d5\u05dc\u05d7\u05d9\u05dd \u05d1\u05e7\u05e9\u05d5\u05ea \u05d7\u05d5\u05e4\u05e9\u05d4?");
   });
 
   it("does not translate an English question", async () => {

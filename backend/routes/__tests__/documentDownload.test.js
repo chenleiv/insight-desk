@@ -130,7 +130,7 @@ describe("GET /api/documents/:id/download format and headers", () => {
   });
 
   it("sanitizes the title in Content-Disposition and encodes non-ASCII names", async () => {
-    Document.findById.mockResolvedValue({ ...SHARED_DOC, title: 'מדריך\r\nX-Evil: 1 "../a"' });
+    Document.findById.mockResolvedValue({ ...SHARED_DOC, title: '\u05de\u05d3\u05e8\u05d9\u05da\r\nX-Evil: 1 "../a"' });
 
     const res = await download("64b7f0c2a1b2c3d4e5f60001", "md");
 
@@ -141,11 +141,11 @@ describe("GET /api/documents/:id/download format and headers", () => {
     expect(disposition).toMatch(/^attachment; filename="[^"\\/]*\.md"; filename\*=UTF-8''/);
     const encoded = disposition.split("filename*=UTF-8''")[1];
     // Dots between words are kept; only the separators that make a path are removed.
-    expect(decodeURIComponent(encoded)).toBe("מדריך X-Evil 1 .. a.md");
+    expect(decodeURIComponent(encoded)).toBe("\u05de\u05d3\u05e8\u05d9\u05da X-Evil 1 .. a.md");
   });
 
   it("returns 422 with a readable message for Hebrew text as PDF, and Word still works", async () => {
-    Document.findById.mockResolvedValue({ ...SHARED_DOC, content: "שלום" });
+    Document.findById.mockResolvedValue({ ...SHARED_DOC, content: "\u05e9\u05dc\u05d5\u05dd" });
 
     const pdf = await download("64b7f0c2a1b2c3d4e5f60001", "pdf");
     expect(pdf.status).toBe(422);

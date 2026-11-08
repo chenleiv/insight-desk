@@ -7,7 +7,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("fileNameFromDisposition", () => {
   it("prefers the UTF-8 name", () => {
     const header = `attachment; filename="?????.docx"; filename*=UTF-8''%D7%9E%D7%93%D7%A8%D7%99%D7%9A.docx`;
-    expect(fileNameFromDisposition(header, "document.docx")).toBe("מדריך.docx");
+    expect(fileNameFromDisposition(header, "document.docx")).toBe("\u05de\u05d3\u05e8\u05d9\u05da.docx");
   });
 
   it("uses the plain name when there is no UTF-8 name", () => {

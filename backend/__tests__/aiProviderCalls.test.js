@@ -164,7 +164,7 @@ describe("provider call limits", () => {
         else answer(res);
       };
     });
-    const pending = chat("חופשה");
+    const pending = chat("\u05d7\u05d5\u05e4\u05e9\u05d4");
     await firstReceived;
 
     await vi.advanceTimersByTimeAsync(KEYWORDS_TIMEOUT_MS);
