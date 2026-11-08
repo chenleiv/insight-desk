@@ -83,7 +83,7 @@ beforeAll(async () => {
   app.use(express.json());
   app.use("/api/documents", documentsRouter);
   await new Promise((resolve) => {
-    server = app.listen(0, resolve);
+    server = app.listen(0, "127.0.0.1", resolve);
   });
   baseUrl = `http://127.0.0.1:${server.address().port}/api/documents`;
 });
@@ -284,7 +284,7 @@ describe("document validation errors", () => {
     app.use(jsonBody());
     app.use("/api/documents", documentsRouter);
     await new Promise((resolve) => {
-      realLimitServer = app.listen(0, resolve);
+      realLimitServer = app.listen(0, "127.0.0.1", resolve);
     });
     realLimitUrl = `http://127.0.0.1:${realLimitServer.address().port}/api/documents`;
   });

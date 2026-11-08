@@ -27,7 +27,7 @@ beforeAll(async () => {
   writeFileSync(path.join(distPath, "assets", "main.js"), BUNDLE);
   writeFileSync(path.join(distPath, "favicon.svg"), FAVICON);
   await new Promise((resolve) => {
-    server = createApp({ distPath }).listen(0, resolve);
+    server = createApp({ distPath }).listen(0, "127.0.0.1", resolve);
   });
   base = `http://127.0.0.1:${server.address().port}`;
 });

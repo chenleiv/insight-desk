@@ -37,7 +37,7 @@ beforeAll(async () => {
   app.use("/api/documents", documentsRouter);
   app.get("/health", (req, res) => res.json({ ok: true }));
   await new Promise((resolve) => {
-    server = app.listen(0, resolve);
+    server = app.listen(0, "127.0.0.1", resolve);
   });
   base = `http://127.0.0.1:${server.address().port}`;
 });

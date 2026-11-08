@@ -10,7 +10,7 @@ beforeAll(async () => {
   const app = express();
   app.use(healthRouter);
   await new Promise((resolve) => {
-    server = app.listen(0, resolve);
+    server = app.listen(0, "127.0.0.1", resolve);
   });
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });

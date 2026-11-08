@@ -22,7 +22,7 @@ beforeEach(async () => {
   app.post("/api/echo", (req, res) => res.json(req.body));
   app.use(errorHandler);
   await new Promise((resolve) => {
-    server = app.listen(0, resolve);
+    server = app.listen(0, "127.0.0.1", resolve);
   });
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
