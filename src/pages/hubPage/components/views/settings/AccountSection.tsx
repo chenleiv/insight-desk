@@ -5,6 +5,7 @@ import { changePassword, updateProfile } from "../../../../../api/authClient";
 import { useStatus } from "../../../../../components/statusBar/useStatus";
 import { resetGuides } from "../../../utils/guides";
 import type { Role } from "../../../../../auth/authTypes";
+import { friendlyError } from "../../../../../utils/errorMessage";
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -66,7 +67,7 @@ export function AccountSection({ onSignOut, isSigningOut = false }: { onSignOut?
       updateAuthUser({ displayName: res.displayName, jobTitle: res.jobTitle });
       status.show({ kind: "success", title: "Saved", message: "Profile updated" });
     } catch (e) {
-      status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
+      status.show({ kind: "error", title: "Error", message: friendlyError(e, "Could not save your profile. Check your connection and try again.") });
     } finally {
       setProfileSaving(false);
     }
@@ -98,7 +99,7 @@ export function AccountSection({ onSignOut, isSigningOut = false }: { onSignOut?
         setPwOpen(false);
         return null;
       } catch (e) {
-        return e instanceof Error ? e.message : "Failed to update password";
+        return friendlyError(e, "Could not update the password. Check your connection and try again.");
       }
     },
     null,

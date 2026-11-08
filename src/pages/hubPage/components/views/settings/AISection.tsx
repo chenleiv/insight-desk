@@ -12,6 +12,7 @@ import { SkeletonLine, SkeletonRegion } from "../../../../../components/skeleton
 import { LoadError } from "../../../../../components/loadError/LoadError";
 import { SUGGESTIONS_QUERY_KEY } from "../../../hooks/useSuggestions";
 import useConfirm from "../../../../../hooks/useConfirm";
+import { friendlyError } from "../../../../../utils/errorMessage";
 
 // Matches the four question fields the loaded form always shows.
 const QUESTION_COUNT = 4;
@@ -66,7 +67,7 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
       await updateSystemPrompt(promptDraft);
       status.show({ kind: "success", title: "Saved", message: "System prompt updated" });
     } catch (e) {
-      status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
+      status.show({ kind: "error", title: "Error", message: friendlyError(e, "Could not save the system prompt. Check your connection and try again.") });
     } finally {
       setPromptAction(null);
     }
@@ -84,7 +85,7 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
       setPromptDraft((await resetSystemPrompt()).prompt);
       status.show({ kind: "success", title: "Reset", message: "System prompt reset to the default" });
     } catch (e) {
-      status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
+      status.show({ kind: "error", title: "Error", message: friendlyError(e, "Could not reset the system prompt. Check your connection and try again.") });
     } finally {
       setPromptAction(null);
     }
@@ -98,7 +99,7 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
       queryClient.setQueryData(SUGGESTIONS_QUERY_KEY, await updateSuggestions(filtered));
       status.show({ kind: "success", title: "Saved", message: "Example questions updated" });
     } catch (e) {
-      status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
+      status.show({ kind: "error", title: "Error", message: friendlyError(e, "Could not save the example questions. Check your connection and try again.") });
     } finally {
       setQuestionsSaving(false);
     }

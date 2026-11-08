@@ -17,6 +17,7 @@ import { documentQuestions } from "../../utils/suggestedQuestions";
 import { SystemPromptModal } from "./ai/SystemPromptModal";
 import { SourceChip } from "./ai/SourceChip";
 import { ChatActionsMenu } from "./ai/ChatActionsMenu";
+import { friendlyError } from "../../../../utils/errorMessage";
 
 export const AI_QUERY_COUNT_BASE_KEY = "aiQueryCount";
 
@@ -130,7 +131,8 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
     } catch (e) {
       // Asking again cannot help before a daily limit resets, so it gets no Retry button.
       const limitMsg = dailyLimitMessage(e);
-      const errMsg = limitMsg ?? (e instanceof Error ? e.message : "Sorry, I encountered an error.");
+      // The chat route writes its 5xx details for users, such as "the AI service is busy".
+      const errMsg = limitMsg ?? friendlyError(e, "Could not get an answer. Check your connection and try again.", { keepServerErrors: true });
       if (!limitMsg) setLastError(errMsg);
       setMessages((prev) => [
         ...prev,
@@ -164,7 +166,7 @@ export default function AIAssistantView({ onOpenDocument }: Props) {
       status.show({
         kind: "error",
         title: "Feedback not saved",
-        message: e instanceof Error ? e.message : "Please try again.",
+        message: friendlyError(e, "Check your connection and try again."),
       });
     } finally {
       ratingInFlightRef.current.delete(m.id);

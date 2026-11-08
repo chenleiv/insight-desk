@@ -42,6 +42,7 @@ import { WelcomeModal } from "./components/dialogs/WelcomeModal";
 import { TourOverlay } from "./components/dialogs/TourOverlay";
 import { HUB_TOUR_STEPS, MOBILE_HUB_TOUR_STEPS } from "./components/dialogs/tourSteps";
 import { markGuideDone, skipAllGuides, useGuideDone } from "./utils/guides";
+import { friendlyError } from "../../utils/errorMessage";
 
 export default function HubPage() {
   const { user, favoritesMap: favorites } = useAuth();
@@ -324,7 +325,7 @@ export default function HubPage() {
       status.show({
         kind: "error",
         title: "Delete failed",
-        message: e instanceof Error ? e.message : "Error",
+        message: friendlyError(e, "Could not delete the document. Check your connection and try again."),
       });
     } finally {
       setDeletingDocId(null);
@@ -542,7 +543,7 @@ export default function HubPage() {
               status.show({
                 kind: "error",
                 title: "Import failed",
-                message: e instanceof Error ? e.message : "Error",
+                message: friendlyError(e, "Could not import the documents. Check your connection and try again."),
               });
             }
           }}

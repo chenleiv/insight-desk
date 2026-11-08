@@ -11,6 +11,7 @@ import { useStatus } from "../../../../../components/statusBar/useStatus";
 import useConfirm from "../../../../../hooks/useConfirm";
 import { Skeleton, SkeletonLine, SkeletonRegion } from "../../../../../components/skeleton/Skeleton";
 import { LoadError } from "../../../../../components/loadError/LoadError";
+import { friendlyError } from "../../../../../utils/errorMessage";
 
 const SKELETON_ROWS = 4;
 
@@ -91,7 +92,7 @@ export function UsersSection({ readOnly = false }: { readOnly?: boolean }) {
       await updateUser(id, { role });
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role } : u)));
     } catch (e) {
-      status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
+      status.show({ kind: "error", title: "Error", message: friendlyError(e, "Could not change the role. Check your connection and try again.") });
     } finally {
       setUserPending(id, false);
     }
@@ -104,7 +105,7 @@ export function UsersSection({ readOnly = false }: { readOnly?: boolean }) {
       await updateUser(id, { status: next });
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, status: next } : u)));
     } catch (e) {
-      status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
+      status.show({ kind: "error", title: "Error", message: friendlyError(e, "Could not change the status. Check your connection and try again.") });
     } finally {
       setUserPending(id, false);
     }
@@ -134,7 +135,7 @@ export function UsersSection({ readOnly = false }: { readOnly?: boolean }) {
       setUsers((prev) => prev.filter((u) => u.id !== id));
       status.show({ kind: "success", title: "Deleted", message: `${email} removed` });
     } catch (e) {
-      status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
+      status.show({ kind: "error", title: "Error", message: friendlyError(e, "Could not delete the user. Check your connection and try again.") });
     } finally {
       deleteInFlightRef.current.delete(id);
       setUserDeleting(id, false);

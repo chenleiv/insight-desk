@@ -8,6 +8,7 @@ import { useStatus } from "../../components/statusBar/useStatus";
 import { useTheme } from "../../hooks/useTheme";
 import { Loader } from "../../components/loader/Loader";
 import "./loginPage.scss";
+import { friendlyError } from "../../utils/errorMessage";
 
 export type LoginLocationState = { from?: Location };
 
@@ -36,7 +37,7 @@ export default function LoginPage() {
         nav(redirectTo, { replace: true });
         return null;
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Authentication failed";
+        const message = friendlyError(err, "Could not sign in. Check your connection and try again.");
         status.show({ kind: "error", title: "Error", message });
         return message;
       }

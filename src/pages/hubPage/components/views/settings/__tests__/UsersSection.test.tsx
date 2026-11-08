@@ -140,6 +140,20 @@ describe("UsersSection delete user", () => {
     expect(status.show).toHaveBeenCalledWith({ kind: "error", title: "Error", message: "Server down" });
   });
 
+  it("shows a friendly message instead of a raw network error", async () => {
+    deleteUser.mockRejectedValue(new TypeError("Failed to fetch"));
+    confirm.mockResolvedValue(true);
+    await renderLoaded();
+
+    await act(async () => deleteBtns()[1].click());
+
+    expect(status.show).toHaveBeenCalledWith({
+      kind: "error",
+      title: "Error",
+      message: "Could not delete the user. Check your connection and try again.",
+    });
+  });
+
   it("can be asked again after the dialog is cancelled", async () => {
     confirm.mockResolvedValue(false);
     await renderLoaded();

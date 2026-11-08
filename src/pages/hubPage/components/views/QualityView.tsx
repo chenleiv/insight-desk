@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { FeedbackCounts, QualityDays } from "../../../../api/aiClient";
 import { useQualitySummary } from "../../hooks/useQualitySummary";
 import { Skeleton, SkeletonLine, SkeletonRegion } from "../../../../components/skeleton/Skeleton";
+import { friendlyError } from "../../../../utils/errorMessage";
 
 const RANGES: QualityDays[] = [7, 30];
 
@@ -124,7 +125,7 @@ export default function QualityView({ isDemo }: { isDemo: boolean }) {
         {isPending ? (
           <QualitySkeleton />
         ) : error || !data ? (
-          <div className="quality-status">Could not load metrics: {error?.message ?? "no data"}</div>
+          <div className="quality-status">Could not load metrics: {friendlyError(error, "check your connection and try again.")}</div>
         ) : (
           <div className="quality-body">
             <div className="quality-cards">
