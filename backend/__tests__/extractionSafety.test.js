@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { deflateSync } from "zlib";
+import { EventEmitter } from "events";
+import { PassThrough } from "stream";
 import { zipSync, strToU8 } from "fflate";
 import * as XLSX from "xlsx";
 
@@ -12,6 +14,7 @@ vi.mock("child_process", async (importOriginal) => {
 });
 
 import { spawn } from "child_process";
+import { logger } from "../logger.js";
 import { extractTextFromBuffer, EXTRACTION_LIMITS, MAX_WAITING_EXTRACTIONS } from "../textExtract.js";
 import { assertSafeZip, MAX_DECOMPRESSED_BYTES, UnsafeFileError } from "../zipGuard.js";
 
@@ -91,8 +94,26 @@ function centralRecords(zip) {
   return offsets;
 }
 
+// A worker the test controls, for outcomes a real one cannot be made to reach.
+function fakeWorker() {
+  const child = new EventEmitter();
+  child.stdin = new PassThrough();
+  child.stdout = new PassThrough();
+  child.stdio = [child.stdin, child.stdout, null, new PassThrough()];
+  child.kill = vi.fn(() => {
+    child.emit("close", null, "SIGKILL");
+    return true;
+  });
+  return child;
+}
+
+function loggedStop() {
+  return vi.mocked(logger.warn).mock.calls.find(([message]) => message === "Extraction worker stopped")?.[1];
+}
+
 beforeEach(() => {
   vi.mocked(spawn).mockClear();
+  vi.mocked(logger.warn).mockClear();
 });
 
 describe("hostile files", () => {
@@ -125,7 +146,9 @@ describe("hostile files", () => {
 
 describe("large legitimate files", () => {
   it("still extracts a Word file with 10 MB of XML", async () => {
-    const text = await extractTextFromBuffer(expandingDocx(10), DOCX_MIME);
+    const text = await extractTextFromBuffer(expandingDocx(10), DOCX_MIME).catch((err) => err);
+    // Checked first, so a failure prints why the worker stopped.
+    expect(logger.warn).not.toHaveBeenCalled();
     expect(text).toHaveLength(50000);
   }, WORKER_LIMIT_TIMEOUT);
 
@@ -169,7 +192,64 @@ describe("large legitimate files", () => {
   }, WORKER_LIMIT_TIMEOUT);
 });
 
+describe("why the worker stopped", () => {
+  it.each([
+    ["time", validSpreadsheet, XLSX_MIME, { timeMs: 1 }],
+    ["memory", () => expandingPdf(300), PDF_MIME, { heapMB: 2048, totalMB: 120 }],
+    ["heap", () => expandingDocx(10), DOCX_MIME, { heapMB: 20, totalMB: 4096 }],
+  ])("logs %s as the reason", async (reason, build, mime, overrides) => {
+    const error = await extractTextFromBuffer(build(), mime, { ...EXTRACTION_LIMITS, ...overrides }).catch((err) => err);
+    expect(error.status).toBe(422);
+    expect(loggedStop().reason).toBe(reason);
+    if (reason === "memory") expect(loggedStop().rssMB).toBeGreaterThanOrEqual(120);
+    else expect(loggedStop().rssMB).toBeNull();
+  }, WORKER_LIMIT_TIMEOUT);
+
+  it("logs output as the reason when the worker writes too much", async () => {
+    const child = fakeWorker();
+    vi.mocked(spawn).mockImplementationOnce(() => child);
+    const result = extractTextFromBuffer(Buffer.from("hello"), "text/plain").catch((err) => err);
+    child.stdout.write(Buffer.alloc(400 * 1000 + 1));
+    expect((await result).status).toBe(422);
+    expect(loggedStop().reason).toBe("output");
+  });
+
+  it.each([
+    ["an unknown reason", '{"reason":"anything","rssMB":1}'],
+    ["a size that is not a whole number", '{"reason":"memory","rssMB":"1"}'],
+    ["text that is not JSON", "not json"],
+    ["an oversized report", `{"reason":"memory","rssMB":1,"pad":"${"x".repeat(200)}"}`],
+  ])("logs unknown for %s on the report pipe", async (_name, report) => {
+    const child = fakeWorker();
+    vi.mocked(spawn).mockImplementationOnce(() => child);
+    const result = extractTextFromBuffer(Buffer.from("hello"), "text/plain").catch((err) => err);
+    child.stdio[3].write(report);
+    await new Promise(setImmediate);
+    child.emit("close", null, "SIGKILL");
+    expect((await result).status).toBe(422);
+    expect(loggedStop().reason).toBe("unknown");
+    expect(loggedStop().rssMB).toBeNull();
+  });
+
+  it("logs only the listed fields and nothing from the file", async () => {
+    const marker = "private-document-marker";
+    await extractTextFromBuffer(Buffer.from(marker), "text/plain", { ...EXTRACTION_LIMITS, timeMs: 1 }).catch((err) => err);
+    expect(Object.keys(loggedStop()).sort()).toEqual(["code", "elapsedMs", "inputBytes", "mimeType", "reason", "rssMB", "signal"]);
+    expect(JSON.stringify(vi.mocked(logger.warn).mock.calls)).not.toContain(marker);
+  });
+});
+
 describe("the worker", () => {
+  it("starts with the young generation capped next to the heap limit", async () => {
+    await extractTextFromBuffer(Buffer.from("hello"), "text/plain");
+    expect(vi.mocked(spawn).mock.calls[0][1].slice(0, 2)).toEqual(["--max-old-space-size=160", "--max-semi-space-size=8"]);
+  });
+
+  it("keeps its limits", () => {
+    expect(EXTRACTION_LIMITS).toEqual({ timeMs: 20000, heapMB: 160, totalMB: 256 });
+    expect(MAX_DECOMPRESSED_BYTES).toBe(20 * 1024 * 1024);
+  });
+
   it("gets no environment, so a hostile file cannot reach the server's secrets", async () => {
     await extractTextFromBuffer(Buffer.from("hello"), "text/plain");
     expect(vi.mocked(spawn).mock.calls[0][2].env).toEqual({});
