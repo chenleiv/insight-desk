@@ -19,6 +19,9 @@ export type AuthContextValue = {
   sessionExpired: boolean;
   /** True after the user chose to sign out, until the next sign-in. */
   signedOut?: boolean;
+  /** True when the startup check could not get an answer about the session. */
+  sessionCheckFailed?: boolean;
+  retrySessionCheck?: () => void;
   favoritesMap: Record<string | number, boolean>;
   /** Documents whose favorite request is running; each is blocked until it answers. */
   pendingFavorites?: Record<string, boolean>;

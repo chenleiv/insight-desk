@@ -5,7 +5,13 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import RequireAuth from "../RequireAuth";
 
 const { auth } = vi.hoisted(() => ({
-  auth: { isReady: false, isAuthed: false, signedOut: false },
+  auth: {
+    isReady: false,
+    isAuthed: false,
+    signedOut: false,
+    sessionCheckFailed: false,
+    retrySessionCheck: () => {},
+  },
 }));
 
 vi.mock("../useAuth", () => ({ useAuth: () => auth }));
@@ -60,5 +66,39 @@ describe("RequireAuth during the startup session check", () => {
     Object.assign(auth, { isReady: true, isAuthed: false });
     render();
     expect(container.textContent).toBe("Login page");
+  });
+});
+
+describe("RequireAuth when the startup session check failed", () => {
+  const retry = vi.fn();
+
+  beforeEach(() => {
+    retry.mockReset();
+    Object.assign(auth, { isReady: false, sessionCheckFailed: true, retrySessionCheck: retry });
+  });
+
+  afterEach(() => {
+    Object.assign(auth, { sessionCheckFailed: false, retrySessionCheck: () => {} });
+  });
+
+  it.each([
+    ["a cached user", true],
+    ["no cached user", false],
+  ])("shows the error instead of the page or login, with %s", (_name, isAuthed) => {
+    Object.assign(auth, { isAuthed });
+    render();
+
+    expect(container.querySelector(".load-error-message")?.textContent).toBe("Could not reach the server.");
+    expect(container.textContent).not.toContain("Hub page");
+    expect(container.textContent).not.toContain("Login page");
+  });
+
+  it("runs the check again on Retry", () => {
+    Object.assign(auth, { isAuthed: true });
+    render();
+
+    act(() => container.querySelector<HTMLButtonElement>(".load-error-retry")!.click());
+
+    expect(retry).toHaveBeenCalledOnce();
   });
 });

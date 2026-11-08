@@ -2,7 +2,7 @@ import React, { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { me, logout as apiLogout } from "../api/authClient";
 import { toggleFavorite as apiToggleFavorite } from "../api/documentsClient";
-import { setUnauthorizedHandler, startSessionGeneration } from "../api/base";
+import { ApiError, setUnauthorizedHandler, startSessionGeneration } from "../api/base";
 import type { AuthUser } from "./authTypes";
 import {
   loadUserFromStorage,
@@ -27,6 +27,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [signedOut, setSignedOut] = useState(false);
+  const [sessionCheckFailed, setSessionCheckFailed] = useState(false);
+  const [sessionCheckAttempt, setSessionCheckAttempt] = useState(0);
   /** Whether a user is signed in, readable at once by the 401 handler before React re-renders. */
   const signedInRef = useRef(user !== null);
   const queryClient = useQueryClient();
@@ -47,9 +49,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signedInRef.current = true;
         setUser(u);
         saveUserToStorage(u);
-      } catch {
+      } catch (err) {
         if (cancelled) return;
         if (!sessionEstablishedByLogin.current) {
+          // Only a 401 says the session is over. Anything else says nothing about it,
+          // so the signed-in user and what they stored on this device stay.
+          if (!(err instanceof ApiError && err.status === 401)) {
+            setSessionCheckFailed(true);
+            return;
+          }
           signedInRef.current = false;
           setUser(null);
           clearUserFromStorage();
@@ -63,7 +71,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sessionCheckAttempt]);
+
+  /** Back to the loading state while the startup check runs again. */
+  function retrySessionCheck() {
+    setSessionCheckFailed(false);
+    setIsReady(false);
+    setSessionCheckAttempt((n) => n + 1);
+  }
 
   /** Drops data cached for the previous session so the next user in this tab never sees it. */
   function resetSessionState() {
@@ -84,8 +99,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const onUnauthorized = useEffectEvent(expireSession);
+  const sessionKnown = isReady && !sessionCheckFailed;
 
-  useSessionCheck(isReady && user !== null, expireSession);
+  useSessionCheck(sessionKnown && user !== null, expireSession);
 
   useEffect(() => {
     setUnauthorizedHandler(() => onUnauthorized());
@@ -171,10 +187,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext
       value={{
         user,
-        isReady,
+        isReady: sessionKnown,
         isAuthed: !!user,
         sessionExpired,
         signedOut,
+        sessionCheckFailed,
+        retrySessionCheck,
         favoritesMap,
         pendingFavorites,
         loginSuccess: (u) => {
@@ -183,6 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           signedInRef.current = true;
           setSessionExpired(false);
           setSignedOut(false);
+          setSessionCheckFailed(false);
           resetSessionState();
           setUser(u);
           saveUserToStorage(u);
