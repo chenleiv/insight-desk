@@ -1,5 +1,5 @@
 /**
- * Central prompt configuration for Brainy AI.
+ * Central prompt configuration for InsightDesk AI.
  * Edit this file to change how the AI assistant behaves.
  */
 
@@ -15,7 +15,7 @@ export const LEGACY_NO_INFO_ANSWERS = [
   "I don't have information about this in your documents.",
 ];
 
-export const DEFAULT_PROMPT = `You are an AI assistant for Brainy, a document management system.
+export const DEFAULT_PROMPT = `You are an AI assistant for InsightDesk, a document management system.
 You answer questions strictly based on the context provided by the user, which includes the documents and the attached files.
 
 Rules:
@@ -38,7 +38,7 @@ If the context contains no part of the answer, reply with exactly this English s
 export const promptState = { prompt: DEFAULT_PROMPT };
 
 export const PROMPT_METADATA = {
-  name: 'Brainy AI Assistant',
-  version: '1.0',
+  name: 'InsightDesk AI Assistant',
+  version: '1.1',
   description: 'Answers questions strictly from the context provided by the user, which includes the documents and the attached files.',
 };

@@ -51,11 +51,11 @@ export default function TopBar({ activeView, onOpenDashboard, onOpenSettings, on
             {isSecondaryView && (
               <button
                 type="button"
-                className="topbar-ask-brainy-btn"
+                className="topbar-ask-insightdesk-btn"
                 onClick={onOpenAI}
               >
                 <BrainCircuit size={14} />
-                <span>Ask Brainy</span>
+                <span>Ask InsightDesk</span>
               </button>
             )}
             <div className="topbar-nav">

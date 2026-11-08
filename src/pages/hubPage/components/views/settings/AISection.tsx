@@ -3,18 +3,21 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   getSystemPrompt,
   updateSystemPrompt,
+  resetSystemPrompt,
   getSuggestions,
   updateSuggestions,
 } from "../../../../../api/aiClient";
 import { useStatus } from "../../../../../components/statusBar/useStatus";
 import { SkeletonLine, SkeletonRegion } from "../../../../../components/skeleton/Skeleton";
 import { SUGGESTIONS_QUERY_KEY } from "../../../hooks/useSuggestions";
+import useConfirm from "../../../../../hooks/useConfirm";
 
 // Matches the four question fields the loaded form always shows.
 const QUESTION_COUNT = 4;
 
 export function AISection({ readOnly = false }: { readOnly?: boolean }) {
   const status = useStatus();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
 
   const [promptDraft, setPromptDraft] = useState("");
@@ -54,6 +57,24 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
     try {
       await updateSystemPrompt(promptDraft);
       status.show({ kind: "success", title: "Saved", message: "System prompt updated" });
+    } catch (e) {
+      status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
+    } finally {
+      setPromptSaving(false);
+    }
+  }
+
+  async function resetPrompt() {
+    const ok = await confirm({
+      title: "Reset to default?",
+      message: "The saved system prompt will be deleted, and the assistant will use the default prompt.",
+      confirmLabel: "Reset",
+    });
+    if (!ok) return;
+    setPromptSaving(true);
+    try {
+      setPromptDraft((await resetSystemPrompt()).prompt);
+      status.show({ kind: "success", title: "Reset", message: "System prompt reset to the default" });
     } catch (e) {
       status.show({ kind: "error", title: "Error", message: e instanceof Error ? e.message : "Failed" });
     } finally {
@@ -105,14 +126,26 @@ export function AISection({ readOnly = false }: { readOnly?: boolean }) {
               placeholder={promptFailed ? "Could not load the system prompt." : undefined}
             />
           )}
-          <button
-            type="button"
-            className="settings-save-btn"
-            disabled={readOnly || !promptLoaded || promptSaving}
-            onClick={savePrompt}
-          >
-            {promptSaving ? "Saving…" : "Save prompt"}
-          </button>
+          <div className="settings-ai-prompt-actions">
+            <button
+              type="button"
+              className="settings-save-btn"
+              disabled={readOnly || !promptLoaded || promptSaving}
+              onClick={savePrompt}
+            >
+              {promptSaving ? "Saving…" : "Save prompt"}
+            </button>
+            {!readOnly && (
+              <button
+                type="button"
+                className="settings-cancel-btn"
+                disabled={!promptLoaded || promptSaving}
+                onClick={resetPrompt}
+              >
+                Reset to default
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

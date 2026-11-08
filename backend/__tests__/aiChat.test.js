@@ -317,6 +317,36 @@ describe("verifyCitations", () => {
     expect(verifyCitations(answer, chunks).answer).toBe(expected);
   });
 
+  it.each([
+    ["a zero-width space before the id", "Ask the team lead [​c1].", "Ask the team lead [c1]."],
+    ["a zero-width space inside the id", "Ask the team lead [c​1].", "Ask the team lead [c1]."],
+    ["a zero-width non-joiner after the id", "Ask the team lead [c1‌].", "Ask the team lead [c1]."],
+    ["a zero-width joiner between ids", "Ask the team lead [c1,‍ c1].", "Ask the team lead [c1]."],
+    ["a word joiner in fullwidth brackets", "Ask the team lead【⁠c1】.", "Ask the team lead[c1]."],
+  ])("verifies a citation with %s", (_label, answer, expected) => {
+    const result = verifyCitations(answer, chunks);
+
+    expect(result.answer).toBe(expected);
+    expect(result.citations).toEqual([{ id: "c1", docId: "doc-1", title: "Policy", index: 0 }]);
+    expect(result.unknown).toEqual([]);
+  });
+
+  it("still removes and reports an unknown id written with a zero-width character", () => {
+    const result = verifyCitations("Ask the team lead [​c9].", chunks);
+
+    expect(result.answer).toBe("Ask the team lead.");
+    expect(result.citations).toEqual([]);
+    expect(result.unknown).toEqual(["c9"]);
+  });
+
+  it("keeps zero-width characters outside citations, and brackets that are not citations", () => {
+    const answer = "The team 👩‍💻 decides [​1, 2] [c1].";
+    const result = verifyCitations(answer, chunks);
+
+    expect(result.answer).toBe(answer);
+    expect(result.unknown).toEqual([]);
+  });
+
   it("handles 100,000 spaces in an answer quickly", () => {
     const spaces = " ".repeat(100_000);
     const result = verifyCitations(`Ask${spaces}the team lead${spaces}[c9] [c1${spaces}`, chunks);

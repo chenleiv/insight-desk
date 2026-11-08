@@ -22,6 +22,7 @@ vi.mock("../rag/embed.js", () => ({ embed: vi.fn(async () => [1, 0, 0]) }));
 import { User, Document, Chunk, RetrievalLog, AIConfig } from "../models.js";
 import aiRouter, {
   EMPTY_ANSWER_DETAIL, TOO_LONG_ANSWER_DETAIL, AI_BUSY_DETAIL, SHORTENED_NOTE, isNoInfoAnswer, cutToLastSentence,
+  loadAIConfig,
 } from "../ai.js";
 import { DEMO_SUGGESTIONS } from "../demo/suggestions.js";
 import { DEFAULT_PROMPT, NO_INFO_ANSWER, LEGACY_NO_INFO_ANSWERS, promptState } from "../prompts.js";
@@ -354,5 +355,71 @@ describe("PATCH routes for the AI config", () => {
 
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ detail: "Could not save the questions. Please try again later." });
+  });
+});
+
+describe("resetting the prompt to the default", () => {
+  let saved;
+  beforeEach(async () => {
+    saved = promptState.prompt;
+    // Earlier tests may leave a saved config behind.
+    await AIConfig.deleteOne({ _id: "ai" });
+  });
+  afterEach(async () => {
+    promptState.prompt = saved;
+    await AIConfig.deleteOne({ _id: "ai" });
+  });
+
+  it("removes the stored prompt, keeps the example questions, and runs DEFAULT_PROMPT at once", async () => {
+    await AIConfig.create({ _id: "ai", systemPrompt: "Stored prompt", exampleQuestions: ["Who approves leave?"] });
+    promptState.prompt = "Stored prompt";
+
+    const res = await requestAs(admin, "DELETE", "/api/ai/prompt");
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).prompt).toBe(DEFAULT_PROMPT);
+    const stored = await AIConfig.findById("ai").lean();
+    expect(stored.systemPrompt).toBeUndefined();
+    expect(stored.exampleQuestions).toEqual(["Who approves leave?"]);
+    expect(promptState.prompt).toBe(DEFAULT_PROMPT);
+
+    await chat();
+    expect(groqCreate.mock.calls.at(-1)[0].messages[0].content.startsWith(DEFAULT_PROMPT)).toBe(true);
+  });
+
+  it("refuses viewers and requests without a session, and changes nothing", async () => {
+    await AIConfig.create({ _id: "ai", systemPrompt: "Stored prompt" });
+    promptState.prompt = "Stored prompt";
+    const viewer = await User.create({ email: "viewer@corp.example", role: "viewer" });
+    try {
+      expect((await requestAs(viewer, "DELETE", "/api/ai/prompt")).status).toBe(403);
+      expect((await fetch(`${base}/api/ai/prompt`, { method: "DELETE" })).status).toBe(401);
+    } finally {
+      await User.deleteOne({ _id: viewer._id });
+    }
+
+    expect((await AIConfig.findById("ai").lean()).systemPrompt).toBe("Stored prompt");
+    expect(promptState.prompt).toBe("Stored prompt");
+  });
+
+  it("keeps the running prompt when the reset fails", async () => {
+    promptState.prompt = "Stored prompt";
+    vi.spyOn(AIConfig, "updateOne").mockRejectedValueOnce(new Error("db down"));
+
+    const res = await requestAs(admin, "DELETE", "/api/ai/prompt");
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ detail: "Could not reset the prompt. Please try again later." });
+    expect(promptState.prompt).toBe("Stored prompt");
+  });
+
+  it("loads DEFAULT_PROMPT when no prompt is stored, and the stored prompt otherwise", async () => {
+    promptState.prompt = "Left over in memory";
+    await loadAIConfig();
+    expect(promptState.prompt).toBe(DEFAULT_PROMPT);
+
+    await AIConfig.create({ _id: "ai", systemPrompt: "Stored prompt" });
+    await loadAIConfig();
+    expect(promptState.prompt).toBe("Stored prompt");
   });
 });

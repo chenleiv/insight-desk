@@ -145,6 +145,7 @@ describe("demo users cannot change system-wide settings", () => {
     expect((await demo("/api/users/x", { method: "PATCH", body: JSON.stringify({ role: "admin" }) })).status).toBe(403);
     expect((await demo("/api/users/x", { method: "DELETE" })).status).toBe(403);
     expect((await demo("/api/ai/prompt", { method: "PATCH", body: JSON.stringify({ prompt: "x" }) })).status).toBe(403);
+    expect((await demo("/api/ai/prompt", { method: "DELETE" })).status).toBe(403);
     expect((await demo("/api/ai/suggestions", { method: "PATCH", body: JSON.stringify({ questions: [] }) })).status).toBe(403);
   });
 

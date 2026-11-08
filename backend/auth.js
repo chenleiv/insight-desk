@@ -474,7 +474,7 @@ router.patch('/profile', getCurrentUser, async (req, res) => {
     try {
         const update = profileSchema.parse(req.body);
 
-        const user = await User.findByIdAndUpdate(req.user._id, update, { new: true });
+        const user = await User.findByIdAndUpdate(req.user._id, update, { returnDocument: 'after' });
         res.json(formatUser(user));
     } catch (err) {
         if (handleZodError(err, res)) return;

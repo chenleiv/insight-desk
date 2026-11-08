@@ -54,7 +54,7 @@ router.patch('/:id', requireAdmin, async (req, res) => {
     if (status === 'inactive') update.$inc = { tokenVersion: 1 };
 
     try {
-        const user = await User.findByIdAndUpdate(params.data.id, update, { new: true }).select('-password_hash');
+        const user = await User.findByIdAndUpdate(params.data.id, update, { returnDocument: 'after' }).select('-password_hash');
         if (!user) return res.status(404).json({ detail: 'User not found' });
 
         logger.info('Admin action', { action: 'user.update', actorId: req.user._id, targetId: user._id, role, status });

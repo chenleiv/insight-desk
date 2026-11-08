@@ -193,6 +193,16 @@ describe("admin actions", () => {
     expectNoPersonalData("SECRET-PROMPT");
   });
 
+  it("logs a prompt reset without the prompt", async () => {
+    await adminSend("PATCH", "/api/ai/prompt", { prompt: "SECRET-PROMPT" });
+    logger.info.mockClear();
+    await adminSend("DELETE", "/api/ai/prompt");
+
+    const [, details] = logger.info.mock.calls.find(([message]) => message === "Admin action");
+    expect(details.action).toBe("ai.prompt.reset");
+    expectNoPersonalData("SECRET-PROMPT", "You are an AI assistant");
+  });
+
   it("logs a suggestions save without the questions", async () => {
     await adminSend("PATCH", "/api/ai/suggestions", { questions: ["SECRET-QUESTION"] });
 

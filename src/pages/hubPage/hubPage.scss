@@ -66,7 +66,7 @@
         }
     }
 
-    .topbar-ask-brainy-btn {
+    .topbar-ask-insightdesk-btn {
         display: flex;
         align-items: center;
         gap: 6px;
@@ -334,8 +334,8 @@
     }
 }
 
-/* ── Brainy FAB ── */
-@keyframes brainy-float {
+/* ── InsightDesk FAB ── */
+@keyframes insightdesk-float {
 
     0%,
     100% {
@@ -347,15 +347,15 @@
     }
 }
 
-.brainy-fab-wrap {
+.insightdesk-fab-wrap {
     position: absolute;
     bottom: 28px;
     right: 28px;
     z-index: 20;
-    animation: brainy-float 6s ease-in-out infinite;
+    animation: insightdesk-float 6s ease-in-out infinite;
 }
 
-.brainy-fab {
+.insightdesk-fab {
     display: flex;
     align-items: center;
     gap: 8px;

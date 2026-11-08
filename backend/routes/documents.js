@@ -314,7 +314,7 @@ router.put('/:id', requireEditor, validDocumentParams, async (req, res) => {
         if (isDemoUser(req.user) && validated.content.length > DEMO_LIMITS.contentLength) {
             return res.status(400).json({ detail: DEMO_CONTENT_LIMIT_MESSAGE });
         }
-        const updated = await Document.findByIdAndUpdate(req.params.id, validated, { new: true });
+        const updated = await Document.findByIdAndUpdate(req.params.id, validated, { returnDocument: 'after' });
         if (!updated) {
             return res.status(404).json({ detail: 'Not found' });
         }
@@ -421,7 +421,7 @@ async function addAttachment(user, doc, attachment) {
         return Document.findOneAndUpdate(
             { _id: doc._id, [`attachments.${DEMO_LIMITS.attachmentsPerDocument - 1}`]: { $exists: false } },
             { $push: { attachments: attachment } },
-            { new: true },
+            { returnDocument: 'after' },
         );
     }
     doc.attachments.push(attachment);
@@ -504,7 +504,7 @@ async function removeAttachment(user, doc, attachmentId) {
         return Document.findOneAndUpdate(
             { _id: doc._id, 'attachments._id': attachmentId },
             { $pull: { attachments: { _id: attachmentId } } },
-            { new: true },
+            { returnDocument: 'after' },
         );
     }
     doc.attachments.pull({ _id: attachmentId });

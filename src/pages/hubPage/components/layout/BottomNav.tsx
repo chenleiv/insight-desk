@@ -4,7 +4,7 @@ import type { ActiveView } from "../../utils/hubView";
 export type BottomNavTab = "ai" | "documents" | "dashboard" | "quality" | "settings";
 
 const TABS: { id: BottomNavTab; label: string; Icon: LucideIcon }[] = [
-  { id: "ai", label: "Brainy", Icon: BrainCircuit },
+  { id: "ai", label: "Assistant", Icon: BrainCircuit },
   { id: "documents", label: "Documents", Icon: FileText },
   { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { id: "quality", label: "Quality", Icon: BarChart3 },

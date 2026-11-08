@@ -103,7 +103,7 @@ describe("PATCH /api/users/:id", () => {
     expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
       USER_ID,
       { role: "admin", status: "inactive", $inc: { tokenVersion: 1 } },
-      { new: true },
+      { returnDocument: "after" },
     );
   });
 
@@ -116,18 +116,18 @@ describe("PATCH /api/users/:id", () => {
     expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
       USER_ID,
       { status: "inactive", $inc: { tokenVersion: 1 } },
-      { new: true },
+      { returnDocument: "after" },
     );
   });
 
   it("leaves the token version alone when enabling a user or changing a role", async () => {
     User.findByIdAndUpdate.mockReturnValueOnce(updatedUser({ status: "active" }));
     await patch(USER_ID, { status: "active" });
-    expect(User.findByIdAndUpdate).toHaveBeenLastCalledWith(USER_ID, { status: "active" }, { new: true });
+    expect(User.findByIdAndUpdate).toHaveBeenLastCalledWith(USER_ID, { status: "active" }, { returnDocument: "after" });
 
     User.findByIdAndUpdate.mockReturnValueOnce(updatedUser({ role: "admin" }));
     await patch(USER_ID, { role: "admin" });
-    expect(User.findByIdAndUpdate).toHaveBeenLastCalledWith(USER_ID, { role: "admin" }, { new: true });
+    expect(User.findByIdAndUpdate).toHaveBeenLastCalledWith(USER_ID, { role: "admin" }, { returnDocument: "after" });
   });
 
   it("returns 404 for a valid id with no user", async () => {

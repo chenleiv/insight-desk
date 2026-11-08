@@ -30,16 +30,16 @@ afterEach(() => {
 describe("BottomNav", () => {
   it("shows five tabs to users who may read the quality metrics", () => {
     render("ai");
-    expect(labels()).toEqual(["Brainy", "Documents", "Dashboard", "Quality", "Settings"]);
+    expect(labels()).toEqual(["Assistant", "Documents", "Dashboard", "Quality", "Settings"]);
   });
 
   it("hides Quality from the others", () => {
     render("ai", false);
-    expect(labels()).toEqual(["Brainy", "Documents", "Dashboard", "Settings"]);
+    expect(labels()).toEqual(["Assistant", "Documents", "Dashboard", "Settings"]);
   });
 
   it.each([
-    ["ai", "Brainy"],
+    ["ai", "Assistant"],
     ["documents", "Documents"],
     ["doc", "Documents"],
     ["new", "Documents"],

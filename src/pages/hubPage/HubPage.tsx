@@ -465,15 +465,15 @@ export default function HubPage() {
           )}
 
           {!isMobile && activeView.kind === "doc" && (
-            <div className="brainy-fab-wrap">
+            <div className="insightdesk-fab-wrap">
               <button
                 type="button"
-                className="brainy-fab"
+                className="insightdesk-fab"
                 onClick={goToAI}
-                aria-label="Open Brainy AI assistant"
+                aria-label="Open the InsightDesk assistant"
               >
                 <MessageCircle size={19} strokeWidth={2.2} />
-                <span>Ask Brainy</span>
+                <span>Ask InsightDesk</span>
               </button>
             </div>
           )}

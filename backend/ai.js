@@ -5,7 +5,7 @@ import { logger } from './logger.js';
 import Groq from 'groq-sdk';
 import { getCurrentUser, requireAdmin } from './auth.js';
 import { aiChatSchema, aiFeedbackSchema, aiPromptSchema, aiSuggestionsSchema, qualityQuerySchema, sendValidationError } from './schemas.js';
-import { promptState, PROMPT_METADATA, CONTEXT_RULES, NO_INFO_ANSWER, LEGACY_NO_INFO_ANSWERS } from './prompts.js';
+import { promptState, PROMPT_METADATA, CONTEXT_RULES, NO_INFO_ANSWER, LEGACY_NO_INFO_ANSWERS, DEFAULT_PROMPT } from './prompts.js';
 import { AIConfig } from './models.js';
 import { search } from './rag/search.js';
 import { logRetrieval, saveFeedback } from './rag/retrievalLog.js';
@@ -17,7 +17,8 @@ import { DEMO_SUGGESTIONS } from './demo/suggestions.js';
 export async function loadAIConfig() {
     try {
         const config = await AIConfig.findById('ai');
-        if (config?.systemPrompt) promptState.prompt = config.systemPrompt;
+        // Without a stored prompt, the code's default is the prompt.
+        promptState.prompt = config?.systemPrompt || DEFAULT_PROMPT;
     } catch (e) {
         logger.warn('Could not load AI config from DB, using default', { message: e.message });
     }
@@ -111,10 +112,19 @@ export function userContent(chunks, message) {
     return `${buildContext(chunks)}\n\nQuestion: ${neutralizeTags(message)}`;
 }
 
+// Zero-width space, non-joiner, joiner and word joiner. JavaScript's \s does not match them.
+const ZERO_WIDTH = /[\u200B-\u200D\u2060]/g;
+// A bracket holding only what a citation can hold: one character class, so it cannot
+// backtrack. It starts at the bracket: a leading \s* would rescan each run of blanks
+// from every position in it (quadratic on long whitespace).
+const CITATION_CANDIDATE = /[[【]([\sc\d,\u200B-\u200D\u2060]+)[\]】]/g;
+const CITATION_IDS = /^\s*(c\d+(?:\s*,\s*c\d+)*)\s*$/;
+
 /**
  * Keep only citations of chunks that were actually retrieved. Ids the model
  * invented are removed from the answer and returned in `unknown`. The model
- * sometimes writes fullwidth brackets, 【c1】; those are rewritten as [c1].
+ * sometimes writes fullwidth brackets, 【c1】, or zero-width characters inside
+ * the brackets, [\u200Bc1]; both are rewritten as [c1].
  */
 export function verifyCitations(answer, chunks) {
     const byId = new Map(chunks.map((c, i) => [`c${i + 1}`, c]));
@@ -122,10 +132,11 @@ export function verifyCitations(answer, chunks) {
     const unknown = [];
     let text = '';
     let copyFrom = 0;
-    // The pattern starts at the bracket: a leading \s* would rescan each run of
-    // blanks from every position in it (quadratic on long whitespace).
-    for (const match of answer.matchAll(/[[【]\s*(c\d+(?:\s*,\s*c\d+)*)\s*[\]】]/g)) {
-        const ids = match[1].split(/\s*,\s*/);
+    for (const match of answer.matchAll(CITATION_CANDIDATE)) {
+        // Zero-width characters are removed inside the brackets only; the rest of the answer keeps them.
+        const inner = CITATION_IDS.exec(match[1].replace(ZERO_WIDTH, ''));
+        if (!inner) continue;
+        const ids = inner[1].split(/\s*,\s*/);
         const valid = ids.filter((id) => byId.has(id));
         unknown.push(...ids.filter((id) => !byId.has(id)));
         for (const id of valid) {
@@ -393,6 +404,21 @@ router.patch('/api/ai/prompt', requireAdmin, async (req, res) => {
     } catch (error) {
         logger.error('Prompt save error', { message: error?.message ?? String(error) });
         res.status(500).json({ detail: 'Could not save the prompt. Please try again later.' });
+    }
+});
+
+// Same protection as saving: admins only, plus the Origin check and rate limit on every /api route.
+router.delete('/api/ai/prompt', requireAdmin, async (req, res) => {
+    try {
+        // Cleared first, so the running prompt never differs from the stored one. Only the
+        // prompt is removed; the saved example questions stay.
+        await AIConfig.updateOne({ _id: 'ai' }, { $unset: { systemPrompt: '' } });
+        promptState.prompt = DEFAULT_PROMPT;
+        logger.info('Admin action', { action: 'ai.prompt.reset', actorId: req.user._id });
+        res.json({ prompt: promptState.prompt, ...PROMPT_METADATA });
+    } catch (error) {
+        logger.error('Prompt reset error', { message: error?.message ?? String(error) });
+        res.status(500).json({ detail: 'Could not reset the prompt. Please try again later.' });
     }
 });
 
