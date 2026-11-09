@@ -21,20 +21,13 @@ It is built for teams that keep their knowledge in internal documents, and it is
 
 All screenshots use the dark theme.
 
-<table>
-  <tr>
-    <td valign="top">
-      <img src="docs/screenshots/chat-answer-desktop.png" alt="Desktop chat with an answer about JWT security, a source chip for the cited document, and the document list on the left" width="600" />
-      <br />A chat answer on desktop, with the document it came from.
-    </td>
-    <td valign="top" align="center">
-      <img src="docs/screenshots/chat-answer-mobile.png" alt="Phone layout of a chat answer about RAG, with a source chip and bottom navigation" width="220" />
-      <br />The chat on a phone, with bottom navigation.
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <img src="docs/screenshots/chat-answer-desktop.png" alt="Desktop chat with an answer about JWT security, a source chip for the cited document, and the document list on the left" width="800" />
+</p>
 
-Try it yourself in the [live demo](https://insight-desk-bwji.onrender.com).
+<p align="center">
+  <img src="docs/screenshots/chat-answer-mobile.png" alt="Phone layout of a chat answer about RAG, with a source chip and bottom navigation" width="260" />
+</p>
 
 ## Security
 
