@@ -19,8 +19,6 @@ It is built for teams that keep their knowledge in internal documents, and it is
 
 ## Screenshots
 
-All screenshots use the dark theme.
-
 <p align="center">
   <img src="docs/screenshots/chat-answer-desktop.png" alt="Desktop chat with an answer about JWT security, a source chip for the cited document, and the document list on the left" width="800" />
 </p>
