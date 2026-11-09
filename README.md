@@ -23,22 +23,12 @@ All screenshots use the dark theme.
 
 <table>
   <tr>
-    <td width="50%">
-      <img src="docs/screenshots/chat-answer.png" alt="Chat answer with a cited source chip below it" />
-      <br />A chat answer with the document it came from.
+    <td valign="top">
+      <img src="docs/screenshots/chat-answer-desktop.png" alt="Desktop chat with an answer about JWT security, a source chip for the cited document, and the document list on the left" width="600" />
+      <br />A chat answer on desktop, with the document it came from.
     </td>
-    <td width="50%">
-      <img src="docs/screenshots/document.png" alt="Document view with an attached file and its text" />
-      <br />A document with an attachment, opened from a source chip.
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="docs/screenshots/quality.png" alt="Quality view with retrieval scores and feedback table" />
-      <br />The Quality view with retrieval scores and user ratings.
-    </td>
-    <td width="50%" align="center">
-      <img src="docs/screenshots/mobile-chat.png" alt="Phone layout of the chat with bottom navigation" width="220" />
+    <td valign="top" align="center">
+      <img src="docs/screenshots/chat-answer-mobile.png" alt="Phone layout of a chat answer about RAG, with a source chip and bottom navigation" width="220" />
       <br />The chat on a phone, with bottom navigation.
     </td>
   </tr>
