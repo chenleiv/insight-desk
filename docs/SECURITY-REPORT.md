@@ -1,12 +1,12 @@
 # Security Report
 
-A summary of the security work on Insight Desk: what the review covered, what was found and fixed, and what was
+A summary of the security work on InsightDesk: what the review covered, what was found and fixed, and what was
 deliberately left as is. Each claim cites a commit or a file in this repository. The controls themselves, with their
 tests, are described in [SECURITY.md](../SECURITY.md); this report does not repeat their details.
 
 ## 1. Application and threat model
 
-Insight Desk is a document workspace with a chat that answers questions from the user's documents and cites its
+InsightDesk is a document workspace with a chat that answers questions from the user's documents and cites its
 sources (`.claude/memory/context.md`). The parts that shape its threat model:
 
 - **Anonymous visitors.** Anyone can start a demo workspace without a password, upload files to it and use the chat
@@ -42,6 +42,7 @@ Automated checks:
 | Sessions | JWT algorithm not pinned | HS256 pinned on sign and verify; `__Host-` cookie in production | `0e838f5` |
 | Sessions | The server could start with a placeholder or missing secret | Refuses to start outside development and tests | `e80268b` |
 | Sessions | Cookies were not Secure by default | Secure unless in development or test | `d63f83a` |
+| Sessions | Logout answered 200 and cleared the cookie even when ending the session in the database failed, so the token stayed valid; the client also cleared the user before the server answered | The route answers 500 and keeps the cookie; the client waits and offers Retry | `eb6cae0`, `6b5f975` |
 | Sessions | The next user in the same tab could see the previous user's cached data and chat history | Client state cleared on sign-out and sign-in; late requests of a finished session ignored | `b9bdc49`, `1c42110` |
 | Login | Short passwords, timing that could reveal accounts, no per-account limit on failed logins | 12-character minimum for new passwords, comparison with a dummy hash, per-account limit | `77126c1` |
 | Login | Email case could split or hide an account | Emails normalized, with a migration script | `5c6987d` |
@@ -58,6 +59,7 @@ Automated checks:
 | Demo | Demo data was not removed | Removed on logout and after expiry | `dde2ae2` |
 | Rate limits | An IPv6 client could change the low bits of its address to multiply each limit | Per-address limits count the /56 network | `46bcda1`, `d2c4441`, `6a7f7e6` |
 | Cost | Per-minute limits alone let one address use up the provider's daily tokens | Daily limits per account, sandbox and address | `2b6f594` |
+| Chat | A citation with a zero-width character inside its brackets, such as `[​c9]`, did not match `verifyCitations`, so an id the model invented was neither removed nor reported | Zero-width characters removed inside citation brackets before the ids are checked | `3ac1503` |
 | Logging | Secrets and personal data could reach the logs; auth and admin events were not recorded | Logs hold reasons and ids only; auth and admin events recorded | `a261096` |
 | Errors | Raw chat errors reached the client | Fixed message; details only in the server log | `09b8432` |
 | Input | Ids and several request bodies were not validated | zod schemas for ids, prompt, suggestions, password and profile | `96be677` |
@@ -107,7 +109,8 @@ Each of these is described with its reasoning in `SECURITY.md`:
 
 The chat must cite only the chunks it was given. The numbers below are from `docs/EVAL.md`. They are point-in-time
 measurements, taken before `verifyCitations` learned to accept zero-width characters inside citation brackets
-(`3ac1503`, 2026-11-08).
+(`3ac1503`, 2026-11-08). The evaluation counts invented ids with `verifyCitations` (`eval/answers.js`), so an
+invented id written with a zero-width character was not counted in these runs.
 
 - **2026-11-06, current demo library:** 0 invented citation ids in every set. On 15 unrelated questions sent with
   their top chunks on purpose, 45 of 45 answers were refusals with no citation, in both prompt wordings.
