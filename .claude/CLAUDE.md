@@ -16,7 +16,7 @@ Read `.claude/memory/context.md` before any implementation.
 
 Before coding:
 
-1. Read context.md
+1. Read context.md, `docs/DECISIONS.md` and `SECURITY.md` before proposing a plan, and record any new decision in `docs/DECISIONS.md`
 2. Understand affected files
 3. Return a plan
 4. Wait for approval on any changes
