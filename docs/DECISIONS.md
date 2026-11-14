@@ -31,6 +31,16 @@ A short log of project decisions, newest first. Security controls and accepted r
   accepts an entry the client wrote in `X-Forwarded-For`, so a client could dodge every per-address limit
   (`SECURITY.md`, "Chat usage budget").
 
+## "Did you mean" for near-threshold questions not built
+
+- **Date:** 2026-11-01 (`f79ad7f`)
+- **Decision:** A question with no chunk at `MIN_SIMILARITY` gets the flat "not found" answer, not suggested document titles.
+- **Reason:** Measured on the previous demo library: only one related question in 20 fell below the threshold, and at
+  every useful lower bound at least half of the suggestions would have been wrong (`docs/EVAL.md`,
+  "Near-miss suggestions (not implemented)").
+- **Alternatives rejected:** Pointing to the closest document titles below the threshold. `docs/EVAL.md` suggests
+  revisiting it with more questions and documents.
+
 ## URL import removed
 
 - **Date:** 2026-10-30 (`e78eeff`)
@@ -42,21 +52,3 @@ A short log of project decisions, newest first. Security controls and accepted r
 - **Alternatives rejected:** Shipping it with the designed mitigations: blocking private, loopback and metadata
   address ranges, re-checking every redirect, size and timeout limits, admin-only access, and human review of the
   text before it is indexed.
-
-## "Did you mean" for near-threshold questions not built
-
-- **Date:** 2026-11-01 (`f79ad7f`)
-- **Decision:** A question with no chunk at `MIN_SIMILARITY` gets the flat "not found" answer, not suggested document titles.
-- **Reason:** Measured on the previous demo library: only one related question in 20 fell below the threshold, and at
-  every useful lower bound at least half of the suggestions would have been wrong (`docs/EVAL.md`,
-  "Near-miss suggestions (not implemented)").
-- **Alternatives rejected:** Pointing to the closest document titles below the threshold. `docs/EVAL.md` suggests
-  revisiting it with more questions and documents.
-
-## No manual document ordering
-
-- **Decision:** Users cannot reorder documents by hand. The client keeps a per-user order in browser storage, puts a
-  new document first and drops a deleted one, and offers no control to change it (`src/pages/hubPage/HubPage.tsx`,
-  `src/pages/hubPage/hooks/useDocumentOrdering.ts`).
-- **Reason:** Not recorded.
-- **Alternatives rejected:** Not recorded.
