@@ -4,6 +4,14 @@ A summary of the security work on InsightDesk: what the review covered, what was
 deliberately left as is. Each claim cites a commit or a file in this repository. The controls themselves, with their
 tests, are described in [SECURITY.md](../SECURITY.md); this report does not repeat their details.
 
+As of: 2026-11-14 at commit `b3abdf3`
+
+## Summary
+
+- 27 findings fixed (section 3).
+- Accepted risks are listed in section 5.
+- Considered and not built (section 6): self-registration, an admin "Create user" flow, and adding a document from a URL.
+
 ## 1. Application and threat model
 
 InsightDesk is a document workspace with a chat that answers questions from the user's documents and cites its
@@ -59,7 +67,7 @@ Automated checks:
 | Demo | Demo data was not removed | Removed on logout and after expiry | `dde2ae2` |
 | Rate limits | An IPv6 client could change the low bits of its address to multiply each limit | Per-address limits count the /56 network | `46bcda1`, `d2c4441`, `6a7f7e6` |
 | Cost | Per-minute limits alone let one address use up the provider's daily tokens | Daily limits per account, sandbox and address | `2b6f594` |
-| Chat | A citation with a zero-width character inside its brackets, such as `[​c9]`, did not match `verifyCitations`, so an id the model invented was neither removed nor reported | Zero-width characters removed inside citation brackets before the ids are checked | `3ac1503` |
+| Chat | A citation with a zero-width character inside its brackets, such as `[\u200bc9]` (`\u200b` is the zero-width space), did not match `verifyCitations`, so an id the model invented was neither removed nor reported | Zero-width characters removed inside citation brackets before the ids are checked | `3ac1503` |
 | Logging | Secrets and personal data could reach the logs; auth and admin events were not recorded | Logs hold reasons and ids only; auth and admin events recorded | `a261096` |
 | Errors | Raw chat errors reached the client | Fixed message; details only in the server log | `09b8432` |
 | Input | Ids and several request bodies were not validated | zod schemas for ids, prompt, suggestions, password and profile | `96be677` |
