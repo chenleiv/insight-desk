@@ -52,11 +52,3 @@ A short log of project decisions, newest first. Security controls and accepted r
 - **Alternatives rejected:** Shipping it with the designed mitigations: blocking private, loopback and metadata
   address ranges, re-checking every redirect, size and timeout limits, admin-only access, and human review of the
   text before it is indexed.
-
-## No manual document ordering
-
-- **Decision:** Users cannot reorder documents by hand. The client keeps a per-user order in browser storage, puts a
-  new document first and drops a deleted one, and offers no control to change it (`src/pages/hubPage/HubPage.tsx`,
-  `src/pages/hubPage/hooks/useDocumentOrdering.ts`).
-- **Reason:** Not recorded.
-- **Alternatives rejected:** Not recorded.
