@@ -37,7 +37,8 @@ backend/zipGuard.js   Checks a ZIP's real size before parsing
 backend/scripts/      Maintenance scripts (reindex, embedDemo, evalProd, normalizeEmails)
 shared/               Upload rules used by frontend and backend
 eval/                 Retrieval and answer evaluation
-docs/                 EVAL.md and AGENT_WORKFLOW.md
+docs/                 EVAL.md, AGENT_WORKFLOW.md, DECISIONS.md, SECURITY-REPORT.md
+SECURITY.md           Security controls and accepted risks
 .claude/memory/       Project context
 .claude/skills/       Review skills
 ```
@@ -170,20 +171,7 @@ Always check:
 
 ## Development Rules
 
-Before coding:
-
-understand → plan → implement
-
-Prefer:
-
-- minimal changes
-- existing patterns
-- production quality
-
-Avoid:
-
-- unrelated refactors
-- over engineering
+See `.claude/CLAUDE.md`, "Development Rules".
 
 ---
 
