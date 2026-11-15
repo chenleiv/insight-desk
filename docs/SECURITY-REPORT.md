@@ -4,7 +4,7 @@ A summary of the security work on InsightDesk: what the review covered, what was
 deliberately left as is. Each claim cites a commit or a file in this repository. The controls themselves, with their
 tests, are described in [SECURITY.md](../SECURITY.md); this report does not repeat their details.
 
-As of: 2026-11-14 at commit `b3abdf3`
+As of: 2026-11-15 at commit `7b283e5`
 
 ## Summary
 
@@ -87,6 +87,17 @@ and was not re-measured for this report.
 - The server warns at startup when the value is unset, zero or invalid, but cannot detect a wrong non-zero value
   (`SECURITY.md`, "Chat usage budget").
 
+**Production database hardening (2026-11-15).** Done by the project owner in MongoDB Atlas and Render, not
+reproducible from the repo.
+
+- **Least privilege.** The production database user had the `atlasAdmin` role. It now has `readWrite` on the
+  application database only.
+- **Password rotated.** The Render environment variable was updated, and the old credential is no longer valid.
+- **Network Access is open to `0.0.0.0/0`.** Render does not provide a fixed outbound IP, so the cluster cannot be
+  limited to the server's address. This is a known, accepted trade-off, mitigated by the strong password and the
+  reduced role. A fixed IP would need a paid Render feature or a different hosting setup.
+- **No automated backups.** The cluster is on the free M0 tier, which does not offer them. This is a known limitation.
+
 ## 5. Accepted risks
 
 Each of these is described with its reasoning in `SECURITY.md`:
@@ -103,6 +114,9 @@ Each of these is described with its reasoning in `SECURITY.md`:
   ("Chat usage budget").
 - **`xlsx` is installed from a vendored tarball** that `npm audit` does not check; new advisories are checked by hand
   ("Dependencies").
+- **Database network access is open to `0.0.0.0/0`.** Render has no fixed outbound IP; the strong password and the
+  reduced role are the mitigation ("Production database").
+- **No automated database backups.** The free M0 tier does not offer them ("Production database").
 
 ## 6. Considered and not built
 
@@ -131,6 +145,6 @@ A user can rate only their own answers; another user's record returns 404 (`docs
 
 - The CodeQL alert dismissals are recorded on GitHub, not in the repo. `SECURITY.md` names the dismissed alerts and
   the reasons.
-- The manual CSP check in headless Chromium and the proxy check in section 4 have no artifact in the repo.
+- The manual CSP check in headless Chromium, the proxy check and the database hardening in section 4 have no artifact in the repo.
 - The measured memory limits, file sizes and the RTF blocking time in `SECURITY.md` were not re-measured.
 - This report does not say whether CI passes on the current `main`.
