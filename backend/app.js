@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser';
 import path from 'path';
 
 import { logger } from './logger.js';
+import { isDevOrTest } from './runtimeEnv.js';
 import { applyMiddleware, apiNotFound, jsonBody, spaFallbackLimiter } from './middleware/setup.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRouter from './auth.js';
@@ -17,8 +18,9 @@ export function createApp({ distPath }) {
     const app = express();
 
     // Request logger. The path only: a query string can hold secrets, such as Google's authorization code.
+    // Production mode, as runtimeEnv.js decides it, logs API requests only.
     app.use((req, res, next) => {
-        if (process.env.NODE_ENV !== 'production' || req.path.startsWith('/api')) {
+        if (isDevOrTest() || req.path.startsWith('/api')) {
             logger.info(`${req.method} ${req.path}`);
         }
         next();
