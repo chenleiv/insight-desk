@@ -4,7 +4,7 @@ A summary of the security work on InsightDesk: what the review covered, what was
 deliberately left as is. Each claim cites a commit or a file in this repository. The controls themselves, with their
 tests, are described in [SECURITY.md](../SECURITY.md); this report does not repeat their details.
 
-As of: 2026-11-14 at commit `b3abdf3`
+As of: 2026-11-15 at commit `7b283e5`
 
 ## Summary
 
@@ -114,6 +114,9 @@ Each of these is described with its reasoning in `SECURITY.md`:
   ("Chat usage budget").
 - **`xlsx` is installed from a vendored tarball** that `npm audit` does not check; new advisories are checked by hand
   ("Dependencies").
+- **Database network access is open to `0.0.0.0/0`.** Render has no fixed outbound IP; the strong password and the
+  reduced role are the mitigation ("Production database").
+- **No automated database backups.** The free M0 tier does not offer them ("Production database").
 
 ## 6. Considered and not built
 

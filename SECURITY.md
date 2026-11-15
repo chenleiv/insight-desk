@@ -373,6 +373,17 @@ Tests: `backend/routes/__tests__/documentDownload.test.js`, `backend/__tests__/d
   midway, the delete is rolled back and the document keeps its old chunks.
   Test: `backend/rag/__tests__/syncChunks.integration.test.js`, against an in-memory replica set.
 
+## Production database
+
+Set in MongoDB Atlas and Render, not in this repository.
+
+- **Least privilege.** The production database user has `readWrite` on the application database only, not an
+  Atlas admin role.
+- **Known gap, accepted: network access is open to `0.0.0.0/0`.** Render does not provide a fixed outbound IP, so the
+  cluster cannot be limited to the server's address. The strong password and the reduced role limit what a leaked or
+  guessed connection could do. A fixed IP would need a paid Render feature or a different hosting setup.
+- **Known gap, accepted: no automated backups.** The cluster is on the free M0 tier, which does not offer them.
+
 ## Dependencies
 
 - **CI audit.** The `Dependency audit` job in `.github/workflows/ci.yml` runs on pushes to `main` and on every pull request.
