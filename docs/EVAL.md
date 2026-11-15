@@ -54,6 +54,8 @@ q08, "How do analysts get a clean machine back after running a malware sample?",
 - Measured on 2026-11-06 with the chat's context selection (top `CONTEXT_CHUNKS` = 5 chunks, at least `MIN_SIMILARITY`): chunk #3 ranks 14th (0.528). The 5 chunks sent (#11, #18, #0, #9, #12, scores 0.658 to 0.590) are all from the same document, and none mentions snapshots.
 - Questions in lab wording, such as "How is a malware analysis lab virtual machine restored to a clean state?", rank chunk #3 first (0.639).
 - hit@k is measured at the document level, so it does not catch this. Chunk-level hits (item 5 in [What to improve next](#what-to-improve-next)) would.
+- The threshold is not the cause: q08's best chunk (0.658) is far above `MIN_SIMILARITY` (0.3). The answer chunk is left out because only the top 5 chunks are sent.
+- Heading-aware chunking (2026-11-15, not merged) moved chunk #3's text, under its heading "Safety and Lab Setup", from rank 14 (0.528) to rank 9 (0.572). The 5th chunk sent scores 0.597, so the answer still does not reach the model. It also cost one hit@1 (q14, 24/24 to 23/24); see [DECISIONS.md](DECISIONS.md), "Heading-aware chunking not merged".
 
 q08 is kept as it is, so the eval keeps showing the limitation.
 
