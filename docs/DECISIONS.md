@@ -12,6 +12,31 @@ A short log of project decisions, newest first. Security controls and accepted r
 
 ---
 
+## Heading-aware chunking not merged
+
+- **Date:** 2026-11-15
+- **Decision:** Chunking stays as it is: sentence packing at 600 / 120, without regard to section headings. The
+  heading-aware chunking experiment is not merged.
+- **Reason:** The experiment chunked each section separately and started every chunk with its section heading, to
+  fix q08 ([EVAL.md](EVAL.md), "Known retrieval limitation: q08"). Measured offline by the project owner:
+  - `npm run eval`: hit@1 fell from 24/24 to 23/24. q14 now ranks the employee handbook first instead of "Securing RAG
+    Applications: Threats and Defenses"; hit@3 stayed 24/24. The demo library grew from 176 to 198 chunks.
+  - q08: the chunk that holds the answer ("snapshots") moved from rank 14 (0.528) to rank 9 (0.572), but the 5th
+    chunk scores 0.597, so the answer still does not reach the model.
+  - `npm run eval:answers`, `npm run embed:demo` and `npm run reindex` were not run for the experiment.
+- **Why q08 is refused:** Its best chunk scores 0.658, far above `MIN_SIMILARITY` (0.3), so the threshold is not
+  the cause. The chat sends the top `CONTEXT_CHUNKS` = 5 chunks, and the answer chunk ranks outside them, so the
+  model gets chunks of the right document without the answer.
+- **Alternatives rejected:** Merging for the q08 gain alone: it does not get the answer to the model, and it costs
+  a hit@1 regression and a full reindex.
+- **Ideas not yet tried (not implemented):**
+  - More context chunks (`CONTEXT_CHUNKS` above 5). q08's answer chunk is at rank 14 on main and rank 9 with
+    heading-aware chunking, so this means more tokens per question and more unrelated text sent to the model.
+  - A limit of chunks per document, so one document cannot fill every context slot. It would not help q08 by
+    itself, since all of its top chunks come from the same document.
+  - Chunk-level hits in `npm run eval` ([EVAL.md](EVAL.md), "What to improve next", item 5), which would show this kind
+    of miss without a Groq run.
+
 ## No admin "Create user" flow
 
 - **Date:** 2026-11-14
