@@ -87,6 +87,17 @@ and was not re-measured for this report.
 - The server warns at startup when the value is unset, zero or invalid, but cannot detect a wrong non-zero value
   (`SECURITY.md`, "Chat usage budget").
 
+**Production database hardening (2026-11-15).** Done by the project owner in MongoDB Atlas and Render, not
+reproducible from the repo.
+
+- **Least privilege.** The production database user had the `atlasAdmin` role. It now has `readWrite` on the
+  application database only.
+- **Password rotated.** The Render environment variable was updated, and the old credential is no longer valid.
+- **Network Access is open to `0.0.0.0/0`.** Render does not provide a fixed outbound IP, so the cluster cannot be
+  limited to the server's address. This is a known, accepted trade-off, mitigated by the strong password and the
+  reduced role. A fixed IP would need a paid Render feature or a different hosting setup.
+- **No automated backups.** The cluster is on the free M0 tier, which does not offer them. This is a known limitation.
+
 ## 5. Accepted risks
 
 Each of these is described with its reasoning in `SECURITY.md`:
