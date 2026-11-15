@@ -145,6 +145,6 @@ A user can rate only their own answers; another user's record returns 404 (`docs
 
 - The CodeQL alert dismissals are recorded on GitHub, not in the repo. `SECURITY.md` names the dismissed alerts and
   the reasons.
-- The manual CSP check in headless Chromium and the proxy check in section 4 have no artifact in the repo.
+- The manual CSP check in headless Chromium, the proxy check and the database hardening in section 4 have no artifact in the repo.
 - The measured memory limits, file sizes and the RTF blocking time in `SECURITY.md` were not re-measured.
 - This report does not say whether CI passes on the current `main`.
