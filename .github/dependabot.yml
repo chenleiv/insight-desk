@@ -18,6 +18,11 @@ updates:
           - react-dom
           - "@types/react"
           - "@types/react-dom"
+      # @vitest/* packages require vitest at the exact same version.
+      vitest:
+        patterns:
+          - vitest
+          - "@vitest/*"
       dev-minor-patch:
         dependency-type: development
         update-types:
