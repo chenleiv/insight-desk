@@ -1,7 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from "vitest";
 import mongoose from "mongoose";
-import { GridFSBucket } from "mongodb";
 import { startMongoServer } from "./mongoMemory.js";
 
 vi.mock("../logger.js", () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
@@ -21,7 +20,7 @@ let users;
 beforeAll(async () => {
   mongo = await startMongoServer();
   await mongoose.connect(mongo.getUri());
-  bucket = new GridFSBucket(mongoose.connection.db, { bucketName: "attachments" });
+  bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: "attachments" });
 }, 120_000);
 
 afterAll(async () => {

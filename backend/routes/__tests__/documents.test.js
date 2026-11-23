@@ -40,8 +40,8 @@ vi.mock("../../textExtract.js", () => ({
   extractTextFromBuffer: vi.fn(async () => "Attachment text."),
 }));
 vi.mock("../../logger.js", () => ({ logger: { info: vi.fn(), error: vi.fn() } }));
-vi.mock("mongodb", () => ({
-  GridFSBucket: class {
+vi.mock("../../attachmentBucket.js", () => ({
+  getAttachmentBucket: () => new (class {
     openUploadStream() {
       const stream = new EventEmitter();
       stream.id = "gridfs-1";
@@ -51,7 +51,7 @@ vi.mock("mongodb", () => ({
     delete() {
       return Promise.resolve();
     }
-  },
+  })(),
 }));
 
 import documentsRouter, { MAX_UPLOAD_BYTES } from "../documents.js";
