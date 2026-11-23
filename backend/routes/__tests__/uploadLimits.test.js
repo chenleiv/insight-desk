@@ -20,7 +20,7 @@ vi.mock("../../auth.js", () => {
 });
 vi.mock("../../textExtract.js", () => ({ extractTextFromBuffer }));
 vi.mock("../../logger.js", () => ({ logger: { info: vi.fn(), error: vi.fn() } }));
-vi.mock("mongodb", () => ({ GridFSBucket: class {} }));
+vi.mock("../../attachmentBucket.js", () => ({ getAttachmentBucket: () => new (class {})() }));
 
 import documentsRouter, { UPLOAD_RATE_LIMIT } from "../documents.js";
 

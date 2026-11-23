@@ -25,11 +25,10 @@ vi.mock("../../auth.js", () => {
 vi.mock("../../textExtract.js", () => ({ extractTextFromBuffer }));
 vi.mock("../../logger.js", () => ({ logger: { info: vi.fn(), error: vi.fn() } }));
 // Records which files are stored, so a test can see one left behind.
-vi.mock("mongodb", async () => {
+vi.mock("../../attachmentBucket.js", async () => {
   const { Readable } = await import("stream");
   let next = 0;
-  return {
-    GridFSBucket: class {
+  const GridFSBucket = class {
       openUploadStream(name, options) {
         const stream = new EventEmitter();
         stream.id = `gridfs-${++next}`;
@@ -47,8 +46,8 @@ vi.mock("mongodb", async () => {
         gridfs.files.delete(id);
         return Promise.resolve();
       }
-    },
-  };
+    };
+  return { getAttachmentBucket: () => new GridFSBucket() };
 });
 
 import documentsRouter from "../documents.js";

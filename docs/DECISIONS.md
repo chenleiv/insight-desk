@@ -12,6 +12,25 @@ A short log of project decisions, newest first. Security controls and accepted r
 
 ---
 
+## One MongoDB driver copy, taken from mongoose
+
+- **Date:** 2026-11-24
+- **Decision:** `backend/attachmentBucket.js` builds `GridFSBucket` from `mongoose.mongo`, and the direct `mongodb`
+  dependency is removed from `package.json`. The driver version now follows `mongoose`. Tests that stubbed the
+  `mongodb` module mock `backend/attachmentBucket.js` instead. No Dependabot group is added for `mongoose` and
+  `mongodb`, since there is no separate `mongodb` dependency left to update.
+- **Reason:**
+  - After #123 the lockfile held `mongodb` 7.9.1 (direct) and 7.8.0 (inside `mongoose` 9.12.3). The attachment bucket
+    class came from one copy and the `db` handle from the other.
+  - `attachmentBucket.js` was the only production import of `mongodb` (`git grep`).
+  - `npm ls mongodb --omit=dev` now shows one copy. The `mongodb` 7.5.0 copy under `mongodb-memory-server-core` is a
+    development dependency that only starts the test database.
+- **Alternatives rejected:** Keeping the direct dependency and pinning it to the version `mongoose` uses: every
+  `mongoose` release would need a matching manual bump. A Dependabot group for the two packages: it would keep two
+  copies whenever `mongodb` releases ahead of `mongoose`.
+
+---
+
 ## Dependabot groups for packages that must share a version
 
 - **Date:** 2026-11-24

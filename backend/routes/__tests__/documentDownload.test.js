@@ -17,7 +17,7 @@ vi.mock("../../rag/embed.js", () => ({ embed: vi.fn() }));
 vi.mock("../../rag/embedMissing.js", () => ({ scheduleEmbeddingRetry: vi.fn() }));
 vi.mock("../../textExtract.js", () => ({ extractTextFromBuffer: vi.fn() }));
 vi.mock("../../logger.js", () => ({ logger: { info: vi.fn(), error: vi.fn() } }));
-vi.mock("mongodb", () => ({ GridFSBucket: class {} }));
+vi.mock("../../attachmentBucket.js", () => ({ getAttachmentBucket: () => new (class {})() }));
 vi.mock("../../auth.js", () => {
   const authenticate = (req, _res, next) => {
     req.user = auth.user;

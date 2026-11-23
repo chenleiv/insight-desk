@@ -12,12 +12,12 @@ const { User, Document, Chunk, remove, bucketDelete } = vi.hoisted(() => ({
 vi.mock("../models.js", () => ({ User, Document, Chunk }));
 vi.mock("../rag/syncChunks.js", () => ({ deleteDocumentChunks: remove }));
 vi.mock("../logger.js", () => ({ logger: { info: vi.fn(), error: vi.fn() } }));
-vi.mock("mongodb", () => ({
-  GridFSBucket: class {
+vi.mock("../attachmentBucket.js", () => ({
+  getAttachmentBucket: () => new (class {
     delete(id) {
       return bucketDelete(id);
     }
-  },
+  })(),
 }));
 
 import { createDemoWorkspace, removeExpiredDemoWorkspaces, DEMO_TTL_MS } from "../demo.js";
