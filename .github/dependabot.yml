@@ -10,6 +10,14 @@ updates:
     ignore:
       - dependency-name: xlsx
     groups:
+      # react and react-dom must have the exact same version. Listed first because a dependency
+      # goes to the first group it matches, and the @types packages would otherwise match dev-minor-patch.
+      react:
+        patterns:
+          - react
+          - react-dom
+          - "@types/react"
+          - "@types/react-dom"
       dev-minor-patch:
         dependency-type: development
         update-types:
@@ -22,3 +30,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    groups:
+      # Every github/codeql-action step in a workflow must use the same version.
+      codeql-action:
+        patterns:
+          - github/codeql-action/*

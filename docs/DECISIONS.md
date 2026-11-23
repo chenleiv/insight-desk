@@ -12,6 +12,22 @@ A short log of project decisions, newest first. Security controls and accepted r
 
 ---
 
+## Dependabot groups for packages that must share a version
+
+- **Date:** 2026-11-24
+- **Decision:** `.github/dependabot.yml` has two new groups. `codeql-action` (github-actions) updates every
+  `github/codeql-action/*` step in one pull request. `react` (npm) updates `react`, `react-dom`, `@types/react` and
+  `@types/react-dom` in one pull request. The `react` group is listed before `dev-minor-patch`, because Dependabot
+  puts a dependency in the first group it matches and the `@types` packages are development dependencies.
+- **Reason:**
+  - Dependabot opened separate pull requests for `github/codeql-action/init` and `github/codeql-action/analyze`
+    (#116, #117). Both failed CI with "All steps in a workflow that use github/codeql-action must use the same
+    version".
+  - `react-dom` requires the exact same `react` version. #126 failed with "Incompatible React versions: react 19.3.1,
+    react-dom 19.2.1". The `@types` packages are grouped with them so the types follow the runtime.
+- **Alternatives rejected:** Merging the split pull requests by hand: each one fails CI on its own, and it recurs on
+  every release. Ignoring the packages in Dependabot: they would stop getting updates.
+
 ## Node 26 pinned with `.node-version`
 
 - **Date:** 2026-11-23
