@@ -12,6 +12,27 @@ A short log of project decisions, newest first. Security controls and accepted r
 
 ---
 
+## Node 26 pinned with `.node-version`
+
+- **Date:** 2026-11-23
+- **Decision:** `.node-version` holds `26`. CI reads it through `node-version-file`, and Render reads it because no
+  `NODE_VERSION` variable is set there, so CI and production run the same major. `engines` in `package.json` is
+  narrowed from `^20.19.0 || >=22.12.0` to `^22.12.0 || ^24.0.0 || ^26.0.0`. The server logs `process.version` on
+  startup to confirm the runtime version in the Render log.
+- **Reason:**
+  - Node 26 has the longest support window of the LTS lines and has been LTS since October 2026. The project owner
+    already develops on it.
+  - Node 20 is dropped from `engines`: it reached end of life in April 2026, and `docx` depends on a nested `nanoid`
+    whose `engines` is `^22 || ^24 || >=26` (`package-lock.json`), so it does not support Node 20.
+  - The range is bounded with no open `>=`, as Render's documentation advises, so a host cannot pick an untested
+    future major.
+- **Fallback rule:** Node 26 holds only if lint, tests and build pass on it locally and in the pull request's CI run.
+  If anything fails on 26, `.node-version` goes back to `24` (LTS, previously used by CI) and the failure is recorded
+  here.
+- **Alternatives rejected:** Node 24: a shorter support window, with no compatibility reason to prefer it. Pinning
+  through `engines` alone: a range lets CI and production pick different versions. A `NODE_VERSION` variable on
+  Render: it lives outside the repository and CI would not read it.
+
 ## Heading-aware chunking not merged
 
 - **Date:** 2026-11-15

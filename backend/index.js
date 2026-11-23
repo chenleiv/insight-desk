@@ -38,6 +38,7 @@ if (!process.env.MONGODB_URI) {
 
 const server = app.listen(PORT, () => {
     logger.info(`Server running on port ${PORT}`);
+    logger.info(`Node.js ${process.version}`);
 });
 
 process.on('SIGTERM', () => { server.close(() => process.exit(0)); });

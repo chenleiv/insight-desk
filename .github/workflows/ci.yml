@@ -4,17 +4,23 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Weekly audit of main, so a new advisory is noticed without a code change. Only the audit job runs.
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # The event name keeps a scheduled run from cancelling a push run on the same ref.
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   test:
     name: Lint, test, build
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -24,7 +30,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: npm
 
       # mongodb-memory-server downloads mongod from fastdl.mongodb.org in its postinstall.
@@ -53,7 +59,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24
+          node-version-file: .node-version
 
       # npm audit reads package-lock.json, so no install is needed.
       # xlsx comes from vendor/ and is not covered; see SECURITY.md.

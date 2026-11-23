@@ -386,9 +386,26 @@ Set in MongoDB Atlas and Render, not in this repository.
 
 ## Dependencies
 
-- **CI audit.** The `Dependency audit` job in `.github/workflows/ci.yml` runs on pushes to `main` and on every pull request.
+- **CI audit.** The `Dependency audit` job in `.github/workflows/ci.yml` runs on pushes to `main`, on every pull
+  request, every Monday on a schedule, and on manual dispatch. The scheduled run catches a new advisory on an
+  unchanged `main`; only the audit job runs on it.
   `npm audit --omit=dev --audit-level=high` fails it on a high or critical advisory in a production dependency;
   a full `npm audit` including dev dependencies is reported but does not fail it.
+- **Dependabot.** `.github/dependabot.yml` opens weekly update pull requests for npm and for GitHub Actions. Minor and
+  patch updates of dev dependencies are grouped into one pull request. Actions stay pinned to commit SHAs, and
+  Dependabot updates the SHA and its version comment together. `xlsx` is ignored, since it is installed from a
+  local tarball (below).
+- **Node version is pinned.** `.node-version` sets the Node major for CI (`node-version-file`) and for Render, which
+  has no `NODE_VERSION` variable set. `engines` in `package.json` is a bounded range of LTS majors. The server logs
+  `process.version` on startup, so the runtime version shows in the Render log
+  ([DECISIONS.md](docs/DECISIONS.md), "Node 26 pinned with `.node-version`").
+- **Known finding, accepted: dev-only `minimatch` advisory.** The full `npm audit` reports 13 moderate advisories with
+  one root cause: `minimatch` below 11.0.1, a potential denial of service through globparts amplification
+  ([GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)). It is reached only through `eslint` and
+  `typescript-eslint` (with their `@eslint/*` and `@typescript-eslint/*` packages and the two ESLint plugins). These
+  are dev dependencies used for linting: they are not installed in production and not reachable at runtime, and
+  the production audit is clean. No automatic fix is available yet; a Dependabot update of ESLint is expected to
+  clear it.
 - **CodeQL.** `.github/workflows/codeql.yml` scans the JavaScript and TypeScript code on pushes and pull requests
   to `main` and weekly.
 - **xlsx is not covered by npm audit.** The npm registry release of `xlsx` stopped at 0.18.5, which has known
