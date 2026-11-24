@@ -38,7 +38,7 @@
     "groq-sdk": "^1.6.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "lucide-react": "^0.563.0",
+    "lucide-react": "^1.77.0",
     "mammoth": "^1.13.0",
     "mongoose": "^9.12.3",
     "multer": "^2.5.0",
